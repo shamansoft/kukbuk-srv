@@ -30,8 +30,18 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'info.picocli:picocli:4.7.0'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+nativeImage {
+	mainClass = 'net.shamansoft.cookbook.CookbookApplication'
+	outputDirectory = file('build/native-image')
+}
+
+run {
+	dependsOn nativeImage
 }

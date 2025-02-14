@@ -1,23 +1,28 @@
 package net.shamansoft.cookbook;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.annotation.Order;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 @SpringBootApplication
 public class CookbookApplication implements ApplicationRunner {
 
-	@Value("${url}")
+	@Option(names = {"-u", "--url"}, description = "URL to process", required = true)
 	private String url;
 
-	@Value("${out}")
+	@Option(names = {"-o", "--out"}, description = "Output file name", required = true)
 	private String output;
 
 	public static void main(String[] args) {
-		SpringApplication.run(CookbookApplication.class, args);
+		int exitCode = new CommandLine(new CookbookApplication()).execute(args);
+		System.exit(exitCode);
 	}
 
 	@Override
