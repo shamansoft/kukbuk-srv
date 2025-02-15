@@ -33,15 +33,6 @@ dependencies {
 	implementation 'info.picocli:picocli:4.7.0'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-}
-
-nativeImage {
-	mainClass = 'net.shamansoft.cookbook.CookbookApplication'
-	outputDirectory = file('build/native-image')
-}
-
-run {
-	dependsOn nativeImage
+bootJar {
+	archiveFileName = 'cookbook.jar'
 }
