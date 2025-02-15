@@ -1,0 +1,72 @@
+---
+metadata:
+  title: "Chocolate Chip Cookies"
+  cover_image:
+    path: "images/cookies-main.jpg"
+    alt: "Freshly baked chocolate chip cookies on cooling rack"
+  author: "Jane Smith"
+  date_created: "2025-02-14"
+  category: ["dessert", "baking"]
+  tags: ["cookies", "chocolate", "family-favorite"]
+  servings: 24
+  prep_time: "20 minutes"
+  cook_time: "12 minutes"
+  total_time: "32 minutes"
+  difficulty: "easy"
+
+description: |
+  Classic chocolate chip cookies with a crispy edge and soft center. 
+  Perfect for **family gatherings** or *weekend treats*.
+
+ingredients:
+  - item: "all-purpose flour"
+    amount: 2.25
+    unit: "cups"
+    notes: "sifted"
+  - item: "baking soda"
+    amount: 1
+    unit: "tsp"
+  - item: "salt"
+    amount: 1
+    unit: "tsp"
+
+equipment:
+  - "mixing bowls"
+  - "baking sheets"
+  - "parchment paper"
+
+instructions:
+  - step: 1
+    description: |
+      Preheat oven to 375°F (190°C).
+      Line baking sheets with parchment paper.
+
+  - step: 2
+    media:
+      - type: "image"
+        path: "images/step2-mixing.jpg"
+        alt: "Whisking dry ingredients in bowl"
+      - type: "video"
+        path: "videos/mixing-technique.mp4"
+        thumbnail: "images/video-thumb.jpg"
+        duration: "1:30"
+    description: |
+      Mix dry ingredients:
+      1. Sift flour
+      2. Add baking soda and salt
+      3. Whisk together
+
+nutrition:
+  serving_size: "1 cookie"
+  calories: 150
+  protein: 2
+  carbohydrates: 25
+  fat: 6
+
+notes: |
+  - Store in an airtight container for up to 5 days
+  - Dough can be frozen for up to 3 months
+
+source: "Grandma's Recipe Box"
+schema_version: "1.0.0"
+recipe_version: "1.0.0"
