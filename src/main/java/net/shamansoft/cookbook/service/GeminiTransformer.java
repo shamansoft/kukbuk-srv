@@ -51,13 +51,20 @@ public class GeminiTransformer implements Transformer {
     }
 
     private Schema getRecipeSchema() {
-        //TODO implement: get schema from resources folder
-        return Schema.fromJson("");
-
+        try {
+            return Schema.fromJson(new String(org.springframework.util.StreamUtils.copyToByteArray(
+                    getClass().getClassLoader().getResourceAsStream("recipe-schema-1.0.0.json"))));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load recipe schema", e);
+        }
     }
 
     private String getExampleYaml() {
-        //TODO implement
-        return "";
+        try {
+            return new String(org.springframework.util.StreamUtils.copyToByteArray(
+                    getClass().getClassLoader().getResourceAsStream("example.yaml")));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load example YAML", e);
+        }
     }
 }
