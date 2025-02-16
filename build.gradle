@@ -32,6 +32,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'info.picocli:picocli:4.7.0'
 	implementation 'org.jsoup:jsoup:1.15.3'
+	implementation 'com.google.genai:google-genai:0.1.0'
 }
 
 bootJar {

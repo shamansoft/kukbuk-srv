@@ -1,0 +1,68 @@
+---
+metadata:
+  title: "Classic Chocolate Chip Cookies"
+  author: "Jane Baker"
+  source: "https://www.janebaker.com/recipes/chocolate-chip-cookies"
+  date_created: "2024-02-15"
+  category: ["dessert", "baking"]
+  tags: ["cookies", "chocolate", "family-favorite"]
+  servings: 24
+  prep_time: "2h"
+  cook_time: "15m"
+  total_time: "2h15m"
+  difficulty: "easy"
+  cover_image:
+    path: "/images/chocolate-cookies.jpg"
+    alt: "Golden brown chocolate chip cookies on cooling rack"
+
+description: |
+  Classic chocolate chip cookies with a crispy edge and soft center. 
+  Perfect for **family gatherings** or *weekend treats*.
+
+ingredients:
+  - item: "all-purpose flour"
+    amount: 2.25
+    unit: "cups"
+    notes: "sifted"
+  - item: "baking soda"
+    amount: 1
+    unit: "tsp"
+  - item: "salt"
+    amount: 1
+    unit: "tsp"
+
+equipment:
+  - "mixing bowls"
+  - "baking sheets"
+  - "parchment paper"
+
+instructions:
+  - step: 1
+    description: |
+      Preheat oven to 375°F (190°C).
+      Line baking sheets with parchment paper.
+
+  - step: 2
+    description: |
+      Mix dry ingredients:
+      1. Sift flour
+      2. Add baking soda and salt
+      3. Whisk together
+    media:
+      - type: "image"
+        path: "/images/mixing.jpg"
+        alt: "Whisking dry ingredients"
+
+nutrition:
+  serving_size: "1 cookie"
+  calories: 150
+  protein: 2
+  carbohydrates: 25
+  fat: 6
+
+notes: |
+  - Store in airtight container for up to 5 days
+  - Dough can be frozen for up to 3 months
+
+schema_version: "1.0.0"
+recipe_version: "1.0.0"

@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook;
+package net.shamansoft.cookbook.service;
 
 import org.springframework.stereotype.Service;
 import org.jsoup.Jsoup;

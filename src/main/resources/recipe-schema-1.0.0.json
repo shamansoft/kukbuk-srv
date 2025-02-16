@@ -1,24 +1,24 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://shamansoft.net/schemas/recipe/v1.0.json",
-  "version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shamansoft.net/schemas/recipe/1.0.0/schema.json",
   "title": "Recipe",
   "type": "object",
-  "required": ["metadata", "ingredients", "instructions"],
+  "required": ["metadata", "ingredients", "instructions", "schema_version", "recipe_version"],
   "properties": {
     "metadata": {
       "type": "object",
-      "required": ["title", "date_created"],
+      "required": ["title", "date_created", "servings"],
       "properties": {
         "title": { "type": "string" },
+        "source": { "type": "string" },
         "author": { "type": "string" },
         "date_created": { "type": "string", "format": "date" },
         "category": { "type": "array", "items": { "type": "string" } },
         "tags": { "type": "array", "items": { "type": "string" } },
         "servings": { "type": "integer", "minimum": 1 },
-        "prep_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
-        "cook_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
-        "total_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
+        "prep_time": { "$ref": "#/definitions/time_duration" },
+        "cook_time": { "$ref": "#/definitions/time_duration" },
+        "total_time": { "$ref": "#/definitions/time_duration" },
         "difficulty": {
           "type": "string",
           "enum": ["easy", "medium", "hard"]
@@ -33,7 +33,10 @@
         }
       }
     },
-    "description": { "type": "string" },
+    "description": {
+      "type": "string",
+      "description": "Markdown-formatted description"
+    },
     "ingredients": {
       "type": "array",
       "items": {
@@ -41,11 +44,12 @@
         "required": ["item", "amount", "unit"],
         "properties": {
           "item": { "type": "string" },
-          "amount": { "type": "number", "minimum": 0 },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
           "unit": { "type": "string" },
           "notes": { "type": "string" }
         }
-      }
+      },
+      "minItems": 1
     },
     "equipment": {
       "type": "array",
@@ -55,10 +59,13 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["step", "description"],
+        "required": ["description"],
         "properties": {
           "step": { "type": "integer", "minimum": 1 },
-          "description": { "type": "string" },
+          "description": {
+            "type": "string",
+            "description": "Markdown-formatted instruction"
+          },
           "media": {
             "type": "array",
             "items": {
@@ -68,7 +75,7 @@
                   "required": ["type", "path", "alt"],
                   "properties": {
                     "type": { "const": "image" },
-                    "path": { "type": "string" },
+                    "path": { "type": "string", "format": "uri-reference" },
                     "alt": { "type": "string" }
                   }
                 },
@@ -77,16 +84,21 @@
                   "required": ["type", "path", "thumbnail"],
                   "properties": {
                     "type": { "const": "video" },
-                    "path": { "type": "string" },
-                    "thumbnail": { "type": "string" },
-                    "duration": { "type": "string", "pattern": "^\\d+:\\d{2}$" }
+                    "path": { "type": "string", "format": "uri-reference" },
+                    "thumbnail": { "type": "string", "format": "uri-reference" },
+                    "duration": {
+                      "type": "string",
+                      "pattern": "^\\d+:\\d{2}$",
+                      "description": "Duration in MM:SS format"
+                    }
                   }
                 }
               ]
             }
           }
         }
-      }
+      },
+      "minItems": 1
     },
     "nutrition": {
       "type": "object",
@@ -98,15 +110,55 @@
         "fat": { "type": "number", "minimum": 0 }
       }
     },
-    "notes": { "type": "string" },
-    "source": { "type": "string" },
+    "notes": {
+      "type": "string",
+      "description": "Markdown-formatted notes"
+    },
     "schema_version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the schema"
     },
     "recipe_version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the recipe"
+    }
+  },
+  "definitions": {
+    "duration": {
+      "type": "object",
+      "required": ["value", "unit"],
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["minutes", "hours", "days"]
+        }
+      }
+    },
+    "time_duration": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["durations"],
+          "properties": {
+            "durations": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/duration" },
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "type": "string",
+          "pattern": "^(\\d+d\\s+)?(\\d+h\\s+)?(\\d+m)?$",
+          "description": "Duration in format: '1d 2h 30m' (days, hours, minutes)"
+        }
+      ]
     }
   }
 }
