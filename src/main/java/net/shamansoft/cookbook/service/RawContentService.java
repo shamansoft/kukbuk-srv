@@ -9,7 +9,7 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 
 @Service
-public class DownloadService {
+public class RawContentService {
 
     public String fetch(String url) throws IOException {
         Document doc = Jsoup.connect(url).get();

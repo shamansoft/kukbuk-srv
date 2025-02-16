@@ -21,7 +21,7 @@ public class GeminiTransformer implements Transformer {
     private final Client geminiClient;
     private final String exampleYaml;
     private final CleanupService cleanupService;
-    private final Schema schema;
+//    private final Schema schema;
     @Value("${cookbook.gemini.model}")
     private String model;
     @Value("${cookbook.gemini.prompt}")
@@ -32,7 +32,7 @@ public class GeminiTransformer implements Transformer {
     public GeminiTransformer(Client geminiClient, ResourceLoader resourceLoader, CleanupService cleanupService) throws IOException {
         this.geminiClient = geminiClient;
         this.exampleYaml = loadExampleYaml(resourceLoader);
-        this.schema = getSchema(resourceLoader);
+//        this.schema = getSchema(resourceLoader);
         this.cleanupService = cleanupService;
     }
 
