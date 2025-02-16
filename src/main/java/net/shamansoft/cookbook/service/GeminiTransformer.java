@@ -5,19 +5,23 @@ import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GeminiTransformer implements Transformer {
 
     private final Client geminiClient;
+    private final String exampleYaml;
+    private final CleanupService cleanupService;
+    private final Schema schema;
     @Value("${cookbook.gemini.model}")
     private String model;
     @Value("${cookbook.gemini.prompt}")
@@ -25,11 +29,16 @@ public class GeminiTransformer implements Transformer {
     @Value("${cookbook.gemini.temperature}")
     private float temperature;
 
+    public GeminiTransformer(Client geminiClient, ResourceLoader resourceLoader, CleanupService cleanupService) throws IOException {
+        this.geminiClient = geminiClient;
+        this.exampleYaml = loadExampleYaml(resourceLoader);
+        this.schema = getSchema(resourceLoader);
+        this.cleanupService = cleanupService;
+    }
+
+
     @Override
     public String transform(String what) {
-        // get file content from resource folder
-        String exampleYaml = getExampleYaml();
-        Schema schema = getRecipeSchema();
         try {
             var response = geminiClient.models.generateContent(model,
                     Content.builder().parts(List.of(
@@ -40,31 +49,25 @@ public class GeminiTransformer implements Transformer {
                     GenerateContentConfig.builder()
                             .temperature(temperature)
                             .topP(0.8f)
-                            .responseMimeType("application/x-yaml")
-                            .responseSchema(schema)
                             .build());
-            return response.text();
+            return cleanup(response.text());
         } catch (Exception e) {
             log.error("Failed to transform content", e);
         }
-        return "Could not transform content";
+        return "Could not transform content. Try again later.";
     }
 
-    private Schema getRecipeSchema() {
-        try {
-            return Schema.fromJson(new String(org.springframework.util.StreamUtils.copyToByteArray(
-                    getClass().getClassLoader().getResourceAsStream("recipe-schema-1.0.0.json"))));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load recipe schema", e);
-        }
+    private String cleanup(String text) {
+        return cleanupService.removeYamlSign(text);
     }
 
-    private String getExampleYaml() {
-        try {
-            return new String(org.springframework.util.StreamUtils.copyToByteArray(
-                    getClass().getClassLoader().getResourceAsStream("example.yaml")));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load example YAML", e);
-        }
+    private Schema getSchema(ResourceLoader resourceLoader) throws IOException {
+        return Schema.fromJson(resourceLoader.getResource("classpath:recipe-schema-1.0.0.json")
+                .getContentAsString(Charset.defaultCharset()));
+    }
+
+    private String loadExampleYaml(ResourceLoader resourceLoader) throws IOException {
+        return resourceLoader.getResource("classpath:example.yaml")
+                .getContentAsString(Charset.defaultCharset());
     }
 }

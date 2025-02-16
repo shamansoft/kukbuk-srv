@@ -38,3 +38,7 @@ dependencies {
 bootJar {
 	archiveFileName = 'cookbook.jar'
 }
+
+test {
+	useJUnitPlatform()
+}

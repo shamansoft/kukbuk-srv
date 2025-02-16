@@ -2,11 +2,15 @@ package net.shamansoft.cookbook.service;
 
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 @Service
 public class FSStoreService implements StoreService {
     @Override
     public void store(String what, String path) {
-        java.io.File file = new java.io.File(path);
+        File file = new File(path);
         if (file.exists()) {
             String fileName = file.getName();
             String extension = "";
@@ -15,11 +19,12 @@ public class FSStoreService implements StoreService {
                 extension = fileName.substring(dotIndex);
                 fileName = fileName.substring(0, dotIndex);
             }
-            file = new java.io.File(fileName + System.currentTimeMillis() + extension);
+            String parentPath = file.getParent();
+            file = new File(parentPath, fileName + System.currentTimeMillis() + extension);
         }
-        try (java.io.FileWriter writer = new java.io.FileWriter(file)) {
+        try (FileWriter writer = new FileWriter(file)) {
             writer.write(what);
-        } catch (java.io.IOException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

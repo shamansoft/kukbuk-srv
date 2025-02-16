@@ -18,10 +18,10 @@ public class CookbookCli implements Callable<Integer> {
     private final Transformer transformer;
     private final StoreService storeService;
 
-    @Option(names = {"-u", "--url"}, description = "URL to process", required = true)
+    @Option(names = {"-u", "--url"}, description = "URL to process", required = false, defaultValue = "https://www.gordonramsay.com/gr/recipes/roast-beef-with-caramelised-onion-gravy/")
     private String url;
 
-    @Option(names = {"-o", "--out"}, description = "Output file name", required = true)
+    @Option(names = {"-o", "--out"}, description = "Output file name", required = false, defaultValue = "build/output.yaml")
     private String outFile;
 
     @Override

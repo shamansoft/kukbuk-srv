@@ -8,6 +8,7 @@ import picocli.CommandLine;
 public class CookbookApplication {
 
     public static void main(String[] args) {
+        int a = 1;
         var ctx = SpringApplication.run(CookbookApplication.class, args);
         int exitCode = new CommandLine(ctx.getBean(CookbookCli.class)).execute(args);
         System.exit(exitCode);
