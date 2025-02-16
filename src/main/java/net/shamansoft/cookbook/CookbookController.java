@@ -5,10 +5,10 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.Transformer;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
 import java.io.IOException;
 
 @RestController
@@ -38,12 +38,14 @@ public class CookbookController {
                 .build();
     }
 
-    @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(IOException.class)
-    public void handleIOException() {}
+    public ResponseEntity<String> handleIOException(IOException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
-    public void handleGeneralException() {}
+    public void handleGeneralException() {
     }
 }
