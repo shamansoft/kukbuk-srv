@@ -10,13 +10,19 @@ fi
 
 TAG=$1
 
-# Build and push the Docker image for multiple platforms
+# Build and push or load the Docker image for multiple platforms
 echo "Building image with tag: $TAG"
-docker buildx build \
-  --platform linux/amd64 \
-  --build-arg BUILDPLATFORM=linux/amd64 \
-  -t gcr.io/cookbook-451120/cookbook:$TAG \
-  --push .
+if [ "$TAG" = "local" ]; then
+  docker buildx build \
+    --platform linux/amd64 \
+    -t gcr.io/cookbook-451120/cookbook:$TAG \
+    --load .
+else
+  docker buildx build \
+    --platform linux/amd64 \
+    -t gcr.io/cookbook-451120/cookbook:$TAG \
+    --push .
+fi
 
 # Print confirmation and image details
 echo "Build complete! Image details:"

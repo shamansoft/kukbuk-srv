@@ -13,7 +13,9 @@ public class ServiceConfig {
     @Bean
     public Client geminiClient(@Value("${cookbook.gemini.api-key}") String apiKey) {
         log.debug("Creating Gemini client with api-key={}", apiKey);
-        return Client.builder().apiKey(apiKey).build();
+        Client client = Client.builder().apiKey(apiKey).build();
+        log.debug("Gemini client created: {}", client);
+        return client;
     }
 
 }

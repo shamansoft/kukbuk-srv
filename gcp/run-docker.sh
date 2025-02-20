@@ -11,7 +11,7 @@ fi
 TAG=$1
 
 # Run the container with env file
-docker run -p 8080:8080 \
+docker run --platform linux/amd64 -p 8080:8080 \
   --env-file .env \
   -e SPRING_PROFILES_ACTIVE=gcp \
   -e PORT=8080 \

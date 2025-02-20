@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.service;
 
 import com.google.genai.Client;
+import com.google.genai.Models;
 import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.Part;
@@ -21,26 +22,42 @@ public class GeminiTransformer implements Transformer {
     private final Client geminiClient;
     private final String exampleYaml;
     private final CleanupService cleanupService;
-//    private final Schema schema;
-    @Value("${cookbook.gemini.model}")
-    private String model;
-    @Value("${cookbook.gemini.prompt}")
-    private String prompt;
-    @Value("${cookbook.gemini.temperature}")
-    private float temperature;
+    //    private final Schema schema;
+//    @Value("${cookbook.gemini.model}")
+    private final String model;
+//    @Value("${cookbook.gemini.prompt}")
+    private final String prompt;
+//    @Value("${cookbook.gemini.temperature}")
+    private final float temperature;
 
-    public GeminiTransformer(Client geminiClient, ResourceLoader resourceLoader, CleanupService cleanupService) throws IOException {
+    public GeminiTransformer(Client geminiClient,
+                             ResourceLoader resourceLoader,
+                             CleanupService cleanupService,
+                             @Value("${cookbook.gemini.model}") String model,
+                             @Value("${cookbook.gemini.prompt}") String prompt,
+                             @Value("${cookbook.gemini.temperature}") float temperature
+                         ) throws IOException {
         this.geminiClient = geminiClient;
         this.exampleYaml = loadExampleYaml(resourceLoader);
 //        this.schema = getSchema(resourceLoader);
         this.cleanupService = cleanupService;
+        this.model = model;
+        this.prompt = prompt;
+        this.temperature = temperature;
+        // print all the fields
+        log.debug("GeminiTransformer: model={}, prompt={}, temperature={}", model, prompt, temperature);
+        log.debug("Example YAML: {}", exampleYaml);
     }
 
 
     @Override
     public String transform(String what) {
         try {
-            var response = geminiClient.models.generateContent(model,
+            log.debug("transform: model={}, prompt={}, temperature={}", model, prompt, temperature);
+            log.debug("Gemini client: {}", geminiClient);
+            Models models = geminiClient.models
+            log.debug("Transforming content with model; {}", model);
+            var response = models.generateContent(model,
                     Content.builder().parts(List.of(
                             Part.builder().text(what).build(),
                             Part.builder().text(exampleYaml).build(),
