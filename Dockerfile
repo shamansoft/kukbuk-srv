@@ -1,13 +1,23 @@
 FROM --platform=$BUILDPLATFORM ghcr.io/graalvm/native-image-community:21 AS builder
+
 WORKDIR /app
 RUN microdnf install findutils
-COPY . .
-RUN ./gradlew nativeCompile
-RUN ls -la build/native/nativeCompile/
 
-FROM --platform=$BUILDPLATFORM ubuntu:22.04
+# Option 1: Dependency caching
+COPY build.gradle settings.gradle ./
+COPY gradle gradle
+COPY gradlew ./
+RUN ./gradlew dependencies
+
+COPY . .
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew nativeCompile
+
+FROM ubuntu:22.04
 WORKDIR /app
 COPY --from=builder /app/build/native/nativeCompile/cookbook .
-RUN ls -la
-EXPOSE 8080
-ENTRYPOINT ["./cookbook"]
+# Expose the port (though Cloud Run handles this, it's good practice)
+EXPOSE $PORT
+
+# Set the startup command, using the PORT environment variable
+CMD ["./cookbook", "--server.port=${PORT}"]

@@ -18,6 +18,11 @@ public class CookbookController {
     private final RawContentService rawContentService;
     private final Transformer transformer;
 
+    @GetMapping("/")
+    public String gcpHealth() {
+        return "OK";
+    }
+
     @GetMapping("/hello/{name}")
     public String index(@PathVariable("name") String name) {
         return "Hello, Cookbook user %s!".formatted(name);
@@ -28,14 +33,16 @@ public class CookbookController {
             consumes = "application/json",
             produces = "application/json"
     )
-    public RecipeResponse createRecipe(@RequestBody Request request) throws IOException {
+    public RecipeResponse createRecipe(@RequestBody Request request, @RequestParam("debug") boolean debug) throws IOException {
         String fetched = rawContentService.fetch(request.url());
         String transformed = transformer.transform(fetched);
-        return RecipeResponse.builder()
+        RecipeResponse.RecipeResponseBuilder content = RecipeResponse.builder()
                 .url(request.url())
-                .raw(fetched)
-                .content(transformed)
-                .build();
+                .content(transformed);
+        if (debug) {
+            content.raw(fetched);
+        }
+        return content.build();
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
