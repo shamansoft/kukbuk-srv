@@ -55,7 +55,7 @@ public class GeminiTransformer implements Transformer {
         try {
             log.debug("transform: model={}, prompt={}, temperature={}", model, prompt, temperature);
             log.debug("Gemini client: {}", geminiClient);
-            Models models = geminiClient.models
+            Models models = geminiClient.models;
             log.debug("Transforming content with model; {}", model);
             var response = models.generateContent(model,
                     Content.builder().parts(List.of(
