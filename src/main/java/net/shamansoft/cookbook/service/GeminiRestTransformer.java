@@ -9,7 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 
-@Service
+//@Service
 @Slf4j
 public class GeminiRestTransformer implements Transformer {
 
@@ -54,7 +54,6 @@ public class GeminiRestTransformer implements Transformer {
                             "topP": 0.8                                                                                                                                           
                         }                                                                                                                                                         
                     }""", escapeJson(what), escapeJson(exampleYaml), escapeJson(prompt), temperature);
-            log.debug("Request body: {}", requestBody);
             String url = "/models/%s:generateContent?key=%s".formatted(model, apiKey);
             JsonNode response = geminiWebClient.post()
                     .uri(url)

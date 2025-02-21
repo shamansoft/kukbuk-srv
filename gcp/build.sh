@@ -1,29 +1,37 @@
 #!/bin/bash
 
-# Check if tag is provided
+# Check args
 if [ -z "$1" ]; then
     echo "Error: Tag is required"
-    echo "Usage: ./build.sh <tag>"
+    echo "Usage: ./build.sh <tag> [--native]"
     echo "Example: ./build.sh v1.0"
     exit 1
 fi
 
 TAG=$1
+DOCKERFILE="Dockerfile.jvm"
 
-# Build and push or load the Docker image for multiple platforms
-echo "Building image with tag: $TAG"
-if [ "$TAG" = "local" ]; then
-  docker buildx build \
-    --platform linux/amd64 \
-    -f Dockerfile.native \
-    -t gcr.io/cookbook-451120/cookbook:$TAG \
-    --load .
+# Check for --native flag
+if [[ "$*" == *"--native"* ]]; then
+    DOCKERFILE="Dockerfile.native"
 else
-  docker buildx build \
-    --platform linux/amd64 \
-    -f Dockerfile.native \
-    -t gcr.io/cookbook-451120/cookbook:$TAG \
-    --push .
+    echo "Building JVM image..."
+    ./gradlew build
+fi
+
+# Build command
+if [ "$TAG" = "local" ]; then
+    docker buildx build \
+        --platform linux/amd64 \
+        -f $DOCKERFILE \
+        -t gcr.io/cookbook-451120/cookbook:$TAG \
+        --load .
+else
+    docker buildx build \
+        --platform linux/amd64 \
+        -f $DOCKERFILE \
+        -t gcr.io/cookbook-451120/cookbook:$TAG \
+        --push .
 fi
 
 # Print confirmation and image details
