@@ -15,11 +15,13 @@ echo "Building image with tag: $TAG"
 if [ "$TAG" = "local" ]; then
   docker buildx build \
     --platform linux/amd64 \
+    -f Dockerfile.native \
     -t gcr.io/cookbook-451120/cookbook:$TAG \
     --load .
 else
   docker buildx build \
     --platform linux/amd64 \
+    -f Dockerfile.native \
     -t gcr.io/cookbook-451120/cookbook:$TAG \
     --push .
 fi
