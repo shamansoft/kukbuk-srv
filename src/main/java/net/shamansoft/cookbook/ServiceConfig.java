@@ -12,16 +12,14 @@ import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.net.URI;
-
 @Configuration
 @Slf4j
 public class ServiceConfig {
 
     @Bean
     public Client geminiClient(@Value("${cookbook.gemini.api-key}") String apiKey) {
-        Client client = Client.builder().apiKey(apiKey).build();
-        return client;
+        log.debug("Creating Gemini client with API key {}", apiKey);
+        return Client.builder().apiKey(apiKey).build();
     }
 
     @Bean
@@ -33,10 +31,11 @@ public class ServiceConfig {
                 });
     }
 
-    private static String hideKey(ClientRequest clientRequest) {
-        return clientRequest.url().getPath() +
-                clientRequest.url()
-                        .getQuery()
+    static String hideKey(ClientRequest clientRequest) {
+        return clientRequest.url().getPath()
+                + "?"
+                + clientRequest.url()
+                .getQuery()
                 .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
     }
 

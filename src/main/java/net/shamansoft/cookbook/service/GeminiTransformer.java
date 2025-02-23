@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
 
-@Service
+//@Service
 @Slf4j
 public class GeminiTransformer implements Transformer {
 

@@ -9,7 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 
-//@Service
+@Service
 @Slf4j
 public class GeminiRestTransformer implements Transformer {
 
