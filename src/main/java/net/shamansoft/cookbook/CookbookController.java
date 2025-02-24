@@ -34,14 +34,13 @@ public class CookbookController {
             produces = "application/json"
     )
     public RecipeResponse createRecipe(@RequestBody Request request,
-                                       @RequestParam(value = "debug", required = false) boolean debug) throws IOException {
-        String fetched = rawContentService.fetch(request.url());
-        String transformed = transformer.transform(fetched);
+                                       @RequestParam(value = "debug", required = false) boolean debug) {
+        String transformed = transformer.transform(request.html());
         RecipeResponse.RecipeResponseBuilder content = RecipeResponse.builder()
-                .url(request.url())
+                .title(request.title())
                 .content(transformed);
         if (debug) {
-            content.raw(fetched);
+            content.raw(request.html());
         }
         return content.build();
     }

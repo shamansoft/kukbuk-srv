@@ -1,4 +1,4 @@
 package net.shamansoft.cookbook.dto;
 
-public record Request(String url) {
+public record Request(String html, String title) {
 }
