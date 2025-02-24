@@ -40,6 +40,7 @@ public class CookbookController {
         String transformed = transformer.transform(request.html());
         RecipeResponse.RecipeResponseBuilder content = RecipeResponse.builder()
                 .title(request.title())
+                .url(request.url())
                 .content(transformed);
         if (debug) {
             content.raw(request.html());
