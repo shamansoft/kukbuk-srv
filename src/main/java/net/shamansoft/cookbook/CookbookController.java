@@ -15,6 +15,8 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequiredArgsConstructor
+@CrossOrigin(origins = "chrome-extension://*",
+        allowedHeaders = {"Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID"})
 public class CookbookController {
 
     private final RawContentService rawContentService;
