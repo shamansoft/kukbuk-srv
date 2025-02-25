@@ -10,9 +10,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("chrome-extension://*")
+                .allowedOriginPatterns("chrome-extension://*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID")
-                .allowCredentials(true);
+//                .allowedHeaders("Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID", "Accept")
+                .allowedHeaders("*")
+                .exposedHeaders("*")
+                .allowCredentials(false);
     }
 }

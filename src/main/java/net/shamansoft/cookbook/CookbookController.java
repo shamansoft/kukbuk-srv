@@ -16,8 +16,11 @@ import java.io.IOException;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "chrome-extension://*",
-        allowedHeaders = {"Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID"})
+@CrossOrigin(originPatterns = "chrome-extension://*",
+//        allowedHeaders = {"Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID", "Accept"},
+        allowedHeaders = "*",
+        exposedHeaders = "*",
+        allowCredentials = "false")
 public class CookbookController {
 
     private final RawContentService rawContentService;
