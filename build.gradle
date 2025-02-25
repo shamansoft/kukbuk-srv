@@ -6,12 +6,16 @@ plugins {
 }
 
 group = 'net.shamansoft'
-version = '0.1.0'
+version = '0.2.0'
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
 	}
+}
+
+springBoot {
+	buildInfo()   // This will generate a build-info.properties file with accurate values
 }
 
 configurations {

@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# Get image tag from command line argument or use "latest" as default
+IMAGE_TAG=${1:-latest}
+
 # Deploy to Cloud Run
 gcloud run deploy cookbook \
-  --image gcr.io/cookbook-451120/cookbook \
+  --image gcr.io/cookbook-451120/cookbook:$IMAGE_TAG \
   --platform managed \
   --region us-west1 \
   --port 8080 \
