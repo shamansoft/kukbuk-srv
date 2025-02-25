@@ -14,26 +14,35 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
 
-@Service
+//@Service
 @Slf4j
 public class GeminiTransformer implements Transformer {
 
     private final Client geminiClient;
     private final String exampleYaml;
     private final CleanupService cleanupService;
-//    private final Schema schema;
-    @Value("${cookbook.gemini.model}")
-    private String model;
-    @Value("${cookbook.gemini.prompt}")
-    private String prompt;
-    @Value("${cookbook.gemini.temperature}")
-    private float temperature;
+    //    private final Schema schema;
+//    @Value("${cookbook.gemini.model}")
+    private final String model;
+    //    @Value("${cookbook.gemini.prompt}")
+    private final String prompt;
+    //    @Value("${cookbook.gemini.temperature}")
+    private final float temperature;
 
-    public GeminiTransformer(Client geminiClient, ResourceLoader resourceLoader, CleanupService cleanupService) throws IOException {
+    public GeminiTransformer(Client geminiClient,
+                             ResourceLoader resourceLoader,
+                             CleanupService cleanupService,
+                             @Value("${cookbook.gemini.model}") String model,
+                             @Value("${cookbook.gemini.prompt}") String prompt,
+                             @Value("${cookbook.gemini.temperature}") float temperature
+    ) throws IOException {
         this.geminiClient = geminiClient;
         this.exampleYaml = loadExampleYaml(resourceLoader);
 //        this.schema = getSchema(resourceLoader);
         this.cleanupService = cleanupService;
+        this.model = model;
+        this.prompt = prompt;
+        this.temperature = temperature;
     }
 
 
