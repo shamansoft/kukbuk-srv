@@ -46,7 +46,8 @@ public class CookbookController {
     )
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) String compression,
-                                       @RequestParam(value = "debug", required = false) boolean debug) throws IOException {
+                                       @RequestParam(value = "debug", required = false) boolean debug)
+            throws IOException {
 
         String html = "";
         // Try to use the HTML from the request first
@@ -62,7 +63,7 @@ public class CookbookController {
             } catch (IOException e) {
                 log.warn("Failed to decompress HTML from request: {}", e.getMessage());
                 log.debug("Falling back to fetching HTML from URL");
-                html = rawContentService.fetch(request.url());
+                throw e;
             }
         } else {
             // Fallback to fetching from the URL

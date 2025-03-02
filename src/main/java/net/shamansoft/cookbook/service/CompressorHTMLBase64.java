@@ -39,8 +39,7 @@ public class CompressorHTMLBase64 implements Compressor {
             }
         } catch (IllegalArgumentException e) {
             log.warn("Content doesn't appear to be Base64 encoded: {}", e.getMessage());
-            // If not Base64, return the original content
-            return content;
+            throw new IOException("Content isn't Base64 encoded", e);
         }
     }
 }
