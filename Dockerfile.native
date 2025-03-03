@@ -13,9 +13,15 @@ COPY . .
 #RUN --mount=type=cache,target=/root/.gradle \
 #    ./gradlew nativeCompile
 
+# Extreme memory optimization settings
+ENV JAVA_OPTS="-Xmx8g -XX:MaxMetaspaceSize=512m"
+ENV NATIVE_IMAGE_OPTS="-J-Xmx2560m -J-XX:MaxMetaspaceSize=512m -H:+PrintAnalysisCallTree -H:MaximumHeapSizePercent=50"
+
+# Run native compilation with memory constraints and incremental build support
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew nativeCompile \
-    -Porg.graalvm.buildtools.native.targetPlatform=linux-amd64
+    ./gradlew -Dorg.gradle.jvmargs="-Xmx6g" nativeCompile \
+    -Porg.graalvm.buildtools.native.targetPlatform=linux-amd64 \
+    -Porg.graalvm.buildtools.native.imageName=cookbook
 
 FROM --platform=linux/amd64 ubuntu:22.04
 WORKDIR /app
