@@ -2,6 +2,7 @@ package net.shamansoft.cookbook;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
@@ -16,6 +17,7 @@ import java.io.IOException;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @CrossOrigin(originPatterns = "chrome-extension://*",
 //        allowedHeaders = {"Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID", "Accept"},
         allowedHeaders = "*",
@@ -44,16 +46,28 @@ public class CookbookController {
     )
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) String compression,
-                                       @RequestParam(value = "debug", required = false) boolean debug) throws IOException {
+                                       @RequestParam(value = "debug", required = false) boolean debug)
+            throws IOException {
 
-        var html = "";
-        if(request.html() != null) {
+        String html = "";
+        // Try to use the HTML from the request first
+        if (request.html() != null && !request.html().isEmpty()) {
             try {
-                html = compressor.decompress(request.html());
+                if("none".equals(compression)) {
+                    html = request.html();
+                    log.debug("Skipping decompression, using HTML from request");
+                } else {
+                    html = compressor.decompress(request.html());
+                    log.debug("Successfully decompressed HTML from request");
+                }
             } catch (IOException e) {
-                rawContentService.fetch(request.url());
+                log.warn("Failed to decompress HTML from request: {}", e.getMessage());
+                log.debug("Falling back to fetching HTML from URL");
+                throw e;
             }
         } else {
+            // Fallback to fetching from the URL
+            log.debug("No HTML in request, fetching from URL: {}", request.url());
             html = rawContentService.fetch(request.url());
         }
         String transformed = transformer.transform(html);
