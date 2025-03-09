@@ -8,6 +8,84 @@
 - Store authentication token securely in extension storage
 - Add sign-out functionality
 
+#### Extension Tasks
+
+1. **Add Google OAuth Integration**
+    * Implement OAuth 2.0 flow using Chrome Identity API
+    * Configure extension permissions for identity in manifest.json
+    * Create authorization request with appropriate scopes for Google Sign-In
+    * Handle OAuth callbacks and token processing
+
+2. **Implement Sign-in UI**
+    * Add sign-in button to the extension popup
+    * Create loading/processing state for authentication flow
+    * Design user profile display after successful authentication
+    * Implement error handling for failed authentication attempts
+
+3. **Secure Token Storage**
+    * Store authentication tokens in chrome.storage.local with encryption
+    * Implement token refresh mechanism
+    * Create helper functions to retrieve and validate tokens
+    * Handle token expiration gracefully
+
+4. **Sign-out Functionality**
+    * Add sign-out button to the UI
+    * Implement token revocation with Google
+    * Clear local storage on sign-out
+    * Reset UI state after sign-out
+
+#### Backend Tasks
+
+1. **Token Verification**
+    * Implement Google token verification endpoint
+    * Validate JWT tokens from Google
+    * Extract and store relevant user information
+    * Return session tokens for subsequent API calls
+
+2. **User Management**
+    * Create user database schema for Google accounts
+    * Implement user creation/lookup based on Google profile
+    * Add user role/permission management
+    * Create API for user profile information
+
+3. **Authentication Middleware**
+    * Update API endpoints to require authentication
+    * Implement token validation for all protected routes
+    * Add proper error responses for unauthenticated requests
+    * Create middleware for request logging with user context
+
+4. **Token Refresh Handling**
+    * Implement endpoint for token refresh
+    * Configure token expiration policies
+    * Add session invalidation mechanism
+    * Handle cross-device sign-out
+
+#### GCP Infrastructure Tasks
+
+1. **Identity Platform Setup**
+    * Enable Google Identity Platform in GCP
+    * Configure OAuth client credentials
+    * Set up proper redirect URIs for Chrome extension
+    * Configure allowed origins for CORS
+
+2. **IAM Configuration**
+    * Create service accounts for token verification
+    * Configure IAM roles and permissions
+    * Set up audit logging for authentication events
+    * Implement least privilege access principles
+
+3. **Secret Management**
+    * Store OAuth client secrets in Secret Manager
+    * Configure access to secrets for Cloud Run service
+    * Implement secret rotation policy
+    * Add monitoring for secret access
+
+4. **Security Enhancements**
+    * Implement rate limiting for authentication endpoints
+    * Configure Cloud Armor for additional protection
+    * Set up monitoring for suspicious authentication activities
+    * Create alerting for authentication failures
+
 ### As a user, I want the app to only access a specific folder in my Google Drive
 - Request minimal scoped Drive permissions
 - Allow user to select or create a designated "Recipes" folder
