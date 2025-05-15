@@ -48,7 +48,7 @@ if [ "$NATIVE_FLAG" = true ]; then
     echo "Building Native image with tag $TAG and memory limit $MEMORY_LIMIT..."
 else
     echo "Building JVM image with tag $TAG..."
-    ./gradlew build
+    ./gradlew build || { echo "Gradle build failed"; exit 1; }
 fi
 
 # Build command with memory limit
@@ -75,11 +75,11 @@ else
         --memory=$MEMORY_LIMIT \
         --memory-swap=$MEMORY_LIMIT \
         $BUILD_ARGS \
-        --push .
+        --push . || { echo "Docker build failed"; exit 1; }
 fi
 
-cd gcp
+cd ./scripts
 # Print confirmation and image details
 echo "Build complete! Image details:"
 #docker images | grep cookbook
-echo $TAG
+echo "$TAG"

@@ -41,6 +41,12 @@ public class CookbookController {
         return "Hello, Cookbook user %s!".formatted(name);
     }
 
+    RecipeResponse createRecipe(Request request,
+                                       String compression,
+                                       boolean debug) throws IOException {
+        return createRecipe(request, compression, debug, new HttpHeaders());
+    }
+    
     @PostMapping(
             path = "/recipe",
             consumes = "application/json",
