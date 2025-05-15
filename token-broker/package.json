@@ -1,0 +1,8 @@
+{
+  "name": "token-broker",
+  "version": "0.0.1",
+  "main": "index.js",
+  "dependencies": {
+    "google-auth-library": "9.0.0"
+  }
+}
