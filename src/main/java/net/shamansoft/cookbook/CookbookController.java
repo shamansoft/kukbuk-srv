@@ -8,6 +8,7 @@ import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.Transformer;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,6 +26,7 @@ import java.io.IOException;
         allowCredentials = "false")
 public class CookbookController {
 
+    public static final String NONE = "none";
     private final RawContentService rawContentService;
     private final Transformer transformer;
     private final Compressor compressor;
@@ -46,14 +48,19 @@ public class CookbookController {
     )
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) String compression,
-                                       @RequestParam(value = "debug", required = false) boolean debug)
+                                       @RequestParam(value = "debug", required = false) boolean debug,
+                                       @RequestHeader HttpHeaders httpHeaders
+                                       )
             throws IOException {
+
+        //log all headers
+        log.debug("Headers: {}", httpHeaders.toString());
 
         String html = "";
         // Try to use the HTML from the request first
         if (request.html() != null && !request.html().isEmpty()) {
             try {
-                if("none".equals(compression)) {
+                if(NONE.equals(compression)) {
                     html = request.html();
                     log.debug("Skipping decompression, using HTML from request");
                 } else {
@@ -71,6 +78,7 @@ public class CookbookController {
             html = rawContentService.fetch(request.url());
         }
         String transformed = transformer.transform(html);
+        log.debug("Transformed content: {}", transformed);
         RecipeResponse.RecipeResponseBuilder content = RecipeResponse.builder()
                 .title(request.title())
                 .url(request.url())
