@@ -6,13 +6,24 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 
@@ -30,6 +41,8 @@ public class CookbookController {
     private final RawContentService rawContentService;
     private final Transformer transformer;
     private final Compressor compressor;
+    private final DriveService googleDriveService;
+    private final TokenService tokenService;
 
     @GetMapping("/")
     public String gcpHealth() {
@@ -42,11 +55,11 @@ public class CookbookController {
     }
 
     RecipeResponse createRecipe(Request request,
-                                       String compression,
-                                       boolean debug) throws IOException {
+                                String compression,
+                                boolean debug) throws IOException {
         return createRecipe(request, compression, debug, new HttpHeaders());
     }
-    
+
     @PostMapping(
             path = "/recipe",
             consumes = "application/json",
@@ -56,17 +69,50 @@ public class CookbookController {
                                        @RequestParam(value = "compression", required = false) String compression,
                                        @RequestParam(value = "debug", required = false) boolean debug,
                                        @RequestHeader HttpHeaders httpHeaders
-                                       )
+    )
             throws IOException {
 
-        //log all headers
         log.debug("Headers: {}", httpHeaders.toString());
 
+        String html = extractHtml(request, compression);
+        String transformed = transformer.transform(html);
+        log.debug("Transformed content: {}", transformed);
+        RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
+                .title(request.title())
+                .url(request.url())
+                .content(transformed);
+        // Google Drive integration: if auth-token header is present, persist the recipe YAML
+        storeToDrive(request, httpHeaders, transformed, responseBuilder);
+        if (debug) {
+            responseBuilder.raw(html);
+        }
+        return responseBuilder.build();
+    }
+
+    private void storeToDrive(Request request, HttpHeaders httpHeaders, String transformed, RecipeResponse.RecipeResponseBuilder responseBuilder) {
+        String authToken = httpHeaders.getFirst("X-S-AUTH-TOKEN");
+        if (authToken != null && !authToken.isBlank()) {
+            // Validate token
+            if (!tokenService.verifyToken(authToken)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "Invalid auth token");
+            }
+            // Ensure kukbuk folder exists
+            String folderId = googleDriveService.getOrCreateFolder(authToken);
+            // Generate filename and upload content
+            String fileName = googleDriveService.generateFileName(request.title());
+            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, transformed);
+            responseBuilder.driveFileId(uploadResult.fileId())
+                    .driveFileUrl(uploadResult.fileUrl());
+        }
+    }
+
+    private String extractHtml(Request request, String compression) throws IOException {
         String html = "";
         // Try to use the HTML from the request first
         if (request.html() != null && !request.html().isEmpty()) {
             try {
-                if(NONE.equals(compression)) {
+                if (NONE.equals(compression)) {
                     html = request.html();
                     log.debug("Skipping decompression, using HTML from request");
                 } else {
@@ -83,16 +129,7 @@ public class CookbookController {
             log.debug("No HTML in request, fetching from URL: {}", request.url());
             html = rawContentService.fetch(request.url());
         }
-        String transformed = transformer.transform(html);
-        log.debug("Transformed content: {}", transformed);
-        RecipeResponse.RecipeResponseBuilder content = RecipeResponse.builder()
-                .title(request.title())
-                .url(request.url())
-                .content(transformed);
-        if (debug) {
-            content.raw(html);
-        }
-        return content.build();
+        return html;
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

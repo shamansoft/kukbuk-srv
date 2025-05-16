@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'net.shamansoft'
-version = '0.2.14'
+version = '0.3.2'
 
 java {
 	toolchain {
@@ -36,12 +36,12 @@ dependencies {
 	implementation('com.google.genai:google-genai:0.1.0') {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
+	implementation 'com.google.apis:google-api-services-drive:v3-rev20250511-2.0.0'
 	implementation 'org.jsoup:jsoup:1.15.3'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 bootJar {
