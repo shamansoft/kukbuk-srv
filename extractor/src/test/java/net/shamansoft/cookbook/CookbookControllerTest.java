@@ -3,21 +3,24 @@ package net.shamansoft.cookbook;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import net.shamansoft.cookbook.service.GoogleDriveRestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -34,7 +37,9 @@ class CookbookControllerTest {
     @Mock
     private Compressor compressor;
     @Mock
-    private GoogleDriveRestService googleDriveService;
+    private DriveService driveService;
+    @Mock
+    private TokenService tokenService;
 
     @InjectMocks
     private CookbookController controller;
@@ -55,11 +60,11 @@ class CookbookControllerTest {
         when(compressor.decompress("compressed html")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
 
-        RecipeResponse response = controller.createRecipe(request, null, false);
+        RecipeResponse response = controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token"));
 
         assertThat(response)
-            .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::content)
-            .containsExactly("Title", "http://example.com", "transformed content");
+            .extracting(RecipeResponse::title, RecipeResponse::url)
+            .containsExactly("Title", "http://example.com");
     }
 
     @Test
@@ -68,10 +73,10 @@ class CookbookControllerTest {
         when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
 
-        RecipeResponse response = controller.createRecipe(request, null, false);
+        RecipeResponse response = controller.createRecipe(request, null, false, Map.of("X-S-AUTH-TOKEN", "token"));
 
         assertThat(response)
-            .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::content)
+            .extracting(RecipeResponse::title, RecipeResponse::url)
             .containsExactly("Title", "http://example.com", "transformed content");
     }
 
@@ -80,10 +85,15 @@ class CookbookControllerTest {
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
+        when(tokenService.verifyToken(anyString())).thenReturn(true);
+        when(driveService.getOrCreateFolder(anyString())).thenReturn("folder");
+        when(driveService.uploadRecipeYaml(anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(new DriveService.UploadResult("file-id", "drive-url"));
+        RecipeResponse response = controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token"));
 
-        RecipeResponse response = controller.createRecipe(request, null, true);
-
-        assertThat(response.raw()).isEqualTo("raw html");
+        assertThat(response.title()).isEqualTo("Title");
+        assertThat(response.url()).isEqualTo("http://example.com");
+        assertThat(response.driveFileUrl()).isEqualTo("drive-url");
     }
 
     @Test
@@ -91,10 +101,9 @@ class CookbookControllerTest {
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn("transformed content");
 
-        RecipeResponse response = controller.createRecipe(request, "none", false);
+        RecipeResponse response = controller.createRecipe(request, "none", false, Map.of("X-S-AUTH-TOKEN", "token"));
 
         verify(compressor, never()).decompress(any());
-        assertThat(response.content()).isEqualTo("transformed content");
     }
 
     @Test

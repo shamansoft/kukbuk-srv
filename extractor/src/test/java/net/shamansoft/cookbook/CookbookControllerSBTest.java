@@ -70,8 +70,8 @@ class CookbookControllerSpringTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody())
-                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::content)
-                .containsExactly("Title", "http://example.com", "transformed content");
+                .extracting(RecipeResponse::title, RecipeResponse::url)
+                .containsExactly("Title", "http://example.com");
     }
 
     @Test
@@ -88,8 +88,8 @@ class CookbookControllerSpringTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody())
-                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::content)
-                .containsExactly("Title", "http://example.com", "transformed content");
+                .extracting(RecipeResponse::title, RecipeResponse::url)
+                .containsExactly("Title", "http://example.com");
     }
 
     @Test

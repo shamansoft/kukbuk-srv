@@ -13,6 +13,7 @@ import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -56,8 +58,10 @@ public class CookbookController {
 
     RecipeResponse createRecipe(Request request,
                                 String compression,
-                                boolean debug) throws IOException {
-        return createRecipe(request, compression, debug, new HttpHeaders());
+                                boolean test,
+                                Map<String,String> headers) throws IOException {
+        return createRecipe(request, compression,
+                new HttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers))));
     }
 
     @PostMapping(
@@ -67,7 +71,6 @@ public class CookbookController {
     )
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) String compression,
-                                       @RequestParam(value = "debug", required = false) boolean debug,
                                        @RequestHeader HttpHeaders httpHeaders
     )
             throws IOException {
@@ -79,13 +82,9 @@ public class CookbookController {
         log.debug("Transformed content: {}", transformed);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(request.title())
-                .url(request.url())
-                .content(transformed);
+                .url(request.url());
         // Google Drive integration: if auth-token header is present, persist the recipe YAML
         storeToDrive(request, httpHeaders, transformed, responseBuilder);
-        if (debug) {
-            responseBuilder.raw(html);
-        }
         return responseBuilder.build();
     }
 
