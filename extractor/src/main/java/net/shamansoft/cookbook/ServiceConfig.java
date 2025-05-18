@@ -24,7 +24,7 @@ public class ServiceConfig {
 
     @Bean
     public Client geminiClient(@Value("${cookbook.gemini.api-key}") String apiKey) {
-        log.debug("Creating Gemini client with API key {}", apiKey);
+        log.debug("Creating Gemini client with API key {}", hideKey(apiKey));
         return Client.builder().apiKey(apiKey).build();
     }
 
@@ -43,6 +43,14 @@ public class ServiceConfig {
                 + clientRequest.url()
                 .getQuery()
                 .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
+    }
+
+    // shows first 3 chars of the key and last 3 chars, e.g. "abc***xyz"
+    static String hideKey(String apiKey) {
+        if (apiKey.length() < 6) {
+            return apiKey;
+        }
+        return apiKey.substring(0, 3) + "***" + apiKey.substring(apiKey.length() - 3);
     }
 
     @Bean

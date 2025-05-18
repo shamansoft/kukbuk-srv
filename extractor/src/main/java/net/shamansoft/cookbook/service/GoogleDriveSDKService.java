@@ -82,6 +82,7 @@ public class GoogleDriveSDKService implements DriveService {
                         .setFields("id")
                         .setOauthToken(authToken)
                         .execute();
+                log.debug("Updated file: {}", file.getId());
             } else {
                 // File does not exist: set parent folder and create file
                 fileMetadata.setParents(Collections.singletonList(folderId));
@@ -89,6 +90,7 @@ public class GoogleDriveSDKService implements DriveService {
                         .setFields("id")
                         .setOauthToken(authToken)
                         .execute();
+                log.debug("Created file: {}", file.getId());
             }
             return new UploadResult(file.getId(), getFileUrl(file.getId()));
         } catch (IOException e) {
