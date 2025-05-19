@@ -15,23 +15,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class GoogleDriveSDKService implements DriveService {
 
     private final Drive drive;
     @Value("${cookbook.drive.folder-name:kukbuk}")
     private String folderName;
-
-    @Override
-    public String generateFileName(String title) {
-        String base = (title == null || title.isBlank()) ? "recipe-" + System.currentTimeMillis() : title;
-        String clean = base.trim().toLowerCase().replaceAll("[^a-z0-9]+", "-");
-        if (clean.endsWith("-")) {
-            clean = clean.substring(0, clean.length() - 1);
-        }
-        return clean + ".yaml";
-    }
 
     @Override
     public String getOrCreateFolder(String authToken) {

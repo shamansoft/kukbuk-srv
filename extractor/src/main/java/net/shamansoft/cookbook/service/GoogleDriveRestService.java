@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -12,6 +13,7 @@ import java.util.Map;
  * Service for Google Drive operations related to the Cookbook application.
  */
 @Slf4j
+@Service
 public class GoogleDriveRestService implements DriveService {
     private final WebClient driveClient;
     private final WebClient uploadClient;
@@ -51,21 +53,6 @@ public class GoogleDriveRestService implements DriveService {
         this.uploadClient = uploadClient;
     }
 
-    /**
-     * Generates a clean filename for the recipe YAML based on the title.
-     *
-     * @param title the recipe title
-     * @return sanitized filename ending with .yaml
-     */
-    @Override
-    public String generateFileName(String title) {
-        String base = (title == null || title.isBlank()) ? "recipe-" + System.currentTimeMillis() : title;
-        String clean = base.trim().toLowerCase().replaceAll("[^a-z0-9]+", "-");
-        if (clean.endsWith("-")) {
-            clean = clean.substring(0, clean.length() - 1);
-        }
-        return clean + ".yaml";
-    }
 
     /**
      * Retrieves or creates the configured folder in the user's Google Drive.
@@ -110,6 +97,7 @@ public class GoogleDriveRestService implements DriveService {
             if (created == null || !created.containsKey("id")) {
                 throw new RuntimeException("Failed to create Drive folder");
             }
+            log.info("Created folder '{}' with ID: {}", folderName, created.get("id"));
             return created.get("id").toString();
         } catch (WebClientResponseException e) {
             log.error("Drive folder lookup/creation failed: {}", e.getResponseBodyAsString());
@@ -145,7 +133,28 @@ public class GoogleDriveRestService implements DriveService {
             var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
             if (files != null && !files.isEmpty()) {
                 String existingId = files.get(0).get("id").toString();
-                // Update existing file via simple upload
+                
+                // First ensure the metadata is correct (especially the name)
+                Map<String, Object> metadata = Map.of(
+                        "name", fileName
+                );
+            
+                log.debug("Updating file metadata for ID: {}, setting name: {}", existingId, fileName);
+                try {
+                    driveClient.patch()
+                            .uri(uri -> uri.path("/files/" + existingId)
+                                    .build())
+                            .header("Authorization", "Bearer " + authToken)
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .bodyValue(metadata)
+                            .retrieve()
+                            .bodyToMono(Map.class)
+                            .block();
+                } catch (WebClientResponseException e) {
+                    log.warn("Failed to update file metadata: {}", e.getResponseBodyAsString());
+                }
+                
+                // Then update the content
                 Map<String, Object> updateResponse = uploadClient.patch()
                         .uri(uri -> uri.path("/files/" + existingId)
                                 .queryParam("uploadType", "media")
@@ -161,14 +170,43 @@ public class GoogleDriveRestService implements DriveService {
                     throw new RuntimeException("Failed to update Drive file");
                 }
                 String fileId = updateResponse.get("id").toString();
+                log.info("File updated successfully with ID {} and name {}", fileId, fileName);
                 return new UploadResult(fileId, getFileUrl(fileId));
             }
-            // Create new file via simple upload
-            Map<String, Object> createResponse = uploadClient.post()
+            // For creating new files, we'll use the two-step process
+            // Step 1: Create the file metadata with proper name and parent folder
+            Map<String, Object> metadataMap = Map.of(
+                    "name", fileName,
+                    "parents", java.util.Collections.singletonList(folderId),
+                    "mimeType", "application/x-yaml"
+            );
+            
+            log.debug("Creating new file '{}' in folder {}", fileName, folderId);
+            
+            // Create the file with proper metadata first
+            Map<String, Object> createResponse = driveClient.post()
                     .uri(uri -> uri.path("/files")
+                            .queryParam("fields", "id")
+                            .build())
+                    .header("Authorization", "Bearer " + authToken)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .bodyValue(metadataMap)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+            
+            // Step 2: Update the content of the created file
+            if (createResponse == null || !createResponse.containsKey("id")) {
+                throw new RuntimeException("Failed to create Drive file");
+            }
+            
+            final String fileId = createResponse.get("id").toString();
+            log.debug("File created with ID: {}. Now uploading content...", fileId);
+            
+            // Use the upload API to add the content to the file
+            Map<String, Object> updateResponse = uploadClient.patch()
+                    .uri(uri -> uri.path("/files/" + fileId)
                             .queryParam("uploadType", "media")
-                            .queryParam("name", fileName)
-                            .queryParam("parents", folderId)
                             .queryParam("fields", "id")
                             .build())
                     .header("Authorization", "Bearer " + authToken)
@@ -177,10 +215,12 @@ public class GoogleDriveRestService implements DriveService {
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
-            if (createResponse == null || !createResponse.containsKey("id")) {
-                throw new RuntimeException("Failed to create Drive file");
+            
+            // Verify the update was successful
+            if (updateResponse == null || !updateResponse.containsKey("id")) {
+                log.warn("Content update response missing ID field for file: {}", fileId);
             }
-            String fileId = createResponse.get("id").toString();
+            log.info("File created successfully with ID {} and name {} in folder {}", fileId, fileName, folderId);
             return new UploadResult(fileId, getFileUrl(fileId));
         } catch (WebClientResponseException e) {
             log.error("Drive file upload/update failed: {}", e.getResponseBodyAsString());
