@@ -79,7 +79,6 @@ public class CookbookController {
 
         String html = extractHtml(request, compression);
         String transformed = transformer.transform(html);
-        log.debug("Transformed content: {}", transformed);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(request.title())
                 .url(request.url());

@@ -75,7 +75,6 @@ public class GeminiRestTransformer implements Transformer {
     }
 
     private String cleanup(String text) {
-        log.debug("Cleaning up text: {}", text);
         return cleanupService.removeYamlSign(text);
     }
 
