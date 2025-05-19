@@ -1,8 +1,10 @@
 package net.shamansoft.cookbook;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.dto.ErrorResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
@@ -25,9 +27,12 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -92,7 +97,7 @@ public class CookbookController {
         if (authToken != null && !authToken.isBlank()) {
             // Validate token
             if (!tokenService.verifyToken(authToken)) {
-                throw new org.springframework.web.server.ResponseStatusException(
+                throw new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "Invalid auth token");
             }
             // Ensure kukbuk folder exists
@@ -118,8 +123,14 @@ public class CookbookController {
                     log.debug("Successfully decompressed HTML from request");
                 }
             } catch (IOException e) {
-                log.warn("Failed to decompress HTML from request: {}", e.getMessage());
-                log.debug("Falling back to fetching HTML from URL");
+                log.warn("Failed to decompress HTML from request: {}", e.getMessage(), e);
+                
+                if (request.url() == null || request.url().isEmpty()) {
+                    log.error("Cannot fall back to URL as it's not provided or empty");
+                    throw new IOException("Failed to decompress HTML and no valid URL provided as fallback", e);
+                }
+                
+                log.info("Falling back to fetching HTML from URL: {}", request.url());
                 throw e;
             }
         } else {
@@ -132,19 +143,48 @@ public class CookbookController {
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> handleIOException(IOException e) {
-        return ResponseEntity.badRequest().body(e.getMessage());
+    public ResponseEntity<Object> handleIOException(IOException e, HttpServletRequest request) {
+        log.error("IO Exception occurred: {}", e.getMessage(), e);
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "IO Error",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
-        return ResponseEntity.badRequest()
-                .body("Validation error: " + ex.getBindingResult().getFieldError().getDefaultMessage());
+    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        log.error("Validation error: {}", ex.getMessage());
+        
+        List<ErrorResponse.ValidationError> validationErrors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> new ErrorResponse.ValidationError(error.getField(), error.getDefaultMessage()))
+                .collect(Collectors.toList());
+                
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Validation Error",
+                "Request validation failed",
+                request.getRequestURI()
+        );
+        errorResponse.setValidationErrors(validationErrors);
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
-    public void handleGeneralException() {
+    public ResponseEntity<Object> handleGeneralException(Exception e, HttpServletRequest request) {
+        log.error("Unexpected error occurred: {}", e.getMessage(), e);
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Internal Server Error",
+                "An unexpected error occurred. Please try again later.",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

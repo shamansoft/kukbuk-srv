@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import net.shamansoft.cookbook.service.GoogleDriveRestService;
+import java.util.Map;
 
 import java.io.IOException;
 
@@ -96,13 +97,15 @@ class CookbookControllerSpringTest {
     void invalidRequestReturnsBadRequest() {
         Request request = new Request(null, null, null);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
+        ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
                 request,
-                String.class
+                Map.class
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).startsWith("Validation error:");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("error")).isEqualTo("Validation Error");
+        assertThat(response.getBody().get("validationErrors")).isNotNull();
     }
 }
