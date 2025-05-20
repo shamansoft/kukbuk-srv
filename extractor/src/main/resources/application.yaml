@@ -1,6 +1,6 @@
 spring:
   application:
-    name: cookbook-cli
+    name: kukbuk-srv
 logging:
   level:
     net.shamansoft: DEBUG
@@ -12,6 +12,15 @@ cookbook:
     model: "gemini-2.0-flash"
     prompt: "Convert the above recipe to YAML format, using the above YAML example as a guide. Provide only the valid YAML output. Markdown formatting is allowed within YAML string values, but do not include any markdown code blocks or any other text outside of the yaml structure. Requirements: schema_version: \"1.0.0\". Generate unique recipe_version. Use current date for date_created if not specified. Format times as \"1d 2h 30m\". Use Markdown for text formatting. Use full path for medias"
     temperature: 0.1
+  drive:
+    folder-name: "kukbuk"
+    # Application name to use when constructing the Drive client
+    application-name: "${spring.application.name}"
+    upload-url: "https://www.googleapis.com/upload/drive/v3"
+    base-url: "https://www.googleapis.com/drive/v3"
+    auth-url: "https://oauth2.googleapis.com"
+  google:
+    oauth-id: "REPLACE WITH YOUR CLIENT ID"
 management:
   endpoints:
     web:

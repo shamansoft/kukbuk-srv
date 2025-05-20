@@ -14,6 +14,8 @@ for arg in "$@"; do
         NATIVE_FLAG=true
     elif [ "$arg" == "--debug" ]; then
         DEBUG_FLAG=true
+    elif [ "$arg" == "--tag" ]; then
+        TAG="${arg#*=}"
     elif [[ "$arg" == --memory=* ]]; then
         MEMORY_LIMIT="${arg#*=}"  # Extract value after =
     elif [[ "$arg" != --* ]]; then
@@ -58,15 +60,14 @@ if [ "$DEBUG_FLAG" = true ]; then
 fi
 
 if [ "$TAG" = "local" ]; then
-    docker buildx build \
+docker buildx build \
         --platform linux/amd64 \
         -f $DOCKERFILE \
         -t gcr.io/cookbook-451120/cookbook:$TAG \
         --memory=$MEMORY_LIMIT \
         --memory-swap=$MEMORY_LIMIT \
-        --cpus=4 \
         $BUILD_ARGS \
-        --load .
+        --load . || { echo "Docker build failed"; exit 1; }
 else
     docker buildx build \
         --platform linux/amd64 \

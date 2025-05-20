@@ -10,7 +10,6 @@ public class CompressorNone implements Compressor {
 
     @Override
     public String decompress(String content) throws IOException {
-        log.debug("decompress: {}", content);
         throw new IOException("Not implemented");
     }
 }
