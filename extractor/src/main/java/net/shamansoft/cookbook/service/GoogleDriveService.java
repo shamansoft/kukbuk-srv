@@ -37,7 +37,7 @@ public class GoogleDriveService implements DriveService {
     @Override
     public String getOrCreateFolder(String authToken) {
         return drive.getFolder(folderName, authToken)
-                .orElseGet(() -> drive.createFolder(folderName, authToken)).name();
+                .orElseGet(() -> drive.createFolder(folderName, authToken)).id();
     }
 
     /**
