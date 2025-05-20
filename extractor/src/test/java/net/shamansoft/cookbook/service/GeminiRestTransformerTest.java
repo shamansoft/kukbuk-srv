@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -57,7 +58,7 @@ class GeminiRestTransformerTest {
         responseNode.set("candidates", candidatesNode);
 
         when(geminiWebClient.post().uri(anyString()).header(anyString(), anyString()).bodyValue(anyString()).retrieve().bodyToMono(JsonNode.class))
-                .thenReturn(java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow());
+                .thenReturn(java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow(), java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow());
 
         when(cleanupService.removeYamlSign(eq(cleanedResult))).thenReturn(cleanedResult);
 
@@ -75,7 +76,7 @@ class GeminiRestTransformerTest {
         String input = "test-input";
 
         when(geminiWebClient.post().uri(anyString()).header(anyString(), anyString()).bodyValue(anyString()).retrieve().bodyToMono(JsonNode.class))
-                .thenReturn(java.util.Optional.of(objectMapper.createObjectNode()));
+                .thenReturn(java.util.Optional.of(objectMapper.createObjectNode()), java.util.Optional.of(objectMapper.createObjectNode()));
 
         // Act
         String result = geminiRestTransformer.transform(input);

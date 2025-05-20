@@ -35,9 +35,9 @@ class TokenRestServiceTest {
         WebClient.ResponseSpec responseMock = mock(WebClient.ResponseSpec.class);
 
         when(authClient.get()).thenReturn(requestMock);
-        when(requestMock.uri(any())).thenReturn(uriMock);
+        when(requestMock.uri(anyString())).thenReturn(uriMock);
         when(uriMock.retrieve()).thenReturn(responseMock);
-        when(responseMock.bodyToMono(Map.class)).thenReturn(java.util.Optional.of(Map.of("aud", "test-aud")));
+        when(responseMock.bodyToMono(Map.class)).thenReturn(java.util.Optional.of(Map.of("aud", "test-aud")), java.util.Optional.of(Map.of("aud", "test-aud")));
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);

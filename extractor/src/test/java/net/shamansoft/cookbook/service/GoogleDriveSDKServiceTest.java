@@ -3,11 +3,13 @@ package net.shamansoft.cookbook.service;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
+import com.google.api.client.http.InputStreamContent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -40,7 +42,7 @@ class GoogleDriveSDKServiceTest {
 
         // Set up the mock chain for Drive API
         when(drive.files()).thenReturn(files);
-        when(files.list(anyString())).thenReturn(list);
+        when(files.list()).thenReturn(list);  // Changed from list(anyString())
         when(list.setQ(anyString())).thenReturn(list);
         when(list.setFields(anyString())).thenReturn(list);
         when(list.setOauthToken(anyString())).thenReturn(list);
@@ -65,7 +67,7 @@ class GoogleDriveSDKServiceTest {
         // Assert
         assertThat(result).isEqualTo(folderId);
         verify(drive, times(1)).files();
-        verify(files, times(1)).list("drive");
+        verify(files, times(1)).list();  // Changed from list("drive")
         verify(list, times(1)).setQ("mimeType='application/vnd.google-apps.folder' and name='test-folder' and trashed=false");
         verify(list, times(1)).execute();
     }
