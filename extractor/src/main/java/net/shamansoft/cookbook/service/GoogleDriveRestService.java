@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ public class GoogleDriveRestService implements DriveService {
     private final WebClient driveClient;
     private final WebClient uploadClient;
     private final String folderName;
+    private final ObjectMapper objectMapper;
 
     /**
      * Constructs the service with configuration from application properties.
@@ -27,9 +29,10 @@ public class GoogleDriveRestService implements DriveService {
     @Autowired
     public GoogleDriveRestService(@Value("${cookbook.drive.folder-name:kukbuk}") String folderName,
                                   @Value("${cookbook.drive.upload-url}") String uploadUrl,
-                                  @Value("${cookbook.drive.base-url}") String baseUrl) {
+                                  @Value("${cookbook.drive.base-url}") String baseUrl,
+                                  ObjectMapper objectMapper) {
         this.folderName = folderName;
-
+        this.objectMapper = objectMapper;
         this.driveClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
@@ -51,6 +54,7 @@ public class GoogleDriveRestService implements DriveService {
         this.folderName = folderName;
         this.driveClient = driveClient;
         this.uploadClient = uploadClient;
+        this.objectMapper = new ObjectMapper();
     }
 
 
@@ -131,14 +135,19 @@ public class GoogleDriveRestService implements DriveService {
                     .bodyToMono(Map.class)
                     .block();
             var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
+
+            // Generate a unique boundary string
+            String boundary = "-------DriveUploadBoundary" + System.currentTimeMillis();
+
             if (files != null && !files.isEmpty()) {
+                // File exists, update it using multipart upload
                 String existingId = files.get(0).get("id").toString();
-                
-                // First ensure the metadata is correct (especially the name)
-                Map<String, Object> metadata = Map.of(
-                        "name", fileName
-                );
-            
+                log.debug("Updating existing file with ID: {}, name: {}", existingId, fileName);
+
+                // Create metadata JSON
+                Map<String, Object> metadata = Map.of("name", fileName);
+                String metadataJson = objectMapper.writeValueAsString(metadata);
+
                 log.debug("Updating file metadata for ID: {}, setting name: {}", existingId, fileName);
                 try {
                     driveClient.patch()
@@ -153,7 +162,7 @@ public class GoogleDriveRestService implements DriveService {
                 } catch (WebClientResponseException e) {
                     log.warn("Failed to update file metadata: {}", e.getResponseBodyAsString());
                 }
-                
+
                 // Then update the content
                 Map<String, Object> updateResponse = uploadClient.patch()
                         .uri(uri -> uri.path("/files/" + existingId)
@@ -180,9 +189,9 @@ public class GoogleDriveRestService implements DriveService {
                     "parents", java.util.Collections.singletonList(folderId),
                     "mimeType", "application/x-yaml"
             );
-            
+
             log.debug("Creating new file '{}' in folder {}", fileName, folderId);
-            
+
             // Create the file with proper metadata first
             Map<String, Object> createResponse = driveClient.post()
                     .uri(uri -> uri.path("/files")
@@ -194,15 +203,15 @@ public class GoogleDriveRestService implements DriveService {
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
-            
+
             // Step 2: Update the content of the created file
             if (createResponse == null || !createResponse.containsKey("id")) {
                 throw new RuntimeException("Failed to create Drive file");
             }
-            
+
             final String fileId = createResponse.get("id").toString();
             log.debug("File created with ID: {}. Now uploading content...", fileId);
-            
+
             // Use the upload API to add the content to the file
             Map<String, Object> updateResponse = uploadClient.patch()
                     .uri(uri -> uri.path("/files/" + fileId)
@@ -215,15 +224,19 @@ public class GoogleDriveRestService implements DriveService {
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
-            
+
             // Verify the update was successful
             if (updateResponse == null || !updateResponse.containsKey("id")) {
                 log.warn("Content update response missing ID field for file: {}", fileId);
             }
             log.info("File created successfully with ID {} and name {} in folder {}", fileId, fileName, folderId);
             return new UploadResult(fileId, getFileUrl(fileId));
-        } catch (WebClientResponseException e) {
-            log.error("Drive file upload/update failed: {}", e.getResponseBodyAsString());
+        } catch (Exception e) {
+            if(e instanceof WebClientResponseException webClientException) {
+                log.error("Drive file upload/update failed: {}", webClientException.getResponseBodyAsString());
+            } else {
+                log.error("Drive file upload/update failed: {}", e.getMessage());
+            }
             throw new RuntimeException("Failed to upload recipe to Drive", e);
         }
     }
