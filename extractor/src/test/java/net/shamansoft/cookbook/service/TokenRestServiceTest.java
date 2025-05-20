@@ -58,7 +58,7 @@ class TokenRestServiceTest {
         when(authClient.get()).thenReturn(requestMock);
         when(requestMock.uri(any())).thenReturn(uriMock);
         when(uriMock.retrieve()).thenReturn(responseMock);
-        when(responseMock.bodyToMono(Map.class)).thenThrow(new WebClientResponseException(401, "Unauthorized", "Unauthorized", null, null));
+        when(responseMock.bodyToMono(Map.class)).thenThrow(new WebClientResponseException(401, "Unauthorized", "Unauthorized", null, null, null));
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
