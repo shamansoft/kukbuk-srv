@@ -3,15 +3,13 @@ package net.shamansoft.cookbook.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.ResourceLoader;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -50,24 +48,21 @@ class GeminiRestTransformerTest {
     @Mock
     private WebClient.ResponseSpec responseSpec;
 
-    private GeminiRestTransformer geminiRestTransformer;
+    @Mock
+    private ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper testObjectMapper = new ObjectMapper();
+
+    @InjectMocks
+    private GeminiRestTransformer geminiRestTransformer;
 
     @BeforeEach
     void setUp() throws IOException {
 
 
         when(resourceLoader.loadYaml(anyString())).thenReturn("yaml-example");
-        geminiRestTransformer = new GeminiRestTransformer(
-                geminiWebClient,
-                cleanupService,
-                resourceLoader,
-                "key",
-                "model",
-                "prompt",
-                0.5f
-        );
+        when(objectMapper.writeValueAsString(any())).thenReturn("valid-json");
+        geminiRestTransformer.init();
 
         // Setup common WebClient mocking
         when(geminiWebClient.post()).thenReturn(requestBodyUriSpec);
@@ -86,15 +81,15 @@ class GeminiRestTransformerTest {
         String cleanedResult = "cleaned-output";
 
         // Create JSON response
-        ObjectNode responseNode = objectMapper.createObjectNode();
-        ObjectNode candidateNode = objectMapper.createObjectNode();
-        ObjectNode contentNode = objectMapper.createObjectNode();
-        ObjectNode partNode = objectMapper.createObjectNode();
+        ObjectNode responseNode = testObjectMapper.createObjectNode();
+        ObjectNode candidateNode = testObjectMapper.createObjectNode();
+        ObjectNode contentNode = testObjectMapper.createObjectNode();
+        ObjectNode partNode = testObjectMapper.createObjectNode();
 
         partNode.put("text", rawResult);
-        contentNode.set("parts", objectMapper.createArrayNode().add(partNode));
+        contentNode.set("parts", testObjectMapper.createArrayNode().add(partNode));
         candidateNode.set("content", contentNode);
-        responseNode.set("candidates", objectMapper.createArrayNode().add(candidateNode));
+        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
         when(cleanupService.removeYamlSign(eq(rawResult))).thenReturn(cleanedResult);
@@ -112,7 +107,7 @@ class GeminiRestTransformerTest {
     void testTransform_noCandidates() {
         // Arrange
         String input = "test-input";
-        ObjectNode emptyResponse = objectMapper.createObjectNode();
+        ObjectNode emptyResponse = testObjectMapper.createObjectNode();
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(emptyResponse));
 
@@ -145,9 +140,9 @@ class GeminiRestTransformerTest {
         String input = "test-input";
 
         // Create a malformed response with missing fields
-        ObjectNode malformedResponse = objectMapper.createObjectNode();
-        malformedResponse.set("candidates", objectMapper.createArrayNode().add(
-                objectMapper.createObjectNode()  // Empty candidate with no content field
+        ObjectNode malformedResponse = testObjectMapper.createObjectNode();
+        malformedResponse.set("candidates", testObjectMapper.createArrayNode().add(
+                testObjectMapper.createObjectNode()  // Empty candidate with no content field
         ));
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(malformedResponse));

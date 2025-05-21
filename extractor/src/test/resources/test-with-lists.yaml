@@ -1,0 +1,9 @@
+name: list-recipe
+steps:
+  - "Mix ingredients"
+  - "Bake for 30 minutes"
+  - "Let it cool down"
+tags:
+  - dessert
+  - easy
+  - quick
