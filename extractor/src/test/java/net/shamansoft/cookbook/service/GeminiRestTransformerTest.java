@@ -58,7 +58,7 @@ class GeminiRestTransformerTest {
         responseNode.set("candidates", candidatesNode);
 
         when(geminiWebClient.post().uri(anyString()).header(anyString(), anyString()).bodyValue(anyString()).retrieve().bodyToMono(JsonNode.class))
-                .thenReturn(java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow(), java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow());
+                .thenReturn(Mono.just(java.util.Optional.of(responseNode).map(body -> (JsonNode) body).orElseThrow()));
 
         when(cleanupService.removeYamlSign(eq(cleanedResult))).thenReturn(cleanedResult);
 
@@ -76,7 +76,7 @@ class GeminiRestTransformerTest {
         String input = "test-input";
 
         when(geminiWebClient.post().uri(anyString()).header(anyString(), anyString()).bodyValue(anyString()).retrieve().bodyToMono(JsonNode.class))
-                .thenReturn(java.util.Optional.of(objectMapper.createObjectNode()), java.util.Optional.of(objectMapper.createObjectNode()));
+                .thenReturn(Mono.just(java.util.Optional.of(objectMapper.createObjectNode()).orElseThrow()));
 
         // Act
         String result = geminiRestTransformer.transform(input);

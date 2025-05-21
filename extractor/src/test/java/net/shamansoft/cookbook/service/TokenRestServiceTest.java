@@ -37,7 +37,7 @@ class TokenRestServiceTest {
         when(authClient.get()).thenReturn(requestMock);
         when(requestMock.uri(anyString())).thenReturn(uriMock);
         when(uriMock.retrieve()).thenReturn(responseMock);
-        when(responseMock.bodyToMono(Map.class)).thenReturn(java.util.Optional.of(Map.of("aud", "test-aud")), java.util.Optional.of(Map.of("aud", "test-aud")));
+        when(responseMock.bodyToMono(Map.class)).thenReturn(Mono.just(java.util.Optional.of(Map.of("aud", "test-aud"))));
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
@@ -58,7 +58,7 @@ class TokenRestServiceTest {
         when(authClient.get()).thenReturn(requestMock);
         when(requestMock.uri(any())).thenReturn(uriMock);
         when(uriMock.retrieve()).thenReturn(responseMock);
-        when(responseMock.bodyToMono(Map.class)).thenThrow(new WebClientResponseException(401, "Unauthorized", "Unauthorized", null, null, null));
+        when(responseMock.bodyToMono(Map.class)).thenThrow(new WebClientResponseException(401, "Unauthorized", new org.springframework.http.HttpHeaders(), null, null, null));
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);

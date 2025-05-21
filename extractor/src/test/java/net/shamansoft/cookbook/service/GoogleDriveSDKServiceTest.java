@@ -95,7 +95,7 @@ class GoogleDriveSDKServiceTest {
         // Assert
         assertThat(result).isEqualTo(newFolderId);
         verify(drive, times(1)).files();
-        verify(files, times(1)).list("drive");
+        verify(files, times(1)).list();
         verify(list, times(1)).setQ("mimeType='application/vnd.google-apps.folder' and name='test-folder' and trashed=false");
         verify(list, times(1)).execute();
         verify(files, times(1)).create(any(File.class));
