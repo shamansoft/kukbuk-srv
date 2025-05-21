@@ -54,12 +54,18 @@ public class ServiceConfig {
     }
 
     @Bean
-    public WebClient geminiWebClient(
-            @Value("${cookbook.gemini.base-url}") String baseUrl,
-            ExchangeFilterFunction loggingFilter) {
+    public WebClient geminiWebClient(@Value("${cookbook.gemini.base-url}") String baseUrl,
+                                     ExchangeFilterFunction loggingFilter) {
         return WebClient.builder()
                 .filter(loggingFilter)
                 .baseUrl(baseUrl)
+                .build();
+    }
+
+    @Bean
+    public WebClient authWebClient (@Value("${cookbook.drive.auth-url}") String authUrl) {
+        return WebClient.builder()
+                .baseUrl(authUrl)
                 .build();
     }
 

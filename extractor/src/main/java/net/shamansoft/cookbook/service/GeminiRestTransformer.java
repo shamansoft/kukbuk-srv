@@ -20,21 +20,23 @@ public class GeminiRestTransformer implements Transformer {
     private final String prompt;
     private final float temperature;
     private final String exampleYaml;
+    private final ResourcesLoader resourceLoader;
 
     public GeminiRestTransformer(WebClient geminiWebClient,
-                                 ResourceLoader resourceLoader,
                                  CleanupService cleanupService,
+                                ResourcesLoader resourceLoader,
                                  @Value("${cookbook.gemini.api-key}") String apiKey,
                                  @Value("${cookbook.gemini.model}") String model,
                                  @Value("${cookbook.gemini.prompt}") String prompt,
                                  @Value("${cookbook.gemini.temperature}") float temperature) throws IOException {
+        this.resourceLoader = resourceLoader;
         this.geminiWebClient = geminiWebClient;
         this.cleanupService = cleanupService;
         this.apiKey = apiKey;
         this.model = model;
         this.prompt = prompt;
         this.temperature = temperature;
-        this.exampleYaml = loadExampleYaml(resourceLoader);
+        this.exampleYaml = resourceLoader.loadYaml("classpath:example.yaml");
     }
 
     @Override
