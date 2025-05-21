@@ -37,19 +37,29 @@
       "type": "string",
       "description": "Markdown-formatted description"
     },
-    "ingredients": {
+    "components": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["item", "amount", "unit"],
+        "required": ["name", "ingredients"],
         "properties": {
-          "item": { "type": "string" },
-          "amount": { "type": "number", "exclusiveMinimum": 0 },
-          "unit": { "type": "string" },
-          "notes": { "type": "string" }
+          "name": { "type": "string" },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["item"],
+              "properties": {
+                "item": { "type": "string" },
+                "amount": { "type": "number", "exclusiveMinimum": 0 },
+                "unit": { "type": "string" },
+                "notes": { "type": "string" }
+              }
+            },
+            "minItems": 1
+          }
         }
-      },
-      "minItems": 1
+      }
     },
     "equipment": {
       "type": "array",
@@ -61,7 +71,7 @@
         "type": "object",
         "required": ["description"],
         "properties": {
-          "step": { "type": "integer", "minimum": 1 },
+          "step": { "type": "integer", "minimum": 0 },
           "description": {
             "type": "string",
             "description": "Markdown-formatted instruction"

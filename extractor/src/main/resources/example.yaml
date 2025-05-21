@@ -20,16 +20,27 @@ description: |
   Perfect for **family gatherings** or *weekend treats*.
 
 ingredients:
-  - item: "all-purpose flour"
-    amount: 2.25
-    unit: "cups"
-    notes: "sifted"
-  - item: "baking soda"
-    amount: 1
-    unit: "tsp"
-  - item: "salt"
-    amount: 1
-    unit: "tsp"
+  - component: "dough"
+    items:
+      - item: "unsalted butter"
+        amount: 1
+        unit: "cup"
+        notes: "softened"
+      - item: "brown sugar"
+        amount: 1
+        unit: "cup"
+        notes: "packed"
+      - item: "granulated sugar"
+        amount: 0.5
+        unit: "cup"
+      - item: "vanilla extract"
+        amount: 2
+        unit: "tsp"
+  - component: "filling"
+    items:
+      - item: "semi-sweet chocolate chips"
+        amount: 2
+        unit: "cups"
 
 equipment:
   - "mixing bowls"

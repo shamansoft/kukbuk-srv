@@ -1,0 +1,12 @@
+name: complex-recipe
+description: A recipe with nested structure
+ingredients:
+  - name: flour
+    quantity: 200
+    unit: g
+  - name: sugar
+    quantity: 100
+    unit: g
+  - name: eggs
+    quantity: 2
+    unit: pcs

@@ -1,10 +1,6 @@
 package net.shamansoft.cookbook;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.genai.Client;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.web.exchanges.HttpExchangeRepository;
@@ -22,11 +18,6 @@ import java.util.Collections;
 @Slf4j
 public class ServiceConfig {
 
-    @Bean
-    public Client geminiClient(@Value("${cookbook.gemini.api-key}") String apiKey) {
-        log.debug("Creating Gemini client with API key {}", hideKey(apiKey));
-        return Client.builder().apiKey(apiKey).build();
-    }
 
     @Bean
     ExchangeFilterFunction loggingFilter() {
@@ -74,18 +65,4 @@ public class ServiceConfig {
         return new InMemoryHttpExchangeRepository();
     }
 
-    @Bean
-    public Drive drive(@Value("${spring.application.name}") String applicationName) {
-        return new Drive.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance(), null)
-                .setApplicationName(applicationName)
-                .build();
-    }
-
-    @Bean
-    public GoogleIdTokenVerifier googleIdTokenVerifier(
-            @Value("${cookbook.google.oauth-id}") String clientId) {
-        return new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                .setAudience(Collections.singletonList(clientId))
-                .build();
-    }
 }
