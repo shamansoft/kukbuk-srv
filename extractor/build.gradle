@@ -1,8 +1,9 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.4.2'
-	id 'io.spring.dependency-management' version '1.1.7'
-	id 'org.graalvm.buildtools.native' version '0.10.5'
+    id 'java'
+    id 'org.springframework.boot' version '3.4.2'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.graalvm.buildtools.native' version '0.10.5'
+    id 'jacoco' // Added JaCoCo plugin for code coverage
 }
 
 group = 'net.shamansoft'
@@ -49,7 +50,39 @@ bootJar {
 }
 
 test {
-	useJUnitPlatform()
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport // Generate report after tests run
+}
+
+// JaCoCo configuration
+jacoco {
+    toolVersion = "0.8.11" // Use the latest stable version
+}
+
+jacocoTestReport {
+    dependsOn test // Tests are required to run before generating the report
+    reports {
+        xml.required = true // XML report for CI tools like SonarQube
+        html.required = true // HTML report for human readability
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.4 // 40% code coverage achieved
+            }
+        }
+    }
+}
+
+// Add a task to check coverage
+tasks.register('checkCoverage') {
+    dependsOn test
+    dependsOn jacocoTestReport
+    dependsOn jacocoTestCoverageVerification
 }
 
 graalvmNative {
