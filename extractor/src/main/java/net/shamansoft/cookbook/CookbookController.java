@@ -27,8 +27,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
+import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +64,7 @@ public class CookbookController {
     RecipeResponse createRecipe(Request request,
                                 String compression,
                                 boolean test,
-                                Map<String,String> headers) throws IOException {
+                                Map<String, String> headers) throws IOException, AuthenticationException {
         return createRecipe(request, compression,
                 new HttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers))));
     }
@@ -78,36 +78,28 @@ public class CookbookController {
                                        @RequestParam(value = "compression", required = false) String compression,
                                        @RequestHeader HttpHeaders httpHeaders
     )
-            throws IOException {
+            throws IOException, AuthenticationException {
 
         log.debug("Headers: {}", httpHeaders.toString());
-
+        String authToken = tokenService.getAuthToken(httpHeaders);
         String html = extractHtml(request, compression);
         String transformed = transformer.transform(html);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(request.title())
                 .url(request.url());
         // Google Drive integration: if auth-token header is present, persist the recipe YAML
-        storeToDrive(request, httpHeaders, transformed, responseBuilder);
+        storeToDrive(request, authToken, transformed, responseBuilder);
         return responseBuilder.build();
     }
 
-    private void storeToDrive(Request request, HttpHeaders httpHeaders, String transformed, RecipeResponse.RecipeResponseBuilder responseBuilder) {
-        String authToken = httpHeaders.getFirst("X-S-AUTH-TOKEN");
-        if (authToken != null && !authToken.isBlank()) {
-            // Validate token
-            if (!tokenService.verifyToken(authToken)) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Invalid auth token");
-            }
-            // Ensure kukbuk folder exists
-            String folderId = googleDriveService.getOrCreateFolder(authToken);
-            // Generate filename and upload content
-            String fileName = googleDriveService.generateFileName(request.title());
-            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, transformed);
-            responseBuilder.driveFileId(uploadResult.fileId())
-                    .driveFileUrl(uploadResult.fileUrl());
-        }
+    private void storeToDrive(Request request, String authToken, String transformed, RecipeResponse.RecipeResponseBuilder responseBuilder) {
+        // Ensure kukbuk folder exists
+        String folderId = googleDriveService.getOrCreateFolder(authToken);
+        // Generate filename and upload content
+        String fileName = googleDriveService.generateFileName(request.title());
+        DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, transformed);
+        responseBuilder.driveFileId(uploadResult.fileId())
+                .driveFileUrl(uploadResult.fileUrl());
     }
 
     private String extractHtml(Request request, String compression) throws IOException {
@@ -124,12 +116,12 @@ public class CookbookController {
                 }
             } catch (IOException e) {
                 log.warn("Failed to decompress HTML from request: {}", e.getMessage(), e);
-                
+
                 if (request.url() == null || request.url().isEmpty()) {
                     log.error("Cannot fall back to URL as it's not provided or empty");
                     throw new IOException("Failed to decompress HTML and no valid URL provided as fallback", e);
                 }
-                
+
                 log.info("Falling back to fetching HTML from URL: {}", request.url());
                 throw e;
             }
@@ -154,16 +146,29 @@ public class CookbookController {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Object> handleAuthException(IOException e, HttpServletRequest request) {
+        log.error("Auth Exception occurred: {}", e.getMessage(), e);
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Authentication Error",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         log.error("Validation error: {}", ex.getMessage());
-        
+
         List<ErrorResponse.ValidationError> validationErrors = ex.getBindingResult().getFieldErrors()
                 .stream()
                 .map(error -> new ErrorResponse.ValidationError(error.getField(), error.getDefaultMessage()))
                 .collect(Collectors.toList());
-                
+
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation Error",
@@ -171,7 +176,7 @@ public class CookbookController {
                 request.getRequestURI()
         );
         errorResponse.setValidationErrors(validationErrors);
-        
+
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 

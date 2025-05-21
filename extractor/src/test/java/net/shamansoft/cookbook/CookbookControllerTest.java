@@ -9,11 +9,13 @@ import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -22,6 +24,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.server.ResponseStatusException;
 
+import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.util.Map;
 
@@ -54,7 +57,7 @@ class CookbookControllerTest {
     
     private static final String TITLE = "Recipe Title";
     private static final String URL = "http://example.com";
-    private static final String TOKEN = "auth-token";
+    private static final String TOKEN = "token";
     private static final String FOLDER_ID = "folder-id";
     private static final String FILE_NAME = "recipe-file-name";
     private static final String RAW_HTML = "<html><body>Recipe content</body></html>";
@@ -71,11 +74,11 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeFromHtml() throws IOException {
+    void createRecipeFromHtml() throws IOException, AuthenticationException {
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(tokenService.verifyToken("token")).thenReturn(true);
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
         when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
@@ -89,11 +92,11 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeFromUrl() throws IOException {
+    void createRecipeFromUrl() throws IOException, AuthenticationException {
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request(null, "Title", "http://example.com");
         when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(tokenService.verifyToken("token")).thenReturn(true);
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
         when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
@@ -107,11 +110,11 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeWithDebugIncludesRawHtml() throws IOException {
+    void createRecipeWithDebugIncludesRawHtml() throws IOException, AuthenticationException {
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(tokenService.verifyToken("token")).thenReturn(true);
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
         when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
@@ -125,10 +128,10 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeWithNoCompressionSkipsDecompression() throws IOException {
+    void createRecipeWithNoCompressionSkipsDecompression() throws IOException, AuthenticationException {
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(tokenService.verifyToken("token")).thenReturn(true);
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
         when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
@@ -193,14 +196,14 @@ class CookbookControllerTest {
     }
     
     @Test
-    void comprehensiveRecipeCreationTest() throws IOException {
+    void comprehensiveRecipeCreationTest() throws IOException, AuthenticationException {
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         // Setup request with all fields
         Request request = new Request("compressed content", TITLE, URL);
         
         // Setup mocks for all services
         when(compressor.decompress("compressed content")).thenReturn(RAW_HTML);
         when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED_CONTENT);
-        when(tokenService.verifyToken(TOKEN)).thenReturn(true);
         when(driveService.getOrCreateFolder(TOKEN)).thenReturn(FOLDER_ID);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(TOKEN, FOLDER_ID, FILE_NAME, TRANSFORMED_CONTENT))
@@ -215,7 +218,6 @@ class CookbookControllerTest {
         // Verify all service interactions
         verify(compressor).decompress("compressed content");
         verify(transformer).transform(RAW_HTML);
-        verify(tokenService).verifyToken(TOKEN);
         verify(driveService).getOrCreateFolder(TOKEN);
         verify(driveService).generateFileName(TITLE);
         verify(driveService).uploadRecipeYaml(TOKEN, FOLDER_ID, FILE_NAME, TRANSFORMED_CONTENT);
@@ -226,50 +228,6 @@ class CookbookControllerTest {
         assertThat(response.url()).isEqualTo(URL);
         assertThat(response.driveFileId()).isEqualTo("file-id-123");
         assertThat(response.driveFileUrl()).isEqualTo("https://drive.google.com/file-id-123");
-    }
-    
-    @Test
-    void unauthorizedTokenReturnsException() throws IOException {
-        // Setup request
-        Request request = new Request("content", TITLE, URL);
-        
-        // Mock token verification to fail
-        when(tokenService.verifyToken(TOKEN)).thenReturn(false);
-        
-        // Create headers with auth token
-        Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", TOKEN);
-        assertThatThrownBy(() -> controller.createRecipe(request, null, false, headers))
-            .isInstanceOf(ResponseStatusException.class)
-            .hasMessageContaining("Invalid auth token");
-        // Verify token service was called
-        verify(tokenService).verifyToken(TOKEN);
-        // Verify no further services were called
-        verify(driveService, never()).getOrCreateFolder(any());
-    }
-    
-    @Test
-    void tokenVerificationErrorHandling() {
-        // Setup request
-        Request request = new Request("content", TITLE, URL);
-        
-        // Mock token verification to throw exception
-        when(tokenService.verifyToken(TOKEN)).thenReturn(false);
-        
-        // Create headers with auth token
-        Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", TOKEN);
-        
-        // Assert that the correct exception is thrown with appropriate status
-        assertThatThrownBy(() -> controller.createRecipe(request, null, false, headers))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(e -> {
-                ResponseStatusException ex = (ResponseStatusException) e;
-                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-            });
-            
-        // Verify token service was called
-        verify(tokenService).verifyToken(TOKEN);
-        // Verify no further services were called
-        verify(driveService, never()).getOrCreateFolder(any());
     }
     
     @Test

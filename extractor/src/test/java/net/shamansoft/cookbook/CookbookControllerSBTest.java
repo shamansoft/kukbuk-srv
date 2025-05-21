@@ -15,11 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import javax.naming.AuthenticationException;
 import java.util.Map;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -58,11 +60,15 @@ class CookbookControllerSpringTest {
     }
 
     @Test
-    void createRecipeFromCompressedHtml() throws IOException {
+    void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
-
+        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
+        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
+        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe",
                 request,
@@ -76,10 +82,15 @@ class CookbookControllerSpringTest {
     }
 
     @Test
-    void createRecipeFromUrl() throws IOException {
+    void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
         when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn("transformed content");
+        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
+        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
+        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe",

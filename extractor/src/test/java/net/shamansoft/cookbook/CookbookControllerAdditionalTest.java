@@ -12,10 +12,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -51,17 +53,16 @@ class CookbookControllerAdditionalTest {
     private static final String AUTH_TOKEN = "valid-token";
 
     @Test
-    void createRecipeFallsBackToUrlWhenHtmlIsMissing() throws IOException {
+    void createRecipeFallsBackToUrlWhenHtmlIsMissing() throws IOException, AuthenticationException {
         // Set up request with URL but no HTML content
         Request request = new Request(null, TITLE, URL);
-        
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
         // Mock fetch from URL when HTML is missing
         when(rawContentService.fetch(URL)).thenReturn(RAW_HTML);
         when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED);
         
         // Mock token flow not used in this scenario
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);
-        when(tokenService.verifyToken(AUTH_TOKEN)).thenReturn(true);
         when(driveService.getOrCreateFolder(AUTH_TOKEN)).thenReturn("folder123");
         when(driveService.generateFileName(TITLE)).thenReturn("file.yaml");
         when(driveService.uploadRecipeYaml(AUTH_TOKEN, "folder123", "file.yaml", TRANSFORMED))
@@ -82,16 +83,15 @@ class CookbookControllerAdditionalTest {
     }
 
     @Test
-    void createRecipeUsesHtmlAndBypassesDecompressionWhenCompressionIsNone() throws IOException {
+    void createRecipeUsesHtmlAndBypassesDecompressionWhenCompressionIsNone() throws IOException, AuthenticationException {
         // Set up request with HTML content and "none" compression
         Request request = new Request(RAW_HTML, TITLE, URL);
-        
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
         // Mock transformation
         when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED);
         
         // Mock token processing
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);
-        when(tokenService.verifyToken(AUTH_TOKEN)).thenReturn(true);
         when(driveService.getOrCreateFolder(AUTH_TOKEN)).thenReturn("folder123");
         when(driveService.generateFileName(TITLE)).thenReturn("file.yaml");
         when(driveService.uploadRecipeYaml(AUTH_TOKEN, "folder123", "file.yaml", TRANSFORMED))
@@ -131,26 +131,21 @@ class CookbookControllerAdditionalTest {
     }
 
     @Test
-    void createRecipeThrowsUnauthorizedWhenTokenIsInvalid() {
+    void createRecipeThrowsUnauthorizedWhenTokenIsInvalid() throws AuthenticationException {
         // Set up request
         Request request = new Request(RAW_HTML, TITLE, URL);
         
         // Mock token verification to fail
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);
-        when(tokenService.verifyToken(AUTH_TOKEN)).thenReturn(false);
+        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenThrow(new AuthenticationException("Invalid auth token"));
 
         // Assert that unauthorized exception is thrown
         assertThatThrownBy(() -> controller.createRecipe(request, "none", false, headers))
-            .isInstanceOf(ResponseStatusException.class)
-            .satisfies(e -> {
-                ResponseStatusException ex = (ResponseStatusException) e;
-                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                assertThat(ex.getReason()).contains("Invalid auth token");
-            });
+            .isInstanceOf(AuthenticationException.class);
 
         // Verify token service was called but drive service was not
-        verify(tokenService).verifyToken(AUTH_TOKEN);
         verify(driveService, never()).getOrCreateFolder(any());
+        verify(transformer, never()).transform(any());
     }
     
     @Test
