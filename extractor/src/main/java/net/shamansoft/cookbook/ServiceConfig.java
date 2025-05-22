@@ -12,21 +12,10 @@ import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-
 @Configuration
 @Slf4j
 public class ServiceConfig {
 
-
-    @Bean
-    ExchangeFilterFunction loggingFilter() {
-        return ExchangeFilterFunction.ofRequestProcessor(
-                clientRequest -> {
-                    log.info("Request: {} {}", clientRequest.method(), hideKey(clientRequest));
-                    return Mono.just(clientRequest);
-                });
-    }
 
     static String hideKey(ClientRequest clientRequest) {
         return clientRequest.url().getPath()
@@ -45,6 +34,15 @@ public class ServiceConfig {
     }
 
     @Bean
+    ExchangeFilterFunction loggingFilter() {
+        return ExchangeFilterFunction.ofRequestProcessor(
+                clientRequest -> {
+                    log.info("Request: {} {}", clientRequest.method(), hideKey(clientRequest));
+                    return Mono.just(clientRequest);
+                });
+    }
+
+    @Bean
     public WebClient geminiWebClient(@Value("${cookbook.gemini.base-url}") String baseUrl,
                                      ExchangeFilterFunction loggingFilter) {
         return WebClient.builder()
@@ -54,7 +52,7 @@ public class ServiceConfig {
     }
 
     @Bean
-    public WebClient authWebClient (@Value("${cookbook.drive.auth-url}") String authUrl) {
+    public WebClient authWebClient(@Value("${cookbook.drive.auth-url}") String authUrl) {
         return WebClient.builder()
                 .baseUrl(authUrl)
                 .build();

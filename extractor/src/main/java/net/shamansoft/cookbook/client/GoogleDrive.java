@@ -25,13 +25,6 @@ public class GoogleDrive {
                 .build();
     }
 
-    public record Item(String id, String name) {
-        public String url() {
-            return "https://drive.google.com/file/d/" + id + "/view";
-        }
-    }
-
-
     @SuppressWarnings("unchecked")
     public Optional<Item> getFolder(String name, String authToken) {
         Map<String, Object> listResponse = driveClient.get()
@@ -192,6 +185,12 @@ public class GoogleDrive {
                 throw e;
             }
             throw new ClientException("Failed to create file", e);
+        }
+    }
+
+    public record Item(String id, String name) {
+        public String url() {
+            return "https://drive.google.com/file/d/" + id + "/view";
         }
     }
 }

@@ -20,14 +20,6 @@ public class ErrorResponse {
     private String path;
     private List<ValidationError> validationErrors;
 
-    @Data
-    @Builder
-    @AllArgsConstructor
-    public static class ValidationError {
-        private String field;
-        private String message;
-    }
-    
     public ErrorResponse(int status, String error, String message, String path) {
         this.timestamp = LocalDateTime.now();
         this.status = status;
@@ -35,5 +27,13 @@ public class ErrorResponse {
         this.message = message;
         this.path = path;
         this.validationErrors = null;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class ValidationError {
+        private String field;
+        private String message;
     }
 }

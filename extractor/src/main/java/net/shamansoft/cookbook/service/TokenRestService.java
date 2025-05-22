@@ -17,12 +17,6 @@ public class TokenRestService implements TokenService {
 
     private final WebClient authWebClient;
 
-    /**
-     * Verifies the provided OAuth2 access token by calling Google's tokeninfo endpoint.
-     *
-     * @param authToken OAuth2 access token header value
-     * @return true if token is valid
-     */
     @Override
     public boolean verifyToken(String authToken) {
         if (authToken == null || authToken.isEmpty()) {
