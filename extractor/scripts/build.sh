@@ -14,6 +14,8 @@ for arg in "$@"; do
         NATIVE_FLAG=true
     elif [ "$arg" == "--debug" ]; then
         DEBUG_FLAG=true
+    elif [ "$arg" == "--dry-run" ]; then
+        DRY_RUN=true
     elif [ "$arg" == "--tag" ]; then
         TAG="${arg#*=}"
     elif [[ "$arg" == --memory=* ]]; then
@@ -23,6 +25,14 @@ for arg in "$@"; do
         TAG="$arg"
     fi
 done
+
+if [ "$DRY_RUN" = true ]; then
+  TAG="dry-run"
+    echo "This is a dry run"
+    echo "Build complete! Image details:"
+    echo "$TAG"
+    exit 1
+fi
 
 # Check for tag and auto-generate if missing
 if [ -z "$TAG" ]; then

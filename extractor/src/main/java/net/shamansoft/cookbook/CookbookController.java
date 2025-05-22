@@ -84,9 +84,7 @@ public class CookbookController {
     }
 
     private void storeToDrive(Request request, String authToken, String transformed, RecipeResponse.RecipeResponseBuilder responseBuilder) {
-        // Ensure kukbuk folder exists
         String folderId = googleDriveService.getOrCreateFolder(authToken);
-        // Generate filename and upload content
         String fileName = googleDriveService.generateFileName(request.title());
         DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, transformed);
         responseBuilder.driveFileId(uploadResult.fileId())

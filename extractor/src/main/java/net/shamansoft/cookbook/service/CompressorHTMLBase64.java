@@ -1,11 +1,12 @@
 package net.shamansoft.cookbook.service;
 
-import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.zip.GZIPInputStream;
 
@@ -33,7 +34,7 @@ public class CompressorHTMLBase64 implements Compressor {
                 }
 
                 // Convert to string
-                String result = outputStream.toString("UTF-8");
+                String result = outputStream.toString(StandardCharsets.UTF_8);
                 log.debug("Decompressed to size: {}", result.length());
                 return result;
             }
