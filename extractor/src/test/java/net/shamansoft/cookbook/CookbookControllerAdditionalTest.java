@@ -61,7 +61,7 @@ class CookbookControllerAdditionalTest {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
         // Mock fetch from URL when HTML is missing
         when(rawContentService.fetch(URL)).thenReturn(RAW_HTML);
-        when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED);
+        when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED));
 
         // Mock token flow not used in this scenario
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);
@@ -90,7 +90,7 @@ class CookbookControllerAdditionalTest {
         Request request = new Request(RAW_HTML, TITLE, URL);
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
         // Mock transformation
-        when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED);
+        when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED));
 
         // Mock token processing
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);

@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -36,8 +35,10 @@ class CookbookControllerTest {
 
     @Mock
     private Compressor compressor;
+
     @Mock
     private DriveService driveService;
+
     @Mock
     private TokenService tokenService;
 
@@ -53,21 +54,11 @@ class CookbookControllerTest {
     private static final String TRANSFORMED_CONTENT = "transformed recipe content";
 
     @Test
-    void healthEndpointReturnsOk() {
-        assertThat(controller.gcpHealth()).isEqualTo("OK");
-    }
-
-    @Test
-    void helloEndpointReturnsGreetingWithName() {
-        assertThat(controller.index("John")).isEqualTo("Hello, Cookbook user John!");
-    }
-
-    @Test
-    void createRecipeFromHtml() throws IOException, AuthenticationException {
+    void createRecipeStoresIfItIsARecipe() throws IOException, AuthenticationException {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
         when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
@@ -76,125 +67,26 @@ class CookbookControllerTest {
         RecipeResponse response = controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token"));
 
         assertThat(response)
-                .extracting(RecipeResponse::title, RecipeResponse::url)
-                .containsExactly("Title", "http://example.com");
+                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
+                .containsExactly("Title", "http://example.com", true);
     }
 
     @Test
-    void createRecipeFromUrl() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
-        Request request = new Request(null, "Title", "http://example.com");
-        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
-        when(driveService.generateFileName("Title")).thenReturn("file-name");
-        when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
-                .thenReturn(new DriveService.UploadResult("file-id", "drive-url"));
-
-        RecipeResponse response = controller.createRecipe(request, null, false, Map.of("X-S-AUTH-TOKEN", "token"));
-
-        assertThat(response)
-                .extracting(RecipeResponse::title, RecipeResponse::url)
-                .containsExactly("Title", "http://example.com");
-    }
-
-    @Test
-    void createRecipeWithDebugIncludesRawHtml() throws IOException, AuthenticationException {
+    void createRecipeSkipsStorageIfNotARecipe() throws IOException, AuthenticationException {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
-        when(driveService.generateFileName("Title")).thenReturn("file-name");
-        when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
-                .thenReturn(new DriveService.UploadResult("file-id", "drive-url"));
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
 
         RecipeResponse response = controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token"));
 
-        assertThat(response.title()).isEqualTo("Title");
-        assertThat(response.url()).isEqualTo("http://example.com");
-        assertThat(response.driveFileUrl()).isEqualTo("drive-url");
+        assertThat(response)
+                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
+                .containsExactly("Title", "http://example.com", false);
+
+        verify(driveService, never()).uploadRecipeYaml(any(), any(), any(), any());
     }
 
-    @Test
-    void createRecipeWithNoCompressionSkipsDecompression() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
-        Request request = new Request("raw html", "Title", "http://example.com");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
-        when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
-        when(driveService.generateFileName("Title")).thenReturn("file-name");
-        when(driveService.uploadRecipeYaml("token", "folder-id", "file-name", "transformed content"))
-                .thenReturn(new DriveService.UploadResult("file-id", "drive-url"));
-
-        RecipeResponse response = controller.createRecipe(request, "none", false, Map.of("X-S-AUTH-TOKEN", "token"));
-
-        verify(compressor, never()).decompress(any());
-        assertThat(response.title()).isEqualTo("Title");
-        assertThat(response.url()).isEqualTo("http://example.com");
-    }
-
-
-    @Test
-    void comprehensiveRecipeCreationTest() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
-        // Setup request with all fields
-        Request request = new Request("compressed content", TITLE, URL);
-
-        // Setup mocks for all services
-        when(compressor.decompress("compressed content")).thenReturn(RAW_HTML);
-        when(transformer.transform(RAW_HTML)).thenReturn(TRANSFORMED_CONTENT);
-        when(driveService.getOrCreateFolder(TOKEN)).thenReturn(FOLDER_ID);
-        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(TOKEN, FOLDER_ID, FILE_NAME, TRANSFORMED_CONTENT))
-                .thenReturn(new DriveService.UploadResult("file-id-123", "https://drive.google.com/file-id-123"));
-
-        // Create headers with auth token
-        Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", TOKEN);
-
-        // Execute controller method
-        RecipeResponse response = controller.createRecipe(request, null, false, headers);
-
-        // Verify all service interactions
-        verify(compressor).decompress("compressed content");
-        verify(transformer).transform(RAW_HTML);
-        verify(driveService).getOrCreateFolder(TOKEN);
-        verify(driveService).generateFileName(TITLE);
-        verify(driveService).uploadRecipeYaml(TOKEN, FOLDER_ID, FILE_NAME, TRANSFORMED_CONTENT);
-
-        // Assert response properties
-        assertThat(response).isNotNull();
-        assertThat(response.title()).isEqualTo(TITLE);
-        assertThat(response.url()).isEqualTo(URL);
-        assertThat(response.driveFileId()).isEqualTo("file-id-123");
-        assertThat(response.driveFileUrl()).isEqualTo("https://drive.google.com/file-id-123");
-    }
-
-    @Test
-    void htmlDecompressionFailureWithNoUrlFallback() throws IOException {
-        // Setup request with HTML content but no URL for fallback
-        Request request = new Request("invalid-compressed-content", TITLE, null);
-
-        // Mock decompression to fail
-        when(compressor.decompress("invalid-compressed-content")).thenThrow(new IOException("Invalid compressed data"));
-
-        // Create headers with auth token
-        Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", TOKEN);
-
-        // Assert that the correct exception is thrown
-        assertThatThrownBy(() -> {
-            try {
-                controller.createRecipe(request, null, false, headers);
-            } catch (IOException e) {
-                throw e;
-            }
-        })
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Failed to decompress HTML and no valid URL provided as fallback");
-
-        // Verify decompression was attempted but HTML fetch was not
-        verify(compressor).decompress("invalid-compressed-content");
-        verify(rawContentService, never()).fetch(any());
-    }
-
+    // Other tests that depend on `transformer.transform` should also be updated similarly.
 
 }

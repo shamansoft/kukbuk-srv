@@ -29,7 +29,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(originPatterns = "chrome-extension://*",
-//        allowedHeaders = {"Content-Type", "Authorization", "X-Extension-ID", "X-Request-ID", "Accept"},
         allowedHeaders = "*",
         exposedHeaders = "*",
         allowCredentials = "false")
@@ -56,8 +55,7 @@ public class CookbookController {
                                 String compression,
                                 boolean test,
                                 Map<String, String> headers) throws IOException, AuthenticationException {
-        return createRecipe(request, compression,
-                new HttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers))));
+        return createRecipe(request, compression, new HttpHeaders(HttpHeaders.readOnlyHttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers)))));
     }
 
     @PostMapping(
@@ -71,15 +69,23 @@ public class CookbookController {
     )
             throws IOException, AuthenticationException {
 
-        log.debug("Headers: {}", httpHeaders.toString());
+        log.debug("Headers: {}", httpHeaders);
         String authToken = tokenService.getAuthToken(httpHeaders);
         String html = extractHtml(request, compression);
-        String transformed = transformer.transform(html);
+        Transformer.Response response = transformer.transform(html);
+
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(request.title())
-                .url(request.url());
-        // Google Drive integration: if auth-token header is present, persist the recipe YAML
-        storeToDrive(request, authToken, transformed, responseBuilder);
+                .url(request.url())
+                .isRecipe(response.isRecipe());
+
+        if (response.isRecipe()) {
+            // Google Drive integration: if auth-token header is present, persist the recipe YAML
+            storeToDrive(request, authToken, response.value(), responseBuilder);
+        } else {
+            log.info("The content is not a recipe. Skipping Drive storage.");
+        }
+
         return responseBuilder.build();
     }
 
@@ -93,7 +99,6 @@ public class CookbookController {
 
     private String extractHtml(Request request, String compression) throws IOException {
         String html = "";
-        // Try to use the HTML from the request first
         if (request.html() != null && !request.html().isEmpty()) {
             try {
                 if (NONE.equals(compression)) {
@@ -105,17 +110,13 @@ public class CookbookController {
                 }
             } catch (IOException e) {
                 log.warn("Failed to decompress HTML from request: {}", e.getMessage(), e);
-
                 if (request.url() == null || request.url().isEmpty()) {
                     log.error("Cannot fall back to URL as it's not provided or empty");
                     throw new IOException("Failed to decompress HTML and no valid URL provided as fallback", e);
                 }
-
-                log.info("Falling back to fetching HTML from URL: {}", request.url());
                 throw e;
             }
         } else {
-            // Fallback to fetching from the URL
             log.debug("No HTML in request, fetching from URL: {}", request.url());
             html = rawContentService.fetch(request.url());
         }

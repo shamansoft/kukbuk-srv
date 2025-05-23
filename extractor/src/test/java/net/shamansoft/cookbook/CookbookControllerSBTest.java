@@ -17,7 +17,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import javax.naming.AuthenticationException;
 import java.util.Map;
-
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class CookbookControllerSpringTest {
+class CookbookControllerSBTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -63,7 +62,7 @@ class CookbookControllerSpringTest {
     void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
         when(tokenService.getAuthToken(any())).thenReturn("auth-token");
         when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
@@ -77,15 +76,15 @@ class CookbookControllerSpringTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody())
-                .extracting(RecipeResponse::title, RecipeResponse::url)
-                .containsExactly("Title", "http://example.com");
+                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
+                .containsExactly("Title", "http://example.com", true);
     }
 
     @Test
     void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
         when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn("transformed content");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
         when(tokenService.getAuthToken(any())).thenReturn("auth-token");
         when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
@@ -100,8 +99,8 @@ class CookbookControllerSpringTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody())
-                .extracting(RecipeResponse::title, RecipeResponse::url)
-                .containsExactly("Title", "http://example.com");
+                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
+                .containsExactly("Title", "http://example.com", true);
     }
 
     @Test
@@ -118,5 +117,133 @@ class CookbookControllerSpringTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get("error")).isEqualTo("Validation Error");
         assertThat(response.getBody().get("validationErrors")).isNotNull();
+    }
+
+    @Test
+    void createRecipe_withDecompressionFailure_shouldThrowException() throws IOException, AuthenticationException {
+        // Given
+        Request request = new Request("compressed html", "Title", "http://example.com");
+        when(compressor.decompress("compressed html")).thenThrow(new IOException("Decompression failed"));
+
+        // When/Then
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/recipe",
+                request,
+                Map.class
+        );
+
+        // Assert
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+    }
+
+    @Test
+    void createRecipe_withNoneCompression_shouldSkipDecompression() throws IOException, AuthenticationException {
+        // Given
+        Request request = new Request("raw html", "Title", "http://example.com");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
+        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
+        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
+
+        // When
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                "/recipe?compression=none",
+                request,
+                RecipeResponse.class
+        );
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isRecipe()).isTrue();
+    }
+
+    @Test
+    void createRecipe_whenContentIsNotRecipe_shouldNotStoreToDrive() throws IOException, AuthenticationException {
+        // Given
+        Request request = new Request(null, "Title", "http://example.com");
+        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
+        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
+
+        // When
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                "/recipe",
+                request,
+                RecipeResponse.class
+        );
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isRecipe()).isFalse();
+        assertThat(response.getBody().driveFileId()).isNull();
+        assertThat(response.getBody().driveFileUrl()).isNull();
+    }
+
+    @Test
+    void createRecipe_withAuthenticationFailure_shouldReturnUnauthorized() throws IOException, AuthenticationException {
+        // Given
+        Request request = new Request(null, "Title", "http://example.com");
+        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(tokenService.getAuthToken(any())).thenThrow(new AuthenticationException("Invalid token"));
+
+        // When
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/recipe",
+                request,
+                Map.class
+        );
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody().get("error")).isEqualTo("Authentication Error");
+    }
+
+    @Test
+    void createRecipe_whenUrlFetchFails_shouldReturnBadRequest() throws IOException {
+        // Given
+        Request request = new Request(null, "Title", "http://example.com");
+        when(rawContentService.fetch("http://example.com")).thenThrow(new IOException("Failed to fetch URL"));
+
+        // When
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/recipe",
+                request,
+                Map.class
+        );
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+    }
+
+    @Test
+    void controllerMethod_createRecipe_worksWithParams() throws IOException, AuthenticationException {
+        // Given
+        CookbookController controller = new CookbookController(
+                rawContentService, transformer, compressor, googleDriveService, tokenService
+        );
+        Request request = new Request("raw html", "Title", "http://example.com");
+        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(googleDriveService.getOrCreateFolder(any())).thenReturn("folder-id");
+        when(googleDriveService.generateFileName(any())).thenReturn("Title.yaml");
+        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
+
+        // When
+        RecipeResponse response = controller.createRecipe(
+                request,
+                "none",
+                false,
+                Map.of("Authorization", "Bearer token")
+        );
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.title()).isEqualTo("Title");
     }
 }

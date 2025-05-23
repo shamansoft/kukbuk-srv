@@ -7,6 +7,7 @@ public record RecipeResponse(
         String url,
         String title,
         String driveFileId,
-        String driveFileUrl
+        String driveFileUrl,
+        boolean isRecipe
 ) {
 }
