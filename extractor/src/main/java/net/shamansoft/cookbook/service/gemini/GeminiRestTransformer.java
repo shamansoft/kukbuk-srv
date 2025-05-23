@@ -49,10 +49,10 @@ public class GeminiRestTransformer implements Transformer {
     }
 
     @Override
-    public String transform(String what) {
+    public Response transform(String htmlContent) {
         try {
             String url = "/models/%s:generateContent?key=%s".formatted(model, apiKey);
-            String body = buildRequestJson(what);
+            String body = buildRequestJson(htmlContent);
             JsonNode response = geminiWebClient.post()
                     .uri(url)
                     .header("Content-Type", "application/json")
@@ -62,14 +62,19 @@ public class GeminiRestTransformer implements Transformer {
                     .block();
 
             if (response != null && response.has("candidates")) {
-                return cleanup(response.get("candidates").get(0)
+                String yamlContent = cleanup(response.get("candidates").get(0)
                         .get("content").get("parts").get(0)
                         .get("text").asText());
+
+                // Check if the YAML indicates that it is not a recipe
+                boolean isRecipe = !yamlContent.contains("is_recipe: false");
+
+                return new Response(isRecipe, yamlContent);
             }
         } catch (Exception e) {
             log.error("Failed to transform content via Gemini API", e);
         }
-        return "Could not transform content. Try again later.";
+        return new Response(false, "Could not transform content. Try again later.");
     }
 
     String buildRequestJson(String htmlContent) throws JsonProcessingException {
@@ -110,6 +115,4 @@ public class GeminiRestTransformer implements Transformer {
     private String cleanup(String text) {
         return cleanupService.removeYamlSign(text);
     }
-
-
 }
