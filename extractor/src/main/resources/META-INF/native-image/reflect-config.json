@@ -6,25 +6,25 @@
     "allDeclaredConstructors": true
   },
   {
-    "name": "net.shamansoft.cookbook.service.gemini.Contents",
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$Content",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
   },
   {
-    "name": "net.shamansoft.cookbook.service.gemini.Part",
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$Part",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
   },
   {
-    "name": "net.shamansoft.cookbook.service.gemini.GenerationConfig",
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$GenerationConfig",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
   },
   {
-    "name": "net.shamansoft.cookbook.service.gemini.SafetySetting",
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$SafetySetting",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
