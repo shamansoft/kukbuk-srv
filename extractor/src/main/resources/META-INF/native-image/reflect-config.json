@@ -1,0 +1,32 @@
+[
+  {
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$Content",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$Part",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$GenerationConfig",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.service.gemini.GeminiRequest$SafetySetting",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  }
+]
