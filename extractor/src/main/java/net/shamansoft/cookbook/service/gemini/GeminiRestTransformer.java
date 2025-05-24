@@ -100,7 +100,7 @@ public class GeminiRestTransformer implements Transformer {
                 .generationConfig(GeminiRequest.GenerationConfig.builder()
                         .temperature(temperature)
                         .topP(topP)
-                        .maxOutputTokens(10000)
+                        .maxOutputTokens(4096)
                         .build())
                 .safetySettings(List.of(
                         GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT").threshold("BLOCK_NONE").build(),
