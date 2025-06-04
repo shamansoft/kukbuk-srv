@@ -1,9 +1,10 @@
-package net.shamansoft.cookbook.service;
+package net.shamansoft.cookbook.service.gemini;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
+import net.shamansoft.cookbook.service.CleanupService;
+import net.shamansoft.cookbook.service.ResourcesLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

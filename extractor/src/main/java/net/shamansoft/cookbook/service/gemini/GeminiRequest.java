@@ -1,26 +1,55 @@
 package net.shamansoft.cookbook.service.gemini;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
+import lombok.Data;
 
 import java.util.List;
 
+@Data
 @Builder
-public record GeminiRequest(List<Content> contents, GenerationConfig generationConfig,
-                            List<SafetySetting> safetySettings) {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GeminiRequest {
+    @JsonProperty
+    private final List<Content> contents;
+    @JsonProperty
+    private final GenerationConfig generationConfig;
+    @JsonProperty
+    private final List<SafetySetting> safetySettings;
 
     @Builder
-    public record Content(List<Part> parts) {
+    @Data
+    public static final class Content {
+        @JsonProperty
+        private final List<Part> parts;
     }
 
     @Builder
-    public record Part(String text) {
+    @Data
+    public static final class Part {
+        @JsonProperty
+        private final String text;
     }
 
     @Builder
-    public record GenerationConfig(float temperature, double topP, int maxOutputTokens) {
+    @Data
+    public static final class GenerationConfig {
+        @JsonProperty
+        private final float temperature;
+        @JsonProperty
+        private final double topP;
+        @JsonProperty
+        private final int maxOutputTokens;
     }
 
     @Builder
-    public record SafetySetting(String category, String threshold) {
+    @Data
+    public static final class SafetySetting {
+        @JsonProperty
+        private final String category;
+        @JsonProperty
+        private final String threshold;
     }
 }
