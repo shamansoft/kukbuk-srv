@@ -3,19 +3,14 @@ package net.shamansoft.cookbook.service.gemini;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.service.CleanupService;
-import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -25,7 +20,7 @@ public class GeminiRestTransformer implements Transformer {
 
     private final WebClient geminiWebClient;
     private final CleanupService cleanupService;
-    private final ResourcesLoader resourceLoader;
+    private final Prompt prompt;
     private final ObjectMapper objectMapper;
     @Value("${cookbook.gemini.api-key}")
     private String apiKey;
@@ -35,18 +30,6 @@ public class GeminiRestTransformer implements Transformer {
     private float temperature;
     @Value("${cookbook.gemini.top-p}")
     private float topP;
-    private String prompt;
-    private String exampleYaml;
-    private String jsonSchema;
-
-
-    @PostConstruct
-    @SneakyThrows
-    public void init() {
-        this.prompt = resourceLoader.loadYaml("classpath:prompt.md");
-        this.jsonSchema = resourceLoader.loadYaml("classpath:recipe-schema-1.0.0.json");
-        this.exampleYaml = resourceLoader.loadYaml("classpath:example.yaml");
-    }
 
     @Override
     public Response transform(String htmlContent) {
@@ -78,15 +61,7 @@ public class GeminiRestTransformer implements Transformer {
     }
 
     String buildRequestJson(String htmlContent) throws JsonProcessingException {
-        LocalDate today = LocalDate.now();
-        String currentDateFormatted = today.format(DateTimeFormatter.ISO_LOCAL_DATE); // YYYY-MM-DD
-        String fullPrompt = String.format(prompt,
-                currentDateFormatted,
-                jsonSchema,
-                exampleYaml,
-                htmlContent
-        );
-
+        String fullPrompt = prompt.withHtml(htmlContent);
         GeminiRequest request = GeminiRequest.builder()
                 .contents(List.of(
                         GeminiRequest.Content.builder()
