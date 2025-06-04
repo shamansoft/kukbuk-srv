@@ -1,79 +1,68 @@
----
 metadata:
   title: "Classic Chocolate Chip Cookies"
-  author: "Jane Baker"
-  source: "https://www.janebaker.com/recipes/chocolate-chip-cookies"
+  author: "Chef Maria"
+  source: "https://www.chefgordon.com/recipes/chocolate-chip-cookies"
+  language: "en"
   date_created: "2024-02-15"
   category: ["dessert", "baking"]
-  tags: ["cookies", "chocolate", "family-favorite"]
+  tags: ["cookies", "chocolate", "easy"]
   servings: 24
-  prep_time: "2h"
-  cook_time: "15m"
-  total_time: "2h15m"
+  prep_time: "20m"
+  cook_time: "12m"
+  total_time: "32m"
   difficulty: "easy"
   cover_image:
-    path: "/images/chocolate-cookies.jpg"
-    alt: "Golden brown chocolate chip cookies on cooling rack"
+    path: "https://chefgordon.com/media/cookie-image.jpg"
+    alt: "Golden chocolate chip cookies"
 
 description: |
-  Classic chocolate chip cookies with a crispy edge and soft center. 
-  Perfect for **family gatherings** or *weekend treats*.
+  Classic **chocolate chip cookies** with crispy edges and soft centers.
 
 ingredients:
-  - component: "dough"
-    items:
-      - item: "unsalted butter"
+  - item: "all-purpose flour"
+    amount: 2.25
+    unit: "cups"
+    component: "dry"
+  - item: "butter"
+    amount: 1
+    unit: "cup"
+    notes: "softened"
+    component: "wet"
+    substitutions:
+      - item: "margarine"
         amount: 1
         unit: "cup"
-        notes: "softened"
-      - item: "brown sugar"
-        amount: 1
-        unit: "cup"
-        notes: "packed"
-      - item: "granulated sugar"
-        amount: 0.5
-        unit: "cup"
-      - item: "vanilla extract"
-        amount: 2
-        unit: "tsp"
-  - component: "filling"
-    items:
-      - item: "semi-sweet chocolate chips"
-        amount: 2
-        unit: "cups"
-
-equipment:
-  - "mixing bowls"
-  - "baking sheets"
-  - "parchment paper"
+        ratio: "1:1"
+  - item: "chocolate chips"
+    amount: 2
+    unit: "cups"
+    component: "mix-ins"
+  - item: "vanilla extract"
+    amount: 2
+    unit: "tsp"
+    optional: true
+    component: "wet"
 
 instructions:
   - step: 1
     description: |
-      Preheat oven to 375°F (190°C).
-      Line baking sheets with parchment paper.
-
+      Preheat oven to **375°F**. 
+      Line baking sheets with parchment.
+    temperature: "375°F"
   - step: 2
     description: |
-      Mix dry ingredients:
-      1. Sift flour
-      2. Add baking soda and salt
-      3. Whisk together
-    media:
-      - type: "image"
-        path: "/images/mixing.jpg"
-        alt: "Whisking dry ingredients"
-
-nutrition:
-  serving_size: "1 cookie"
-  calories: 150
-  protein: 2
-  carbohydrates: 25
-  fat: 6
-
-notes: |
-  - Store in airtight container for up to 5 days
-  - Dough can be frozen for up to 3 months
+      Mix dry ingredients in large bowl.
+    time: "2m"
+  - step: 3
+    description: |
+      Cream butter and sugars until fluffy.
+    time: "3m"
+  - step: 4
+    description: |
+      Bake for 9-11 minutes until edges are golden.
+      Remove from the oven, move cookies to the cooling net, set aside to cooldown.
+    time: "10m"
+    temperature: "375°F"
 
 schema_version: "1.0.0"
 recipe_version: "1.0.0"

@@ -7,63 +7,100 @@
   "properties": {
     "metadata": {
       "type": "object",
-      "required": ["title", "date_created", "servings"],
+      "required": ["title", "source", "date_created", "servings"],
       "properties": {
-        "title": { "type": "string" },
-        "source": { "type": "string" },
+        "title": {
+          "type": "string",
+          "description": "Recipe name"
+        },
+        "source": {
+          "type": "string",
+          "format": "url",
+          "description": "Original recipe url"
+        },
         "author": { "type": "string" },
+        "language": {
+          "type": "string",
+          "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
+          "default": "en",
+          "description": "Language code 'en' or region format 'en/us'"
+        },
         "date_created": { "type": "string", "format": "date" },
-        "category": { "type": "array", "items": { "type": "string" } },
-        "tags": { "type": "array", "items": { "type": "string" } },
+        "category": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
         "servings": { "type": "integer", "minimum": 1 },
-        "prep_time": { "$ref": "#/definitions/time_duration" },
-        "cook_time": { "$ref": "#/definitions/time_duration" },
-        "total_time": { "$ref": "#/definitions/time_duration" },
+        "prep_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
+        "cook_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
+        "total_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
         "difficulty": {
           "type": "string",
-          "enum": ["easy", "medium", "hard"]
+          "enum": ["easy", "medium", "hard"],
+          "default": "medium"
         },
         "cover_image": {
           "type": "object",
-          "required": ["path", "alt"],
+          "required": ["path"],
           "properties": {
             "path": { "type": "string" },
-            "alt": { "type": "string" }
+            "alt": { "type": "string", "default": "" }
           }
         }
       }
     },
     "description": {
       "type": "string",
+      "default": "",
       "description": "Markdown-formatted description"
     },
-    "components": {
+    "ingredients": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "ingredients"],
+        "required": ["item"],
         "properties": {
-          "name": { "type": "string" },
-          "ingredients": {
+          "item": { "type": "string" },
+          "amount": { "type": "number", "minimum": 0 },
+          "unit": { "type": "string" },
+          "notes": { "type": "string" },
+          "optional": { "type": "boolean", "default": false },
+          "substitutions": {
             "type": "array",
             "items": {
               "type": "object",
               "required": ["item"],
               "properties": {
                 "item": { "type": "string" },
-                "amount": { "type": "number", "exclusiveMinimum": 0 },
+                "amount": { "type": "number", "minimum": 0 },
                 "unit": { "type": "string" },
-                "notes": { "type": "string" }
+                "notes": { "type": "string" },
+                "ratio": {
+                  "type": "string",
+                  "description": "Conversion ratio like '1:1' or '2:1'"
+                }
               }
-            },
-            "minItems": 1
+            }
+          },
+          "component": {
+            "type": "string",
+            "default": "main",
+            "description": "Ingredient grouping like 'dough', 'filling', 'sauce'"
           }
         }
-      }
+      },
+      "minItems": 1
     },
     "equipment": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "default": []
     },
     "instructions": {
       "type": "array",
@@ -71,36 +108,34 @@
         "type": "object",
         "required": ["description"],
         "properties": {
-          "step": { "type": "integer", "minimum": 0 },
+          "step": { "type": "integer", "minimum": 1 },
           "description": {
             "type": "string",
             "description": "Markdown-formatted instruction"
           },
+          "time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
+          "temperature": { "type": "string" },
           "media": {
             "type": "array",
             "items": {
               "oneOf": [
                 {
                   "type": "object",
-                  "required": ["type", "path", "alt"],
+                  "required": ["type", "path"],
                   "properties": {
                     "type": { "const": "image" },
-                    "path": { "type": "string", "format": "uri-reference" },
-                    "alt": { "type": "string" }
+                    "path": { "type": "string" },
+                    "alt": { "type": "string", "default": "" }
                   }
                 },
                 {
                   "type": "object",
-                  "required": ["type", "path", "thumbnail"],
+                  "required": ["type", "path"],
                   "properties": {
                     "type": { "const": "video" },
-                    "path": { "type": "string", "format": "uri-reference" },
-                    "thumbnail": { "type": "string", "format": "uri-reference" },
-                    "duration": {
-                      "type": "string",
-                      "pattern": "^\\d+:\\d{2}$",
-                      "description": "Duration in MM:SS format"
-                    }
+                    "path": { "type": "string" },
+                    "thumbnail": { "type": "string" },
+                    "duration": { "type": "string", "pattern": "^\\d+:\\d{2}$" }
                   }
                 }
               ]
@@ -117,12 +152,24 @@
         "calories": { "type": "integer", "minimum": 0 },
         "protein": { "type": "number", "minimum": 0 },
         "carbohydrates": { "type": "number", "minimum": 0 },
-        "fat": { "type": "number", "minimum": 0 }
+        "fat": { "type": "number", "minimum": 0 },
+        "fiber": { "type": "number", "minimum": 0 },
+        "sugar": { "type": "number", "minimum": 0 },
+        "sodium": { "type": "number", "minimum": 0 }
       }
     },
     "notes": {
       "type": "string",
-      "description": "Markdown-formatted notes"
+      "default": "",
+      "description": "Markdown-formatted notes, tips and tricks"
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "refrigerator": { "type": "string" },
+        "freezer": { "type": "string" },
+        "room_temperature": { "type": "string" }
+      }
     },
     "schema_version": {
       "type": "string",
@@ -133,42 +180,6 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "Semantic version of the recipe"
-    }
-  },
-  "definitions": {
-    "duration": {
-      "type": "object",
-      "required": ["value", "unit"],
-      "properties": {
-        "value": {
-          "type": "number",
-          "minimum": 0
-        },
-        "unit": {
-          "type": "string",
-          "enum": ["minutes", "hours", "days"]
-        }
-      }
-    },
-    "time_duration": {
-      "oneOf": [
-        {
-          "type": "object",
-          "required": ["durations"],
-          "properties": {
-            "durations": {
-              "type": "array",
-              "items": { "$ref": "#/definitions/duration" },
-              "minItems": 1
-            }
-          }
-        },
-        {
-          "type": "string",
-          "pattern": "^(\\d+d\\s+)?(\\d+h\\s+)?(\\d+m)?$",
-          "description": "Duration in format: '1d 2h 30m' (days, hours, minutes)"
-        }
-      ]
     }
   }
 }
