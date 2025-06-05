@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 class GeminiRequestTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -80,8 +79,8 @@ class GeminiRequestTest {
 
         GeminiRequest request = objectMapper.readValue(json, GeminiRequest.class);
 
-        assertThat(request.contents()).hasSize(1);
-        assertThat(request.contents().get(0).parts().get(0).text()).isEqualTo("Sample text");
-        assertThat(request.generationConfig().temperature()).isEqualTo(0.7f);
+        assertThat(request.getContents()).hasSize(1);
+        assertThat(request.getContents().get(0).getParts().get(0).getText()).isEqualTo("Sample text");
+        assertThat(request.getGenerationConfig().getTemperature()).isEqualTo(0.7f);
     }
 }
