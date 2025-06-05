@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.shamansoft.cookbook.service.CleanupService;
-import net.shamansoft.cookbook.service.ResourcesLoader;
+import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +32,7 @@ class GeminiRestTransformerTest {
     private WebClient geminiWebClient;
 
     @Mock
-    private ResourcesLoader resourceLoader;
+    private Prompt prompt;
 
     @Mock
     private CleanupService cleanupService;
@@ -59,9 +59,8 @@ class GeminiRestTransformerTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        when(resourceLoader.loadYaml(anyString())).thenReturn("yaml-example");
+        when(prompt.withHtml(anyString())).thenReturn("fullPrompt");
         when(objectMapper.writeValueAsString(any())).thenReturn("valid-json");
-        geminiRestTransformer.init();
 
         // Setup common WebClient mocking
         when(geminiWebClient.post()).thenReturn(requestBodyUriSpec);

@@ -9,12 +9,19 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 class GoogleDriveServiceTest {
 
     @Mock
     private GoogleDrive googleDrive;
+    @Mock
+    private Transliterator transliterator;
 
     @InjectMocks
     private GoogleDriveService googleDriveService;
@@ -24,6 +31,35 @@ class GoogleDriveServiceTest {
         MockitoAnnotations.openMocks(this);
         // Set the folder name via reflection
         ReflectionTestUtils.setField(googleDriveService, "folderName", "test-folder");
+    }
+
+
+    @Test
+    void generatesFileNameWithTransliteratedTitle() {
+        when(transliterator.toAsciiKebab("Хачапури по Мегрельски")).thenReturn("khachapuri-po-megrelski");
+        String result = googleDriveService.generateFileName("Хачапури по Мегрельски");
+        assertThat(result).isEqualTo("khachapuri-po-megrelski.yaml");
+    }
+
+    @Test
+    void generatesFileNameWithDefaultNameWhenTitleIsEmpty() {
+        when(transliterator.toAsciiKebab("")).thenReturn("");
+        String result = googleDriveService.generateFileName("");
+        assertThat(result).startsWith("recipe-").endsWith(".yaml");
+    }
+
+    @Test
+    void generatesFileNameWithDefaultNameWhenTitleIsNull() {
+        when(transliterator.toAsciiKebab(null)).thenReturn("");
+        String result = googleDriveService.generateFileName(null);
+        assertThat(result).startsWith("recipe-").endsWith(".yaml");
+    }
+
+    @Test
+    void generatesFileNameWithOriginalTitleWhenTransliterationFails() {
+        when(transliterator.toAsciiKebab("Invalid@Title")).thenReturn("");
+        String result = googleDriveService.generateFileName("Invalid@Title");
+        assertThat(result).startsWith("recipe-").endsWith(".yaml");
     }
 
     @Test

@@ -8,14 +8,7 @@ public interface DriveService {
      * @param title the recipe title
      * @return sanitized filename ending with .yaml
      */
-    default String generateFileName(String title) {
-        String base = (title == null || title.isBlank()) ? "recipe-" + System.currentTimeMillis() : title;
-        String clean = base.trim().toLowerCase().replaceAll("[^a-z0-9]+", "-");
-        if (clean.endsWith("-")) {
-            clean = clean.substring(0, clean.length() - 1);
-        }
-        return clean + ".yaml";
-    }
+    String generateFileName(String title);
 
     /**
      * Retrieves or creates the configured folder in the user's Google Drive.
