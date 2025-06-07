@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.CleanupService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,13 +52,14 @@ public class GeminiRestTransformer implements Transformer {
 
                 // Check if the YAML indicates that it is not a recipe
                 boolean isRecipe = !yamlContent.contains("is_recipe: false");
-
                 return new Response(isRecipe, yamlContent);
+            } else {
+                throw new ClientException("Invalid Gemini response: %s".formatted(response));
             }
         } catch (Exception e) {
             log.error("Failed to transform content via Gemini API", e);
+            throw new ClientException("Failed to transform content via Gemini API", e);
         }
-        return new Response(false, "Could not transform content. Try again later.");
     }
 
     String buildRequestJson(String htmlContent) throws JsonProcessingException {

@@ -3,53 +3,65 @@ package net.shamansoft.cookbook.service.gemini;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GeminiRequest {
     @JsonProperty
-    private final List<Content> contents;
+    private List<Content> contents;
     @JsonProperty
-    private final GenerationConfig generationConfig;
+    private GenerationConfig generationConfig;
     @JsonProperty
-    private final List<SafetySetting> safetySettings;
+    private List<SafetySetting> safetySettings;
 
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Data
-    public static final class Content {
+    public static class Content {
         @JsonProperty
-        private final List<Part> parts;
+        private List<Part> parts;
     }
 
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Data
-    public static final class Part {
+    public static class Part {
         @JsonProperty
-        private final String text;
+        private String text;
     }
 
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Data
-    public static final class GenerationConfig {
+    public static class GenerationConfig {
         @JsonProperty
-        private final float temperature;
+        private float temperature;
         @JsonProperty
-        private final double topP;
+        private double topP;
         @JsonProperty
-        private final int maxOutputTokens;
+        private int maxOutputTokens;
     }
 
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Data
-    public static final class SafetySetting {
+    public static class SafetySetting {
         @JsonProperty
-        private final String category;
+        private String category;
         @JsonProperty
-        private final String threshold;
+        private String threshold;
     }
 }

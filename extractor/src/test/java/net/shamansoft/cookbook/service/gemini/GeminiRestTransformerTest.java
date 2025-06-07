@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service.gemini;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.CleanupService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -109,12 +111,9 @@ class GeminiRestTransformerTest {
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(emptyResponse));
 
-        // Act
-        Transformer.Response result = geminiRestTransformer.transform(input);
-
-        // Assert
-        assertThat(result.isRecipe()).isFalse();
-        assertThat(result.value()).isEqualTo("Could not transform content. Try again later.");
+        // Act & Assert
+        assertThatThrownBy(() -> geminiRestTransformer.transform(input))
+                .isInstanceOf(ClientException.class);
         verify(cleanupService, never()).removeYamlSign(anyString());
     }
 
@@ -125,12 +124,9 @@ class GeminiRestTransformerTest {
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenThrow(new RuntimeException("API error"));
 
-        // Act
-        Transformer.Response result = geminiRestTransformer.transform(input);
-
-        // Assert
-        assertThat(result.isRecipe()).isFalse();
-        assertThat(result.value()).isEqualTo("Could not transform content. Try again later.");
+        // Act & Assert
+        assertThatThrownBy(() -> geminiRestTransformer.transform(input))
+                .isInstanceOf(ClientException.class);
         verify(cleanupService, never()).removeYamlSign(anyString());
     }
 
@@ -147,12 +143,10 @@ class GeminiRestTransformerTest {
 
         when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(malformedResponse));
 
-        // Act
-        Transformer.Response result = geminiRestTransformer.transform(input);
+        // Act & Assert
+        assertThatThrownBy(() -> geminiRestTransformer.transform(input))
+                .isInstanceOf(ClientException.class);
 
-        // Assert
-        assertThat(result.isRecipe()).isFalse();
-        assertThat(result.value()).isEqualTo("Could not transform content. Try again later.");
         verify(cleanupService, never()).removeYamlSign(anyString());
     }
 }
