@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'net.shamansoft'
-version = '0.3.18'
+version = '0.3.19'
 
 java {
 	toolchain {
@@ -23,6 +23,7 @@ configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+	mockitoAgent
 }
 
 repositories {
@@ -40,6 +41,11 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	testImplementation("org.mockito:mockito-core:5.18.0")
+	mockitoAgent("org.mockito:mockito-core:5.18.0") {
+		transitive = false
+	}
 }
 
 bootJar {
@@ -94,5 +100,11 @@ graalvmNative {
 			)
 			resources.autodetect()
 		}
+	}
+}
+
+tasks {
+	test {
+		jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 	}
 }

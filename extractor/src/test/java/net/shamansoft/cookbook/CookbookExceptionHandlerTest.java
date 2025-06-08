@@ -68,6 +68,25 @@ public class CookbookExceptionHandlerTest {
     }
 
     @Test
+    void handleClientExceptionReturns500() {
+        // Mock HTTP request
+        when(httpServletRequest.getRequestURI()).thenReturn("/recipe");
+
+        // Create test exception
+        RuntimeException testException = new RuntimeException("Client error");
+
+        // Call exception handler
+        var response = controller.handleGeneralException(testException, httpServletRequest);
+
+        // Verify response status and content
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 500);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Internal Server Error");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/recipe");
+    }
+
+    @Test
     void ioExceptionFromDecompressionReturnsBadRequest() throws IOException {
         HttpServletRequest mockRequest = mock(HttpServletRequest.class);
         when(mockRequest.getRequestURI()).thenReturn("/recipe");
