@@ -89,10 +89,12 @@ public class CookbookController {
         return responseBuilder.build();
     }
 
-    private void storeToDrive(Request request, String authToken, String transformed, RecipeResponse.RecipeResponseBuilder responseBuilder) {
+    private void storeToDrive(Request request, String authToken, String transformed,
+                              RecipeResponse.RecipeResponseBuilder responseBuilder) {
         String folderId = googleDriveService.getOrCreateFolder(authToken);
         String fileName = googleDriveService.generateFileName(request.title());
-        DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, transformed);
+        DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+                authToken, folderId, fileName, transformed);
         responseBuilder.driveFileId(uploadResult.fileId())
                 .driveFileUrl(uploadResult.fileUrl());
     }

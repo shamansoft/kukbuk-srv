@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook;
 
+import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
@@ -101,6 +102,22 @@ class CookbookControllerSBTest {
         assertThat(response.getBody())
                 .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
                 .containsExactly("Title", "http://example.com", true);
+    }
+
+    @Test
+    void createRecipe_returns_500_when_transform_throws_ClientException() {
+        Request request = new Request("raw html", "Title", "http://example.com");
+        when(transformer.transform("raw html")).thenThrow(new ClientException("Transformation error"));
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "/recipe",
+                request,
+                Map.class
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("error")).isEqualTo("Internal Server Error");
     }
 
     @Test
