@@ -59,6 +59,20 @@ public class ServiceConfig {
     }
 
     @Bean
+    public WebClient driveWebClient(@Value("${cookbook.drive.base-url}") String baseUrl) {
+        return WebClient.builder()
+                .baseUrl(baseUrl)
+                .build();
+    }
+
+    @Bean
+    public WebClient uploadWebClient(@Value("${cookbook.drive.upload-url}") String uploadUrl) {
+        return WebClient.builder()
+                .baseUrl(uploadUrl)
+                .build();
+    }
+
+    @Bean
     public HttpExchangeRepository httpExchangeRepository() {
         return new InMemoryHttpExchangeRepository();
     }

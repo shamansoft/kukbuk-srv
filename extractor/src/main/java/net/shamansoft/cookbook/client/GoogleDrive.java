@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.client;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -15,14 +15,10 @@ public class GoogleDrive {
     private final WebClient driveClient;
     private final WebClient uploadClient;
 
-    public GoogleDrive(@Value("${cookbook.drive.upload-url}") String uploadUrl,
-                       @Value("${cookbook.drive.base-url}") String baseUrl) {
-        this.driveClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .build();
-        this.uploadClient = WebClient.builder()
-                .baseUrl(uploadUrl)
-                .build();
+    public GoogleDrive(@Qualifier("driveWebClient") WebClient driveWebClient, 
+                       @Qualifier("uploadWebClient") WebClient uploadWebClient) {
+        this.driveClient = driveWebClient;
+        this.uploadClient = uploadWebClient;
     }
 
     @SuppressWarnings("unchecked")
