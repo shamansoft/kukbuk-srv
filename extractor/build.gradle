@@ -102,9 +102,3 @@ graalvmNative {
 		}
 	}
 }
-
-tasks {
-	test {
-		jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
-	}
-}

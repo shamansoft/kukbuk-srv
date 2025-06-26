@@ -27,4 +27,13 @@ class CleanupServiceTest {
 
         assertThat(result).isEqualTo(content);
     }
+
+    @Test
+    void removeYamlSign_shouldReturnContent_whenContentContainsYamlSignButDoesNotStartWithIt() {
+        String content = "example: ```yaml\nvalue\n```";
+
+        String result = cleanupService.removeYamlSign(content);
+
+        assertThat(result).isEqualTo(content);
+    }
 }
