@@ -41,16 +41,12 @@ class RecipeIntegrationTest {
     @Container
     static GenericContainer<?> wiremockContainer = new GenericContainer<>("wiremock/wiremock:3.3.1")
             .withExposedPorts(8080)
-<<<<<<< actions
             .withCommand("--global-response-templating");
-=======
-            .withCommand("--port", "8080", "--global-response-templating");
->>>>>>> main
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         String wiremockUrl = "http://localhost:" + wiremockContainer.getMappedPort(8080);
-        
+
         // Configure Google services to use WireMock
         registry.add("cookbook.gemini.base-url", () -> wiremockUrl);
         registry.add("cookbook.drive.base-url", () -> wiremockUrl);
@@ -64,7 +60,7 @@ class RecipeIntegrationTest {
     void setUp() {
         WireMock.configureFor("localhost", wiremockContainer.getMappedPort(8080));
         WireMock.reset(); // Clear any existing stubs
-        
+
         setupGoogleAuthMock();
         setupGeminiMock();
         setupGoogleDriveMocks();
@@ -104,7 +100,7 @@ class RecipeIntegrationTest {
                                 }]
                             }
                             """)));
-        
+
         // Also handle the direct path without /v1beta prefix
         stubFor(post(urlPathMatching("/models/gemini-2.0-flash:generateContent.*"))
                 .willReturn(aResponse()
@@ -124,7 +120,7 @@ class RecipeIntegrationTest {
     }
 
     private void setupGoogleDriveMocks() {
-        // Mock Google Drive folder search 
+        // Mock Google Drive folder search
         stubFor(get(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("mimeType='application/vnd.google-apps.folder'"))
                 .willReturn(aResponse()
@@ -139,7 +135,7 @@ class RecipeIntegrationTest {
                                 }]
                             }
                             """)));
-        
+
         // Mock Google Drive file search within folder - return empty to trigger file creation
         stubFor(get(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("in parents"))
@@ -165,7 +161,7 @@ class RecipeIntegrationTest {
                             }
                             """)));
 
-        // Mock Google Drive file upload/update - handle both new files and existing files  
+        // Mock Google Drive file upload/update - handle both new files and existing files
         stubFor(patch(urlPathMatching("/files/.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -221,7 +217,7 @@ class RecipeIntegrationTest {
         // Verify the response
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        
+
         RecipeResponse recipeResponse = response.getBody();
         assertEquals("https://example.com/recipe", recipeResponse.url());
         assertEquals("Chocolate Chip Cookies", recipeResponse.title());
@@ -232,15 +228,15 @@ class RecipeIntegrationTest {
         // Verify that Google services were called
         verify(getRequestedFor(urlPathEqualTo("/tokeninfo"))
                 .withQueryParam("access_token", equalTo("valid-token")));
-        
+
         // Verify Gemini was called (without /v1beta prefix based on actual request)
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.0-flash:generateContent.*")));
-        
+
         verify(getRequestedFor(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("name='kukbuk'")));
-        
+
         verify(postRequestedFor(urlPathEqualTo("/files")));
-        
+
         verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
     }
 
