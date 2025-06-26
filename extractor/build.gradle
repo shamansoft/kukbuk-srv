@@ -42,8 +42,8 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
-	testImplementation("org.mockito:mockito-core:5.14.0")
-	mockitoAgent("org.mockito:mockito-core:5.14.0") {
+	testImplementation("org.mockito:mockito-core:5.18.0")
+	mockitoAgent("org.mockito:mockito-core:5.18.0") {
 		transitive = false
 	}
 }
