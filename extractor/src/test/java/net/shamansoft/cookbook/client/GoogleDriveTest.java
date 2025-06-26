@@ -26,7 +26,9 @@ class GoogleDriveTest {
     @Test
     void testGetFolderFound() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -56,7 +58,9 @@ class GoogleDriveTest {
     @Test
     void testGetFolderNotFound() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -84,7 +88,9 @@ class GoogleDriveTest {
     @Test
     void testCreateFolderSuccess() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -117,7 +123,9 @@ class GoogleDriveTest {
     @Test
     void testGetFileFound() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -146,7 +154,9 @@ class GoogleDriveTest {
     @Test
     void testGetFileNotFound() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -174,7 +184,9 @@ class GoogleDriveTest {
     @Test
     void testCreateFolderError() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -203,7 +215,9 @@ class GoogleDriveTest {
     @Test
     void testUpdateFileSuccess() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         WebClient mockUploadClient = mock(WebClient.class);
@@ -251,7 +265,9 @@ class GoogleDriveTest {
     @Test
     void testUpdateFileError() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         WebClient mockUploadClient = mock(WebClient.class);
@@ -297,7 +313,9 @@ class GoogleDriveTest {
     @Test
     void testCreateFileSuccess() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         WebClient mockUploadClient = mock(WebClient.class);
@@ -348,7 +366,9 @@ class GoogleDriveTest {
     @Test
     void testCreateFileErrorOnCreate() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
@@ -377,7 +397,9 @@ class GoogleDriveTest {
     @Test
     void testCreateFileErrorOnUpload() {
         // Setup
-        GoogleDrive googleDrive = new GoogleDrive("http://dummy-upload", "http://dummy-base");
+        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
+        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
         WebClient mockDriveClient = mock(WebClient.class);
         WebClient mockUploadClient = mock(WebClient.class);

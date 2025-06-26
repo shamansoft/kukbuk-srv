@@ -19,11 +19,22 @@ springBoot {
 	buildInfo()   // This will generate a build-info.properties file with accurate values
 }
 
+sourceSets {
+	intTest {
+		java.srcDir 'src/intTest/java'
+		resources.srcDir 'src/intTest/resources'
+		compileClasspath += main.output + test.output
+		runtimeClasspath += main.output + test.output
+	}
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
 	mockitoAgent
+	intTestImplementation.extendsFrom testImplementation
+	intTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
 repositories {
@@ -46,6 +57,12 @@ dependencies {
 	mockitoAgent("org.mockito:mockito-core:5.18.0") {
 		transitive = false
 	}
+	
+	// Integration test dependencies
+	intTestImplementation 'org.testcontainers:testcontainers:1.19.3'
+	intTestImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+	intTestImplementation 'org.wiremock:wiremock-standalone:3.3.1'
+	intTestImplementation 'org.testcontainers:mockserver:1.19.3'
 }
 
 bootJar {
@@ -55,6 +72,15 @@ bootJar {
 test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport // Generate report after tests run
+}
+
+// Integration test task
+task intTest(type: Test) {
+    description = 'Runs integration tests'
+    group = 'verification'
+    testClassesDirs = sourceSets.intTest.output.classesDirs
+    classpath = sourceSets.intTest.runtimeClasspath
+    useJUnitPlatform()
 }
 
 // JaCoCo configuration
