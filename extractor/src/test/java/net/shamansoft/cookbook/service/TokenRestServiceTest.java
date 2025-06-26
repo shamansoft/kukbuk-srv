@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -34,18 +36,12 @@ class TokenRestServiceTest {
     @InjectMocks
     private TokenRestService tokenRestService;
 
-    @BeforeEach
-    void setUp() {
-        // Setup common WebClient mocking
-        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
-    }
-
     @Test
     void testVerifyToken_success() {
         // Arrange
         String authToken = "test-token";
         Map<String, Object> tokenInfo = Map.of("aud", "test-aud");
-
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         // Mock the URI builder chain
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
@@ -66,6 +62,7 @@ class TokenRestServiceTest {
         String authToken = "test-token";
 
         // Mock the URI builder chain
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(Map.class))
@@ -84,6 +81,7 @@ class TokenRestServiceTest {
     void testVerifyToken_nullResponse() {
         // Arrange
         String authToken = "test-token";
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
 
         // Mock the URI builder chain
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
@@ -105,12 +103,79 @@ class TokenRestServiceTest {
 
         // Mock the URI builder to throw exception
         when(requestHeadersUriSpec.uri(any(Function.class))).thenThrow(new RuntimeException("Network error"));
-
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
 
         // Assert
         assertThat(result).isFalse();
         verify(authWebClient, times(1)).get();
+    }
+
+    @Test
+    void testVerifyToken_nullToken() {
+        // Act
+        boolean result = tokenRestService.verifyToken(null);
+
+        // Assert
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void testVerifyToken_emptyToken() {
+        // Act
+        boolean result = tokenRestService.verifyToken("");
+
+        // Assert
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void testGetAuthToken_success() throws Exception {
+        // Arrange
+        String authToken = "test-token";
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-S-AUTH-TOKEN", authToken);
+        Map<String, Object> tokenInfo = Map.of("aud", "test-aud");
+
+        when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(tokenInfo));
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
+        // Act
+        String result = tokenRestService.getAuthToken(headers);
+
+        // Assert
+        assertThat(result).isEqualTo(authToken);
+    }
+
+    @Test
+    void testGetAuthToken_noToken() {
+        // Arrange
+        HttpHeaders headers = new HttpHeaders();
+
+        // Act & Assert
+        assertThatThrownBy(() -> tokenRestService.getAuthToken(headers))
+                .isInstanceOf(javax.naming.AuthenticationException.class)
+                .hasMessage("Invalid auth token");
+    }
+
+    @Test
+    void testGetAuthToken_invalidToken() {
+        // Arrange
+        String authToken = "invalid-token";
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-S-AUTH-TOKEN", authToken);
+        when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(Map.class))
+                .thenThrow(new WebClientResponseException(
+                        401, "Unauthorized", null, null, null));
+
+        // Act & Assert
+        assertThatThrownBy(() -> tokenRestService.getAuthToken(headers))
+                .isInstanceOf(javax.naming.AuthenticationException.class)
+                .hasMessage("Invalid auth token");
     }
 }

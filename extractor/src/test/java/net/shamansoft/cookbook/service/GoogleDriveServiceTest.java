@@ -63,6 +63,13 @@ class GoogleDriveServiceTest {
     }
 
     @Test
+    void generatesFileNameWithDefaultNameWhenTransliterationOfValidTitleIsEmpty() {
+        when(transliterator.toAsciiKebab(" ")).thenReturn("");
+        String result = googleDriveService.generateFileName(" ");
+        assertThat(result).startsWith("recipe-").endsWith(".yaml");
+    }
+
+    @Test
     void testGetOrCreateFolder_whenFolderExists() {
         // Arrange
         String authToken = "test-token";
@@ -117,6 +124,31 @@ class GoogleDriveServiceTest {
         // Assert
         assertThat(result).isNotNull();
         assertThat(result.fileId()).isEqualTo(fileId);
+        verify(googleDrive, times(1)).getFile(eq(fileName), eq(folderId), eq(authToken));
+        verify(googleDrive, times(1)).updateFile(any(GoogleDrive.Item.class), eq(content), eq(authToken));
+    }
+
+    @Test
+    void testUploadRecipeYaml_whenFileExistsWithDifferentId() {
+        // Arrange
+        String authToken = "test-token";
+        String folderId = "folder-123";
+        String fileName = "recipe.yaml";
+        String content = "test-content";
+        String existingFileId = "file-456";
+        String updatedFileId = "file-789";
+
+        when(googleDrive.getFile(eq(fileName), eq(folderId), eq(authToken)))
+                .thenReturn(java.util.Optional.of(new GoogleDrive.Item(existingFileId, fileName)));
+        when(googleDrive.updateFile(any(GoogleDrive.Item.class), eq(content), eq(authToken)))
+                .thenReturn(new GoogleDrive.Item(updatedFileId, fileName));
+
+        // Act
+        DriveService.UploadResult result = googleDriveService.uploadRecipeYaml(authToken, folderId, fileName, content);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.fileId()).isEqualTo(updatedFileId);
         verify(googleDrive, times(1)).getFile(eq(fileName), eq(folderId), eq(authToken));
         verify(googleDrive, times(1)).updateFile(any(GoogleDrive.Item.class), eq(content), eq(authToken));
     }
