@@ -41,7 +41,7 @@ class RecipeIntegrationTest {
     @Container
     static GenericContainer<?> wiremockContainer = new GenericContainer<>("wiremock/wiremock:3.3.1")
             .withExposedPorts(8080)
-            .withCommand("--port", "8080", "--global-response-templating");
+            .withCommand("--global-response-templating");
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

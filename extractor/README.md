@@ -163,8 +163,8 @@ The project uses GitHub Actions for continuous integration:
 
 ### Workflow Files
 
-- `.github/workflows/pr-validation.yml`: Main CI pipeline
-- `.github/branch-protection.md`: Branch protection setup guide
+- `../.github/workflows/pr-validation.yml`: Main CI pipeline (at repository root)
+- `../.github/branch-protection.md`: Branch protection setup guide (at repository root)
 
 ## Security
 

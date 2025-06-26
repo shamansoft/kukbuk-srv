@@ -31,12 +31,12 @@ jobs:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
           
     - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      run: chmod +x extractor/gradlew
       
     - name: Setup Docker for Testcontainers
       run: |
@@ -45,21 +45,21 @@ jobs:
         sudo usermod -aG docker $USER
         
     - name: Run unit tests
-      run: ./gradlew test
+      run: cd extractor && ./gradlew test
       
     - name: Run integration tests
-      run: ./gradlew intTest
+      run: cd extractor && ./gradlew intTest
       
     - name: Generate test coverage report
-      run: ./gradlew jacocoTestReport
+      run: cd extractor && ./gradlew jacocoTestReport
       
     - name: Verify code coverage
-      run: ./gradlew jacocoTestCoverageVerification
+      run: cd extractor && ./gradlew jacocoTestCoverageVerification
       
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: ./build/reports/jacoco/test/jacocoTestReport.xml
+        file: ./extractor/build/reports/jacoco/test/jacocoTestReport.xml
         flags: unittests
         name: codecov-umbrella
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -69,7 +69,7 @@ jobs:
       uses: madrapps/jacoco-report@v1.6.1
       with:
         paths: |
-          ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
+          ${{ github.workspace }}/extractor/build/reports/jacoco/test/jacocoTestReport.xml
         token: ${{ secrets.GITHUB_TOKEN }}
         min-coverage-overall: 40
         min-coverage-changed-files: 60
@@ -82,15 +82,15 @@ jobs:
       with:
         name: test-results
         path: |
-          build/reports/tests/
-          build/reports/jacoco/
+          extractor/build/reports/tests/
+          extractor/build/reports/jacoco/
           
     - name: Archive coverage reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-reports
-        path: build/reports/jacoco/
+        path: extractor/build/reports/jacoco/
 
   security-scan:
     runs-on: ubuntu-latest
@@ -112,19 +112,19 @@ jobs:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
           
     - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      run: chmod +x extractor/gradlew
       
     - name: Run dependency vulnerability scan
-      run: ./gradlew dependencyCheckAnalyze || true
+      run: cd extractor && ./gradlew dependencyCheckAnalyze || true
       
     - name: Upload security scan results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-scan-results
-        path: build/reports/
+        path: extractor/build/reports/
