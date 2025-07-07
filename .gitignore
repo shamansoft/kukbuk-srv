@@ -37,3 +37,12 @@ out/
 .vscode/
 .aider*
 .env
+
+CLAUDE.md
+
+# OpenTofu/Terraform generated files
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars

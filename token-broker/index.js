@@ -2,7 +2,8 @@
 const {GoogleAuth} = require('google-auth-library');
 const auth = new GoogleAuth();
 
-const targetAudience = 'https://cookbook-577683305271.us-west1.run.app';
+// Get target audience from environment variable or use default
+const targetAudience = process.env.TARGET_AUDIENCE || 'https://cookbook-577683305271.us-west1.run.app';
 
 
 exports.getIdToken = async (req, res) => {
