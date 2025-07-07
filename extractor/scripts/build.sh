@@ -7,6 +7,7 @@ DOCKERFILE="Dockerfile.jvm"
 DEBUG_FLAG=false
 MEMORY_LIMIT="12g"  # Increased from original
 BUILD_SUCCESS=false
+PROJECT_ID="kukbuk-tf" # cookbook-451120
 
 # Parse arguments
 for arg in "$@"; do
@@ -73,7 +74,7 @@ if [ "$TAG" = "local" ]; then
 docker buildx build \
         --platform linux/amd64 \
         -f $DOCKERFILE \
-        -t gcr.io/cookbook-451120/cookbook:$TAG \
+        -t gcr.io/$PROJECT_ID/cookbook:$TAG \
         --memory=$MEMORY_LIMIT \
         --memory-swap=$MEMORY_LIMIT \
         $BUILD_ARGS \
@@ -82,7 +83,7 @@ else
     docker buildx build \
         --platform linux/amd64 \
         -f $DOCKERFILE \
-        -t gcr.io/cookbook-451120/cookbook:$TAG \
+        -t gcr.io/$PROJECT_ID/cookbook:$TAG \
         --memory=$MEMORY_LIMIT \
         --memory-swap=$MEMORY_LIMIT \
         $BUILD_ARGS \
