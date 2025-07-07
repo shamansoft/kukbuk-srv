@@ -45,23 +45,18 @@ shell: build
 	@echo "Starting OpenTofu Docker shell..."
 	$(DOCKER_RUN)
 
-# Prepare function source
-prepare-function:
-	@echo "Preparing Cloud Function source..."
-	./scripts/prepare-function.sh
-
 # Initialize OpenTofu
-init: build prepare-function
+init: build
 	@echo "Initializing OpenTofu..."
 	$(DOCKER_RUN) -c "tofu init"
 
 # Plan deployment
-plan: build prepare-function
+plan: build
 	@echo "Planning deployment with image tag: $(TAG)"
 	$(DOCKER_RUN) -c "tofu plan -var='image_tag=$(TAG)'"
 
 # Apply deployment
-apply: build prepare-function
+apply: build
 	@echo "Applying deployment with image tag: $(TAG)"
 	$(DOCKER_RUN) -c "tofu apply -var='image_tag=$(TAG)' -auto-approve"
 

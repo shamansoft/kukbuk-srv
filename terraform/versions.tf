@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -8,9 +8,8 @@ terraform {
     }
   }
 
-  # Uncomment and configure for remote state management
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "cookbook/terraform.tfstate"
-  # }
+  backend "gcs" {
+    bucket = "kukbuk-tf-tfstate-bucket" # Replace with your actual bucket name
+    prefix = "terraform/state"         # Optional: organizes state files within the bucket
+  }
 }
