@@ -49,6 +49,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
 	implementation 'org.jsoup:jsoup:1.15.3'
+	
+	// Firestore dependencies
+	implementation 'com.google.cloud:google-cloud-firestore:3.15.4'
+	implementation 'com.google.cloud:google-cloud-storage:2.30.1'
+	
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
@@ -64,6 +69,7 @@ dependencies {
 	intTestImplementation 'org.testcontainers:junit-jupiter:1.19.3'
 	intTestImplementation 'org.wiremock:wiremock-standalone:3.3.1'
 	intTestImplementation 'org.testcontainers:mockserver:1.19.3'
+	intTestImplementation 'org.testcontainers:gcloud:1.19.3'
 }
 
 bootJar {

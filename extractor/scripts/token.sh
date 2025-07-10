@@ -1,0 +1,2 @@
+#!/bin/bash
+gcloud auth print-identity-token --impersonate-service-account=cookbook-rest-testing@cookbook-451120.iam.gserviceaccount.com --audiences="https://cookbook-577683305271.us-west1.run.app" | grep -v "WARNING" | tr -d '\n\r' | pbcopy

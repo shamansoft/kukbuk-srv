@@ -1,0 +1,13 @@
+# Test configuration
+firestore:
+  enabled: false
+
+recipe:
+  cache:
+    enabled: false
+
+logging:
+  level:
+    net.shamansoft.cookbook: DEBUG
+    com.google.cloud: WARN
+    root: WARN

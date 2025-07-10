@@ -136,18 +136,23 @@ resource "google_cloud_run_service" "cookbook" {
         }
 
         env {
-          name = "FIRESTORE_SERVICE_KEY"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.firestore_service_key.secret_id
-              key  = "latest"
-            }
-          }
+          name = "GOOGLE_CLOUD_PROJECT_ID"
+          value = var.project_id
         }
 
         env {
           name = "FIRESTORE_PROJECT_ID"
           value = var.project_id
+        }
+
+        env {
+          name = "FIRESTORE_ENABLED"
+          value = "true"
+        }
+
+        env {
+          name = "RECIPE_CACHE_ENABLED"
+          value = "true"
         }
 
         resources {

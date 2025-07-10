@@ -1,0 +1,206 @@
+package net.shamansoft.cookbook.repository;
+
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.DocumentReference;
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.WriteResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.model.Recipe;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+@Repository
+@RequiredArgsConstructor
+@Slf4j
+public class FirestoreRecipeRepository implements RecipeRepository {
+
+    private final Firestore firestore;
+    private static final String COLLECTION_NAME = "recipe_cache";
+    private static final Executor executor = Executors.newCachedThreadPool();
+
+    @Override
+    public CompletableFuture<Optional<Recipe>> findByContentHash(String contentHash) {
+        log.debug("Retrieving recipe cache for hash: {}", contentHash);
+        long startTime = System.currentTimeMillis();
+        
+        DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
+        ApiFuture<DocumentSnapshot> future = docRef.get();
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                DocumentSnapshot documentSnapshot = future.get();
+                long duration = System.currentTimeMillis() - startTime;
+                
+                if (!documentSnapshot.exists()) {
+                    log.debug("Recipe cache not found for hash: {} (retrieved in {}ms)", contentHash, duration);
+                    return Optional.<Recipe>empty();
+                }
+                
+                Recipe recipe = documentToRecipeCache(documentSnapshot);
+                log.debug("Retrieved recipe cache for hash: {} (retrieved in {}ms)", contentHash, duration);
+                
+                // Update access count and last accessed time asynchronously
+                updateAccessMetrics(recipe);
+                
+                return Optional.of(recipe);
+            } catch (Exception e) {
+                log.error("Error retrieving recipe cache for hash {}: {}", contentHash, e.getMessage(), e);
+                return Optional.<Recipe>empty();
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Void> save(Recipe recipe) {
+        log.debug("Saving recipe for hash: {}", recipe.getContentHash());
+        
+        Map<String, Object> data = recipeCacheToMap(recipe);
+        DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(recipe.getContentHash());
+        ApiFuture<WriteResult> future = docRef.set(data);
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                future.get();
+                log.debug("Successfully saved recipe for hash: {}", recipe.getContentHash());
+                return null;
+            } catch (Exception e) {
+                log.error("Error saving recipe for hash {}: {}", recipe.getContentHash(), e.getMessage(), e);
+                throw new CompletionException("Failed to save recipe cache", e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> existsByContentHash(String contentHash) {
+        DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
+        ApiFuture<DocumentSnapshot> future = docRef.get();
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                DocumentSnapshot documentSnapshot = future.get();
+                return documentSnapshot.exists();
+            } catch (Exception e) {
+                log.error("Error checking existence for hash {}: {}", contentHash, e.getMessage(), e);
+                return false;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteByContentHash(String contentHash) {
+        log.debug("Deleting recipe cache for hash: {}", contentHash);
+        
+        DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
+        ApiFuture<WriteResult> future = docRef.delete();
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                future.get();
+                log.debug("Successfully deleted recipe cache for hash: {}", contentHash);
+                return null;
+            } catch (Exception e) {
+                log.error("Error deleting recipe cache for hash {}: {}", contentHash, e.getMessage(), e);
+                throw new CompletionException("Failed to delete recipe cache", e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Long> count() {
+        ApiFuture<com.google.cloud.firestore.QuerySnapshot> future = firestore.collection(COLLECTION_NAME).get();
+        
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                com.google.cloud.firestore.QuerySnapshot querySnapshot = future.get();
+                return (long) querySnapshot.size();
+            } catch (Exception e) {
+                log.error("Error counting recipe cache documents: {}", e.getMessage(), e);
+                return 0L;
+            }
+        }, executor);
+    }
+
+    private void updateAccessMetrics(Recipe recipe) {
+        // Update access count and last accessed time asynchronously without blocking the main operation
+        CompletableFuture.runAsync(() -> {
+            try {
+                Recipe updatedCache = recipe.incrementAccessCount();
+                Map<String, Object> updates = Map.of(
+                        "lastAccessedAt", updatedCache.getLastAccessedAt(),
+                        "accessCount", updatedCache.getAccessCount()
+                );
+                
+                firestore.collection(COLLECTION_NAME)
+                        .document(recipe.getContentHash())
+                        .update(updates);
+                        
+                log.debug("Updated access metrics for hash: {}", recipe.getContentHash());
+            } catch (Exception e) {
+                log.warn("Failed to update access metrics for hash {}: {}", recipe.getContentHash(), e.getMessage());
+            }
+        });
+    }
+
+    private Recipe documentToRecipeCache(DocumentSnapshot document) {
+        return Recipe.builder()
+                .contentHash(document.getId())
+                .sourceUrl(document.getString("sourceUrl"))
+                .recipeYaml(document.getString("recipeYaml"))
+                .createdAt(toInstant(document.get("createdAt")))
+                .lastAccessedAt(toInstant(document.get("lastAccessedAt")))
+                .accessCount(Optional.ofNullable(document.getLong("accessCount")).orElse(0L))
+                .build();
+    }
+
+    private Map<String, Object> recipeCacheToMap(Recipe recipe) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("sourceUrl", recipe.getSourceUrl());
+        data.put("recipeYaml", recipe.getRecipeYaml());
+        data.put("createdAt", recipe.getCreatedAt());
+        data.put("lastAccessedAt", recipe.getLastAccessedAt());
+        data.put("accessCount", recipe.getAccessCount());
+        return data;
+    }
+
+    private Instant toInstant(Object timestamp) {
+        if (timestamp == null) {
+            return null;
+        }
+        if (timestamp instanceof com.google.cloud.Timestamp) {
+            return ((com.google.cloud.Timestamp) timestamp).toSqlTimestamp().toInstant();
+        }
+        if (timestamp instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) timestamp).toInstant();
+        }
+        if (timestamp instanceof Instant) {
+            return (Instant) timestamp;
+        }
+        if (timestamp instanceof Long) {
+            return Instant.ofEpochMilli((Long) timestamp);
+        }
+        if (timestamp instanceof String) {
+            return Instant.parse((String) timestamp);
+        }
+        if (timestamp instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) timestamp;
+            if (map.containsKey("epochSecond") && map.containsKey("nano")) {
+                long epochSecond = ((Number) map.get("epochSecond")).longValue();
+                int nano = ((Number) map.get("nano")).intValue();
+                return Instant.ofEpochSecond(epochSecond, nano);
+            }
+        }
+        log.warn("Unknown timestamp type: {}, value: {}", timestamp.getClass().getName(), timestamp);
+        return null;
+    }
+}
