@@ -48,9 +48,6 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 Recipe recipe = documentToRecipeCache(documentSnapshot);
                 log.debug("Retrieved recipe for hash: {} (retrieved in {}ms)", contentHash, duration);
                 
-                // Update access count and last accessed time asynchronously
-                updateAccessMetrics(recipe);
-                
                 return Optional.of(recipe);
             } catch (Exception e) {
                 log.error("Error retrieving recipe for hash {}: {}", contentHash, e.getMessage(), e);
@@ -128,27 +125,6 @@ public class FirestoreRecipeRepository implements RecipeRepository {
         }, executor);
     }
 
-    private void updateAccessMetrics(Recipe recipe) {
-        // Update access count and last accessed time asynchronously without blocking the main operation
-        CompletableFuture.runAsync(() -> {
-            try {
-                Recipe updatedCache = recipe.incrementAccessCount();
-                Map<String, Object> updates = Map.of(
-                        "lastAccessedAt", updatedCache.getLastAccessedAt(),
-                        "accessCount", updatedCache.getAccessCount()
-                );
-                
-                firestore.collection(COLLECTION_NAME)
-                        .document(recipe.getContentHash())
-                        .update(updates);
-                        
-                log.debug("Updated access metrics for hash: {}", recipe.getContentHash());
-            } catch (Exception e) {
-                log.warn("Failed to update access metrics for hash {}: {}", recipe.getContentHash(), e.getMessage());
-            }
-        });
-    }
-
     private Recipe documentToRecipeCache(DocumentSnapshot document) {
         return Recipe.builder()
                 .contentHash(document.getId())
@@ -159,7 +135,6 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 .accessCount(Optional.ofNullable(document.getLong("accessCount")).orElse(0L))
                 .build();
     }
-
 
     private Instant toInstant(Object timestamp) {
         if (timestamp == null) {

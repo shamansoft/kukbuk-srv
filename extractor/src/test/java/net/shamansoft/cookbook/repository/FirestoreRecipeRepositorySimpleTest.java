@@ -64,52 +64,6 @@ class FirestoreRecipeRepositorySimpleTest {
     }
 
     @Test
-    @DisplayName("Should increment access count correctly")
-    //TODO: Flaky test
-    void shouldIncrementAccessCountCorrectly() {
-        // Given
-        Recipe original = Recipe.builder()
-                .contentHash("test-hash")
-                .sourceUrl("https://example.com")
-                .recipeYaml("recipe: test")
-                .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(5L)
-                .build();
-
-        // When
-        Recipe incremented = original.incrementAccessCount();
-
-        // Then
-        assertEquals(6L, incremented.getAccessCount());
-        assertNotEquals(original.getLastAccessedAt(), incremented.getLastAccessedAt());
-        assertEquals(original.getContentHash(), incremented.getContentHash());
-        assertEquals(original.getSourceUrl(), incremented.getSourceUrl());
-        assertEquals(original.getRecipeYaml(), incremented.getRecipeYaml());
-        assertEquals(original.getCreatedAt(), incremented.getCreatedAt());
-    }
-
-    @Test
-    @DisplayName("Should handle large access counts")
-    void shouldHandleLargeAccessCounts() {
-        // Given
-        Recipe original = Recipe.builder()
-                .contentHash("test-hash")
-                .sourceUrl("https://example.com")
-                .recipeYaml("recipe: test")
-                .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(Long.MAX_VALUE - 1)
-                .build();
-
-        // When
-        Recipe incremented = original.incrementAccessCount();
-
-        // Then
-        assertEquals(Long.MAX_VALUE, incremented.getAccessCount());
-    }
-
-    @Test
     @DisplayName("Should handle instant comparisons correctly")
     void shouldHandleInstantComparisonsCorrectly() {
         // Given

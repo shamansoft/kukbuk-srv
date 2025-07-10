@@ -22,15 +22,4 @@ public class Recipe {
     private Instant lastAccessedAt;
     
     private long accessCount;
-    
-    public Recipe incrementAccessCount() {
-        return Recipe.builder()
-                .contentHash(this.contentHash)
-                .sourceUrl(this.sourceUrl)
-                .recipeYaml(this.recipeYaml)
-                .createdAt(this.createdAt)
-                .lastAccessedAt(Instant.now())
-                .accessCount(this.accessCount + 1)
-                .build();
-    }
 }
