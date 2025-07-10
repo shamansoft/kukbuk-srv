@@ -15,7 +15,7 @@ firestore:
 
 # Recipe cache configuration  
 recipe:
-  cache:
+  store:
     enabled: true
 
 # Cookbook configuration for GCP

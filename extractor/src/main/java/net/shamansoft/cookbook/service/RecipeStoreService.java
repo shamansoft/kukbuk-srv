@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@ConditionalOnProperty(name = "recipe.cache.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "recipe.store.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 @Slf4j
 public class RecipeStoreService {
@@ -32,19 +32,19 @@ public class RecipeStoreService {
     }
 
     public CompletableFuture<Optional<Recipe>> findCachedRecipeByHash(String contentHash) {
-        log.debug("Looking up cached recipe for hash: {}", contentHash);
+        log.debug("Looking up stored recipe for hash: {}", contentHash);
         
         return repository.findByContentHash(contentHash)
                 .handle((result, throwable) -> {
                     if (throwable != null) {
-                        log.error("Error retrieving cached recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
+                        log.error("Error retrieving stored recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
                         return Optional.<Recipe>empty();
                     }
                     
                     if (result.isPresent()) {
-                        log.debug("Found cached recipe for hash: {}", contentHash);
+                        log.debug("Found stored recipe for hash: {}", contentHash);
                     } else {
-                        log.debug("No cached recipe found for hash: {}", contentHash);
+                        log.debug("No stored recipe found for hash: {}", contentHash);
                     }
                     
                     return result;
@@ -83,7 +83,7 @@ public class RecipeStoreService {
                     if (throwable != null) {
                         log.error("Error caching recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
                     } else {
-                        log.debug("Successfully cached recipe for hash: {}", contentHash);
+                        log.debug("Successfully stored recipe for hash: {}", contentHash);
                     }
                     return (Void) null;
                 })
@@ -110,7 +110,7 @@ public class RecipeStoreService {
         return repository.existsByContentHash(contentHash)
                 .handle((result, throwable) -> {
                     if (throwable != null) {
-                        log.error("Error checking cache existence for hash {}: {}", contentHash, throwable.getMessage(), throwable);
+                        log.error("Error checking recipe existence for hash {}: {}", contentHash, throwable.getMessage(), throwable);
                         return false;
                     }
                     return result;
@@ -133,14 +133,14 @@ public class RecipeStoreService {
     }
 
     public CompletableFuture<Void> evictFromCacheByHash(String contentHash) {
-        log.debug("Evicting cached recipe for hash: {}", contentHash);
+        log.debug("Evicting stored recipe for hash: {}", contentHash);
         
         return repository.deleteByContentHash(contentHash)
                 .handle((result, throwable) -> {
                     if (throwable != null) {
-                        log.error("Error evicting cached recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
+                        log.error("Error evicting stored recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
                     } else {
-                        log.debug("Successfully evicted cached recipe for hash: {}", contentHash);
+                        log.debug("Successfully evicted stored recipe for hash: {}", contentHash);
                     }
                     return (Void) null;
                 })
@@ -157,7 +157,7 @@ public class RecipeStoreService {
         return repository.count()
                 .handle((result, throwable) -> {
                     if (throwable != null) {
-                        log.error("Error getting cache size: {}", throwable.getMessage(), throwable);
+                        log.error("Error getting store size: {}", throwable.getMessage(), throwable);
                         return 0L;
                     }
                     return result;

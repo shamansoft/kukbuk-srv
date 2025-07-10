@@ -11,7 +11,6 @@ import net.shamansoft.cookbook.model.Recipe;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -25,12 +24,12 @@ import java.util.concurrent.Executors;
 public class FirestoreRecipeRepository implements RecipeRepository {
 
     private final Firestore firestore;
-    private static final String COLLECTION_NAME = "recipe_cache";
+    private static final String COLLECTION_NAME = "recipe_store";
     private static final Executor executor = Executors.newCachedThreadPool();
 
     @Override
     public CompletableFuture<Optional<Recipe>> findByContentHash(String contentHash) {
-        log.debug("Retrieving recipe cache for hash: {}", contentHash);
+        log.debug("Retrieving recipe for hash: {}", contentHash);
         long startTime = System.currentTimeMillis();
         
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
@@ -42,19 +41,19 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 long duration = System.currentTimeMillis() - startTime;
                 
                 if (!documentSnapshot.exists()) {
-                    log.debug("Recipe cache not found for hash: {} (retrieved in {}ms)", contentHash, duration);
+                    log.debug("Recipe not found for hash: {} (retrieved in {}ms)", contentHash, duration);
                     return Optional.<Recipe>empty();
                 }
                 
                 Recipe recipe = documentToRecipeCache(documentSnapshot);
-                log.debug("Retrieved recipe cache for hash: {} (retrieved in {}ms)", contentHash, duration);
+                log.debug("Retrieved recipe for hash: {} (retrieved in {}ms)", contentHash, duration);
                 
                 // Update access count and last accessed time asynchronously
                 updateAccessMetrics(recipe);
                 
                 return Optional.of(recipe);
             } catch (Exception e) {
-                log.error("Error retrieving recipe cache for hash {}: {}", contentHash, e.getMessage(), e);
+                log.error("Error retrieving recipe for hash {}: {}", contentHash, e.getMessage(), e);
                 return Optional.<Recipe>empty();
             }
         }, executor);
@@ -64,9 +63,8 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     public CompletableFuture<Void> save(Recipe recipe) {
         log.debug("Saving recipe for hash: {}", recipe.getContentHash());
         
-        Map<String, Object> data = recipeCacheToMap(recipe);
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(recipe.getContentHash());
-        ApiFuture<WriteResult> future = docRef.set(data);
+        ApiFuture<WriteResult> future = docRef.set(recipe);
         
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -75,7 +73,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 return null;
             } catch (Exception e) {
                 log.error("Error saving recipe for hash {}: {}", recipe.getContentHash(), e.getMessage(), e);
-                throw new CompletionException("Failed to save recipe cache", e);
+                throw new CompletionException("Failed to save recipe", e);
             }
         }, executor);
     }
@@ -98,7 +96,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
 
     @Override
     public CompletableFuture<Void> deleteByContentHash(String contentHash) {
-        log.debug("Deleting recipe cache for hash: {}", contentHash);
+        log.debug("Deleting recipe for hash: {}", contentHash);
         
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
         ApiFuture<WriteResult> future = docRef.delete();
@@ -106,11 +104,11 @@ public class FirestoreRecipeRepository implements RecipeRepository {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 future.get();
-                log.debug("Successfully deleted recipe cache for hash: {}", contentHash);
+                log.debug("Successfully deleted recipe for hash: {}", contentHash);
                 return null;
             } catch (Exception e) {
-                log.error("Error deleting recipe cache for hash {}: {}", contentHash, e.getMessage(), e);
-                throw new CompletionException("Failed to delete recipe cache", e);
+                log.error("Error deleting recipe for hash {}: {}", contentHash, e.getMessage(), e);
+                throw new CompletionException("Failed to delete recipe", e);
             }
         }, executor);
     }
@@ -124,7 +122,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 com.google.cloud.firestore.QuerySnapshot querySnapshot = future.get();
                 return (long) querySnapshot.size();
             } catch (Exception e) {
-                log.error("Error counting recipe cache documents: {}", e.getMessage(), e);
+                log.error("Error counting recipe documents: {}", e.getMessage(), e);
                 return 0L;
             }
         }, executor);
@@ -162,15 +160,6 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 .build();
     }
 
-    private Map<String, Object> recipeCacheToMap(Recipe recipe) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("sourceUrl", recipe.getSourceUrl());
-        data.put("recipeYaml", recipe.getRecipeYaml());
-        data.put("createdAt", recipe.getCreatedAt());
-        data.put("lastAccessedAt", recipe.getLastAccessedAt());
-        data.put("accessCount", recipe.getAccessCount());
-        return data;
-    }
 
     private Instant toInstant(Object timestamp) {
         if (timestamp == null) {

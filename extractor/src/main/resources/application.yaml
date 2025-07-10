@@ -15,7 +15,7 @@ firestore:
 
 # Recipe cache configuration
 recipe:
-  cache:
+  store:
     enabled: ${RECIPE_CACHE_ENABLED:true}
 
 logging:
