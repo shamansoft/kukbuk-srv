@@ -15,6 +15,8 @@ for arg in "$@"; do
         NATIVE_FLAG=true
     elif [ "$arg" == "--debug" ]; then
         DEBUG_FLAG=true
+    elif [ "$arg" == "--local" ]; then
+        TAG="local"
     elif [ "$arg" == "--dry-run" ]; then
         DRY_RUN=true
     elif [ "$arg" == "--tag" ]; then

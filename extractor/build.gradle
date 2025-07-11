@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.shamansoft'
-version = '0.3.22'
+version = '0.3.23'
 
 java {
 	toolchain {
@@ -43,14 +43,22 @@ repositories {
 }
 
 dependencies {
-	// Spring Boot Starters
-	implementation libs.bundles.spring.boot.starters
+	// Spring Boot Starters - exclude default logging
+	implementation(libs.bundles.spring.boot.starters) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
+
+	// SLF4J Simple Logging for native compatibility
+	implementation libs.slf4j.api
+	implementation libs.slf4j.simple
 
 	// Web Scraping
 	implementation libs.jsoup
 
 	// Google Cloud Services
-	implementation libs.bundles.google.cloud
+	implementation(libs.bundles.google.cloud) {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
 
 	// Annotation Processing
 	compileOnly libs.lombok
@@ -135,12 +143,6 @@ graalvmNative {
 	binaries {
 		main {
 			imageName = 'cookbook'
-			buildArgs.addAll(
-					'--no-fallback',
-					'--initialize-at-run-time=org.apache.commons.logging.LogFactory,org.apache.commons.logging.LogFactoryService',
-					'--initialize-at-run-time=ch.qos.logback',
-					'-H:+ReportExceptionStackTraces'
-			)
 			resources.autodetect()
 		}
 	}
