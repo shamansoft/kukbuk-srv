@@ -36,7 +36,7 @@ class FirestoreRecipeRepositorySimpleTest {
     @DisplayName("Should create repository instance successfully")
     void shouldCreateRepositoryInstanceSuccessfully() {
         // When
-        FirestoreRecipeRepository repository = new FirestoreRecipeRepository(firestore);
+        FirestoreRecipeRepository repository = new FirestoreRecipeRepository(firestore, new Transformer());
 
         // Then
         assertNotNull(repository);

@@ -10,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.model.Recipe;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -26,6 +24,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     private final Firestore firestore;
     private static final String COLLECTION_NAME = "recipe_store";
     private static final Executor executor = Executors.newCachedThreadPool();
+    private final Transformer transformer;
 
     @Override
     public CompletableFuture<Optional<Recipe>> findByContentHash(String contentHash) {
@@ -45,7 +44,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                     return Optional.<Recipe>empty();
                 }
                 
-                Recipe recipe = documentToRecipeCache(documentSnapshot);
+                Recipe recipe = transformer.documentToRecipeCache(documentSnapshot);
                 log.debug("Retrieved recipe for hash: {} (retrieved in {}ms)", contentHash, duration);
                 
                 return Optional.of(recipe);
@@ -123,48 +122,5 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 return 0L;
             }
         }, executor);
-    }
-
-    private Recipe documentToRecipeCache(DocumentSnapshot document) {
-        return Recipe.builder()
-                .contentHash(document.getId())
-                .sourceUrl(document.getString("sourceUrl"))
-                .recipeYaml(document.getString("recipeYaml"))
-                .createdAt(toInstant(document.get("createdAt")))
-                .lastAccessedAt(toInstant(document.get("lastAccessedAt")))
-                .accessCount(Optional.ofNullable(document.getLong("accessCount")).orElse(0L))
-                .build();
-    }
-
-    private Instant toInstant(Object timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        if (timestamp instanceof com.google.cloud.Timestamp) {
-            return ((com.google.cloud.Timestamp) timestamp).toSqlTimestamp().toInstant();
-        }
-        if (timestamp instanceof java.sql.Timestamp) {
-            return ((java.sql.Timestamp) timestamp).toInstant();
-        }
-        if (timestamp instanceof Instant) {
-            return (Instant) timestamp;
-        }
-        if (timestamp instanceof Long) {
-            return Instant.ofEpochMilli((Long) timestamp);
-        }
-        if (timestamp instanceof String) {
-            return Instant.parse((String) timestamp);
-        }
-        if (timestamp instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) timestamp;
-            if (map.containsKey("epochSecond") && map.containsKey("nano")) {
-                long epochSecond = ((Number) map.get("epochSecond")).longValue();
-                int nano = ((Number) map.get("nano")).intValue();
-                return Instant.ofEpochSecond(epochSecond, nano);
-            }
-        }
-        log.warn("Unknown timestamp type: {}, value: {}", timestamp.getClass().getName(), timestamp);
-        return null;
     }
 }
