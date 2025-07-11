@@ -2,14 +2,14 @@ package net.shamansoft.cookbook.repository;
 
 import net.shamansoft.cookbook.model.Recipe;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.Instant;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class FirestoreRecipeRepositorySimpleTest {
 
@@ -39,7 +39,7 @@ class FirestoreRecipeRepositorySimpleTest {
         FirestoreRecipeRepository repository = new FirestoreRecipeRepository(firestore, new Transformer());
 
         // Then
-        assertNotNull(repository);
+        assertThat(repository).isNotNull();
     }
 
     @Test
@@ -56,11 +56,20 @@ class FirestoreRecipeRepositorySimpleTest {
                 .build();
 
         // Then - Should not throw exceptions
-        assertNotNull(cacheWithNulls);
-        assertEquals("test-hash", cacheWithNulls.getContentHash());
-        assertNull(cacheWithNulls.getSourceUrl());
-        assertNull(cacheWithNulls.getRecipeYaml());
-        assertEquals(0L, cacheWithNulls.getVersion());
+        assertThat(cacheWithNulls)
+                .isNotNull()
+                .extracting(
+                        Recipe::getContentHash,
+                        Recipe::getSourceUrl,
+                        Recipe::getRecipeYaml,
+                        Recipe::getVersion
+                )
+                .containsExactly(
+                        "test-hash",
+                        null,
+                        null,
+                        0L
+                );
     }
 
     @Test
@@ -87,8 +96,8 @@ class FirestoreRecipeRepositorySimpleTest {
                 .build();
 
         // Then
-        assertEquals(cache1.getCreatedAt(), cache2.getCreatedAt());
-        assertEquals(cache1.getLastUpdatedAt(), cache2.getLastUpdatedAt());
-        assertNotEquals(cache1.getContentHash(), cache2.getContentHash());
+        assertThat(cache1.getCreatedAt()).isEqualTo(cache2.getCreatedAt());
+        assertThat(cache1.getLastUpdatedAt()).isEqualTo(cache2.getLastUpdatedAt());
+        assertThat(cache1.getContentHash()).isNotEqualTo(cache2.getContentHash());
     }
 }

@@ -1,9 +1,9 @@
 package net.shamansoft.cookbook.service;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ContentHashServiceBenchmarkTest {
 
@@ -35,9 +35,11 @@ class ContentHashServiceBenchmarkTest {
         long endTime = System.nanoTime();
         
         long durationMs = (endTime - startTime) / 1_000_000;
-        
-        assertNotNull(hash);
-        assertTrue(durationMs < 50, "Hash generation took " + durationMs + "ms, which exceeds the 50ms requirement");
+
+        assertThat(hash).isNotNull();
+        assertThat(durationMs)
+                .as("Hash generation took %dms, which exceeds the 50ms requirement", durationMs)
+                .isLessThan(50L);
     }
 
     @Test
@@ -55,9 +57,11 @@ class ContentHashServiceBenchmarkTest {
         long endTime = System.nanoTime();
         long totalDurationMs = (endTime - startTime) / 1_000_000;
         double avgDurationMs = (double) totalDurationMs / urls.size();
-        
-        assertEquals(urls.size(), hashes.size());
-        assertTrue(avgDurationMs < 50, "Average hash generation took " + avgDurationMs + "ms, which exceeds the 50ms requirement");
+
+        assertThat(hashes).hasSameSizeAs(urls);
+        assertThat(avgDurationMs)
+                .as("Average hash generation took %.2fms, which exceeds the 50ms requirement", avgDurationMs)
+                .isLessThan(50.0);
     }
 
     @RepeatedTest(10)
@@ -70,9 +74,11 @@ class ContentHashServiceBenchmarkTest {
         long endTime = System.nanoTime();
         
         long durationMs = (endTime - startTime) / 1_000_000;
-        
-        assertNotNull(hash);
-        assertTrue(durationMs < 50, "Hash generation took " + durationMs + "ms in repeated test");
+
+        assertThat(hash).isNotNull();
+        assertThat(durationMs)
+                .as("Hash generation took %dms in repeated test", durationMs)
+                .isLessThan(50L);
     }
 
     @Test
@@ -100,9 +106,11 @@ class ContentHashServiceBenchmarkTest {
         
         executor.shutdown();
         executor.awaitTermination(5, TimeUnit.SECONDS);
-        
-        assertEquals(urls.size(), hashes.size());
-        assertTrue(totalDurationMs < 2500, "Concurrent hash generation took " + totalDurationMs + "ms for " + urls.size() + " URLs");
+
+        assertThat(hashes).hasSameSizeAs(urls);
+        assertThat(totalDurationMs)
+                .as("Concurrent hash generation took %dms for %d URLs", totalDurationMs, urls.size())
+                .isLessThan(2500L);
     }
 
     @Test
@@ -121,10 +129,14 @@ class ContentHashServiceBenchmarkTest {
         String hash2 = contentHashService.generateContentHash(url);
         long endTime2 = System.nanoTime();
         long secondCallDuration = endTime2 - startTime2;
-        
-        assertEquals(hash1, hash2);
-        assertTrue(firstCallDuration < 50_000_000, "First call took " + (firstCallDuration / 1_000_000) + "ms");
-        assertTrue(secondCallDuration <= firstCallDuration, "Cache should not be slower than first call: first=" + firstCallDuration + "ns, second=" + secondCallDuration + "ns");
+
+        assertThat(hash1).isEqualTo(hash2);
+        assertThat(firstCallDuration)
+                .as("First call took %dms", firstCallDuration / 1_000_000)
+                .isLessThan(50_000_000L);
+        assertThat(secondCallDuration)
+                .as("Cache should not be slower than first call: first=%dns, second=%dns", firstCallDuration, secondCallDuration)
+                .isLessThanOrEqualTo(firstCallDuration);
     }
 
     @Test
@@ -146,9 +158,11 @@ class ContentHashServiceBenchmarkTest {
         long endTime = System.nanoTime();
         
         long durationMs = (endTime - startTime) / 1_000_000;
-        
-        assertNotNull(hash);
-        assertTrue(durationMs < 50, "Large URL hash generation took " + durationMs + "ms");
+
+        assertThat(hash).isNotNull();
+        assertThat(durationMs)
+                .as("Large URL hash generation took %dms", durationMs)
+                .isLessThan(50L);
     }
 
     @Test
@@ -170,9 +184,11 @@ class ContentHashServiceBenchmarkTest {
             long endTime = System.nanoTime();
             
             long durationMs = (endTime - startTime) / 1_000_000;
-            
-            assertNotNull(hash);
-            assertTrue(durationMs < 50, "URL pattern '" + urlPattern + "' took " + durationMs + "ms");
+
+            assertThat(hash).isNotNull();
+            assertThat(durationMs)
+                    .as("URL pattern '%s' took %dms", urlPattern, durationMs)
+                    .isLessThan(50L);
         }
     }
 

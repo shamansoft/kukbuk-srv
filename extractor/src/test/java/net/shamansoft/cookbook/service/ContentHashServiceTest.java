@@ -1,14 +1,15 @@
 package net.shamansoft.cookbook.service;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URISyntaxException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ContentHashServiceTest {
 
@@ -25,9 +26,9 @@ class ContentHashServiceTest {
         String url = "https://example.com/recipe";
         String hash1 = contentHashService.generateContentHash(url);
         String hash2 = contentHashService.generateContentHash(url);
-        
-        assertEquals(hash1, hash2);
-        assertEquals(64, hash1.length()); // SHA-256 produces 64 character hex string
+
+        assertThat(hash1).isEqualTo(hash2);
+        assertThat(hash1).hasSize(64); // SHA-256 produces 64 character hex string
     }
 
     @Test
@@ -38,8 +39,8 @@ class ContentHashServiceTest {
         
         String hash1 = contentHashService.generateContentHash(url1);
         String hash2 = contentHashService.generateContentHash(url2);
-        
-        assertNotEquals(hash1, hash2);
+
+        assertThat(hash1).isNotEqualTo(hash2);
     }
 
     @Test
@@ -49,8 +50,8 @@ class ContentHashServiceTest {
         String expected = "https://example.com/recipe?keep=this";
         
         String normalized = contentHashService.normalizeUrl(originalUrl);
-        
-        assertEquals(expected, normalized);
+
+        assertThat(normalized).isEqualTo(expected);
     }
 
     @Test
@@ -61,8 +62,8 @@ class ContentHashServiceTest {
         
         String hash1 = contentHashService.generateContentHash(cleanUrl);
         String hash2 = contentHashService.generateContentHash(urlWithTracking);
-        
-        assertEquals(hash1, hash2);
+
+        assertThat(hash1).isEqualTo(hash2);
     }
 
     @Test
@@ -72,8 +73,8 @@ class ContentHashServiceTest {
         String expected = "https://example.com/recipe?keep=this";
         
         String normalized = contentHashService.normalizeUrl(urlWithAllTracking);
-        
-        assertEquals(expected, normalized);
+
+        assertThat(normalized).isEqualTo(expected);
     }
 
     @Test
@@ -81,8 +82,8 @@ class ContentHashServiceTest {
     void shouldHandleUrlsWithoutQueryParameters() throws URISyntaxException {
         String url = "https://example.com/recipe";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertEquals(url, normalized);
+
+        assertThat(normalized).isEqualTo(url);
     }
 
     @Test
@@ -92,8 +93,8 @@ class ContentHashServiceTest {
         String expected = "https://example.com/recipe";
         
         String normalized = contentHashService.normalizeUrl(urlWithOnlyTracking);
-        
-        assertEquals(expected, normalized);
+
+        assertThat(normalized).isEqualTo(expected);
     }
 
     @Test
@@ -101,8 +102,8 @@ class ContentHashServiceTest {
     void shouldNormalizeDomainAndSchemeToLowercase() throws URISyntaxException {
         String url = "HTTPS://EXAMPLE.COM/Recipe";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertTrue(normalized.startsWith("https://example.com"));
+
+        assertThat(normalized.startsWith("https://example.com")).isTrue();
     }
 
     @Test
@@ -112,40 +113,40 @@ class ContentHashServiceTest {
         String expected = "https://example.com/recipe";
         
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertEquals(expected, normalized);
+
+        assertThat(normalized).isEqualTo(expected);
     }
 
     @Test
     @DisplayName("Should handle malformed URLs gracefully")
     void shouldHandleMalformedUrlsGracefully() {
-        assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             contentHashService.generateContentHash("ht tp://invalid url with spaces");
-        });
+        }).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     @DisplayName("Should throw exception for null URL")
     void shouldThrowExceptionForNullUrl() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThatThrownBy(() -> {
             contentHashService.generateContentHash(null);
-        });
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("Should throw exception for empty URL")
     void shouldThrowExceptionForEmptyUrl() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThatThrownBy(() -> {
             contentHashService.generateContentHash("");
-        });
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("Should throw exception for whitespace-only URL")
     void shouldThrowExceptionForWhitespaceOnlyUrl() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThatThrownBy(() -> {
             contentHashService.generateContentHash("   ");
-        });
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -153,10 +154,10 @@ class ContentHashServiceTest {
     void shouldPreserveNonTrackingQueryParameters() throws URISyntaxException {
         String url = "https://example.com/recipe?category=dessert&difficulty=easy&utm_source=google";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertTrue(normalized.contains("category=dessert"));
-        assertTrue(normalized.contains("difficulty=easy"));
-        assertFalse(normalized.contains("utm_source=google"));
+
+        assertThat(normalized.contains("category=dessert")).isTrue();
+        assertThat(normalized.contains("difficulty=easy")).isTrue();
+        assertThat(normalized.contains("utm_source=google")).isFalse();
     }
 
     @Test
@@ -164,8 +165,8 @@ class ContentHashServiceTest {
     void shouldHandleUrlsWithPortNumbers() throws URISyntaxException {
         String url = "https://example.com:8080/recipe";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertEquals("https://example.com:8080/recipe", normalized);
+
+        assertThat(normalized).isEqualTo("https://example.com:8080/recipe");
     }
 
     @Test
@@ -173,8 +174,8 @@ class ContentHashServiceTest {
     void shouldHandleUrlsWithPathsContainingSpecialCharacters() throws URISyntaxException {
         String url = "https://example.com/recipe/chocolate-chip-cookies";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertEquals(url, normalized);
+
+        assertThat(normalized).isEqualTo(url);
     }
 
     @ParameterizedTest
@@ -192,7 +193,7 @@ class ContentHashServiceTest {
         String testHash = contentHashService.generateContentHash(url);
         
         if (!url.equals(baseUrl)) {
-            assertNotEquals(baseHash, testHash);
+            assertThat(baseHash).isNotEqualTo(testHash);
         }
     }
 
@@ -200,14 +201,14 @@ class ContentHashServiceTest {
     @DisplayName("Should use cache for repeated URL requests")
     void shouldUseCacheForRepeatedUrlRequests() {
         String url = "https://example.com/recipe";
-        
-        assertEquals(0, contentHashService.getCacheSize());
-        
-        contentHashService.generateContentHash(url);
-        assertEquals(1, contentHashService.getCacheSize());
+
+        assertThat(contentHashService.getCacheSize()).isEqualTo(0);
         
         contentHashService.generateContentHash(url);
-        assertEquals(1, contentHashService.getCacheSize());
+        assertThat(contentHashService.getCacheSize()).isEqualTo(1);
+        
+        contentHashService.generateContentHash(url);
+        assertThat(contentHashService.getCacheSize()).isEqualTo(1);
     }
 
     @Test
@@ -216,10 +217,10 @@ class ContentHashServiceTest {
         String url = "https://example.com/recipe";
         
         contentHashService.generateContentHash(url);
-        assertEquals(1, contentHashService.getCacheSize());
+        assertThat(contentHashService.getCacheSize()).isEqualTo(1);
         
         contentHashService.clearCache();
-        assertEquals(0, contentHashService.getCacheSize());
+        assertThat(contentHashService.getCacheSize()).isEqualTo(0);
     }
 
     @Test
@@ -227,8 +228,8 @@ class ContentHashServiceTest {
     void shouldHandleUrlsWithInternationalDomainNames() throws URISyntaxException {
         String url = "https://example.com/recipe/café";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertTrue(normalized.startsWith("https://example.com"));
+
+        assertThat(normalized.startsWith("https://example.com")).isTrue();
     }
 
     @Test
@@ -236,9 +237,9 @@ class ContentHashServiceTest {
     void shouldBeCaseInsensitiveForTrackingParameters() throws URISyntaxException {
         String url = "https://example.com/recipe?UTM_SOURCE=google&fbclid=123&keep=this";
         String normalized = contentHashService.normalizeUrl(url);
-        
-        assertFalse(normalized.contains("UTM_SOURCE"));
-        assertFalse(normalized.contains("fbclid"));
-        assertTrue(normalized.contains("keep=this"));
+
+        assertThat(normalized.contains("UTM_SOURCE")).isFalse();
+        assertThat(normalized.contains("fbclid")).isFalse();
+        assertThat(normalized.contains("keep=this")).isTrue();
     }
 }

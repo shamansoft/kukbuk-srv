@@ -4,8 +4,8 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.model.Recipe;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.FirestoreEmulatorContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -15,7 +15,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 @Testcontainers
 class FirestoreRecipeRepositoryIntegrationTest {
@@ -56,21 +57,24 @@ class FirestoreRecipeRepositoryIntegrationTest {
 
         // When - Save
         CompletableFuture<Void> saveResult = repository.save(recipe);
-        assertDoesNotThrow(() -> saveResult.join());
+        assertThatCode(() -> saveResult.join()).doesNotThrowAnyException();
 
         // When - Retrieve
         CompletableFuture<Optional<Recipe>> retrieveResult = repository.findByContentHash("integration-test-hash");
         Optional<Recipe> retrievedCache = retrieveResult.join();
 
         // Then
-        assertTrue(retrievedCache.isPresent());
-        Recipe retrieved = retrievedCache.get();
-        assertEquals("integration-test-hash", retrieved.getContentHash());
-        assertEquals("https://example.com/integration-test", retrieved.getSourceUrl());
-        assertEquals("recipe: integration test", retrieved.getRecipeYaml());
-        assertEquals(1L, retrieved.getVersion());
-        assertNotNull(retrieved.getCreatedAt());
-        assertNotNull(retrieved.getLastUpdatedAt());
+        assertThat(retrievedCache)
+                .isPresent()
+                .get()
+                .satisfies(retrieved -> {
+                    assertThat(retrieved.getContentHash()).isEqualTo("integration-test-hash");
+                    assertThat(retrieved.getSourceUrl()).isEqualTo("https://example.com/integration-test");
+                    assertThat(retrieved.getRecipeYaml()).isEqualTo("recipe: integration test");
+                    assertThat(retrieved.getVersion()).isEqualTo(1L);
+                    assertThat(retrieved.getCreatedAt()).isNotNull();
+                    assertThat(retrieved.getLastUpdatedAt()).isNotNull();
+                });
     }
 
     @Test
@@ -81,7 +85,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         Optional<Recipe> recipeCache = result.join();
 
         // Then
-        assertFalse(recipeCache.isPresent());
+        assertThat(recipeCache).isEmpty();
     }
 
     @Test
@@ -105,8 +109,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
         CompletableFuture<Boolean> notExistsResult = repository.existsByContentHash("non-existent-hash");
 
         // Then
-        assertTrue(existsResult.join());
-        assertFalse(notExistsResult.join());
+        assertThat(existsResult.join()).isTrue();
+        assertThat(notExistsResult.join()).isFalse();
     }
 
     @Test
@@ -126,14 +130,14 @@ class FirestoreRecipeRepositoryIntegrationTest {
         repository.save(recipe).join();
 
         // Verify it exists
-        assertTrue(repository.existsByContentHash("delete-test-hash").join());
+        assertThat(repository.existsByContentHash("delete-test-hash").join()).isTrue();
 
         // When - Delete
         CompletableFuture<Void> deleteResult = repository.deleteByContentHash("delete-test-hash");
-        assertDoesNotThrow(() -> deleteResult.join());
+        assertThatCode(() -> deleteResult.join()).doesNotThrowAnyException();
 
         // Then - Verify it's gone
-        assertFalse(repository.existsByContentHash("delete-test-hash").join());
+        assertThat(repository.existsByContentHash("delete-test-hash").join()).isFalse();
     }
 
     @Test
@@ -159,7 +163,9 @@ class FirestoreRecipeRepositoryIntegrationTest {
         Long count = countResult.join();
 
         // Then
-        assertTrue(count >= 3, "Count should be at least 3, but was: " + count);
+        assertThat(count)
+                .as("Count should be at least 3, but was: %d", count)
+                .isGreaterThanOrEqualTo(3L);
     }
 
     @Test
@@ -190,8 +196,11 @@ class FirestoreRecipeRepositoryIntegrationTest {
         // Then - All should succeed
         for (CompletableFuture<Optional<Recipe>> future : futures) {
             Optional<Recipe> result = future.join();
-            assertTrue(result.isPresent());
-            assertEquals("concurrent-test-hash", result.get().getContentHash());
+            assertThat(result)
+                    .isPresent()
+                    .get()
+                    .extracting(Recipe::getContentHash)
+                    .isEqualTo("concurrent-test-hash");
         }
     }
 
@@ -218,8 +227,10 @@ class FirestoreRecipeRepositoryIntegrationTest {
         long duration = endTime - startTime;
 
         // Then
-        assertTrue(retrievedCache.isPresent());
-        assertTrue(duration < 100, "Retrieval took " + duration + "ms, which exceeds the 100ms requirement");
+        assertThat(retrievedCache).isPresent();
+        assertThat(duration)
+                .as("Retrieval took %dms, which exceeds the 100ms requirement", duration)
+                .isLessThan(100L);
     }
 
     @Test
@@ -243,8 +254,14 @@ class FirestoreRecipeRepositoryIntegrationTest {
 
         // Then - Version should be incremented
         Optional<Recipe> finalResult = repository.findByContentHash("version-test-hash").join();
-        assertTrue(finalResult.isPresent());
-        assertEquals(1L, finalResult.get().getVersion(), "Version should be incremented to 1");
-        assertNotNull(finalResult.get().getLastUpdatedAt());
+        assertThat(finalResult)
+                .isPresent()
+                .get()
+                .satisfies(result -> {
+                    assertThat(result.getVersion())
+                            .as("Version should be incremented to 1")
+                            .isEqualTo(1L);
+                    assertThat(result.getLastUpdatedAt()).isNotNull();
+                });
     }
 }
