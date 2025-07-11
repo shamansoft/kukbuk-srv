@@ -3,3 +3,36 @@ server:
 spring:
   main:
     banner-mode: "off"
+
+# Google Cloud configuration for production
+google:
+  cloud:
+    project-id: "${FIRESTORE_PROJECT_ID}"
+    
+# Firestore configuration
+firestore:
+  enabled: true
+
+# Recipe cache configuration  
+recipe:
+  store:
+    enabled: true
+
+# Cookbook configuration for GCP
+cookbook:
+  gemini:
+    api-key: "${COOKBOOK_GEMINI_API_KEY}"
+    base-url: "https://generativelanguage.googleapis.com/v1beta"
+    model: "gemini-2.0-flash"
+    prompt: "Convert the above recipe to YAML format, using the above YAML example as a guide. Provide only the valid YAML output. Markdown formatting is allowed within YAML string values, but do not include any markdown code blocks or any other text outside of the yaml structure. Requirements: schema_version: \"1.0.0\". Generate unique recipe_version. Use current date for date_created if not specified. Format times as \"1d 2h 30m\". Use Markdown for text formatting. Use full path for medias"
+    temperature: 0.1
+    top-p: 0.8
+  google:
+    oauth-id: "${COOKBOOK_GOOGLE_OAUTH_ID}"
+
+# Logging configuration for GCP
+logging:
+  level:
+    net.shamansoft.cookbook: INFO
+    com.google.cloud: WARN
+    root: INFO

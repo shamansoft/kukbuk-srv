@@ -1,9 +1,28 @@
 spring:
   application:
     name: kukbuk-srv
+
+# Google Cloud configuration
+google:
+  cloud:
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID:cookbook-extractor}
+    credentials:
+      path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:}
+
+# Firestore configuration
+firestore:
+  enabled: ${FIRESTORE_ENABLED:true}
+
+# Recipe cache configuration
+recipe:
+  store:
+    enabled: ${RECIPE_CACHE_ENABLED:true}
+
 logging:
   level:
     net.shamansoft: DEBUG
+    net.shamansoft.cookbook: DEBUG
+    com.google.cloud: INFO
     org.springframework.web.reactive.function.client.WebClient: DEBUG
 cookbook:
   gemini:

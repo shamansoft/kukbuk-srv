@@ -1,11 +1,9 @@
 package net.shamansoft.cookbook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +21,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -74,13 +72,13 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "aud": "test-client-id",
-                                "user_id": "123456789",
-                                "scope": "https://www.googleapis.com/auth/drive.file",
-                                "expires_in": 3600
-                            }
-                            """)));
+                                {
+                                    "aud": "test-client-id",
+                                    "user_id": "123456789",
+                                    "scope": "https://www.googleapis.com/auth/drive.file",
+                                    "expires_in": 3600
+                                }
+                                """)));
     }
 
     private void setupGeminiMock() {
@@ -90,16 +88,16 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "candidates": [{
-                                    "content": {
-                                        "parts": [{
-                                            "text": "schema_version: \\"1.0.0\\"\\nrecipe_version: \\"1.0\\"\\ndate_created: \\"2024-01-15\\"\\ntitle: \\"Chocolate Chip Cookies\\"\\ndescription: \\"Classic homemade chocolate chip cookies\\"\\nservings: 24\\nprep_time: \\"15m\\"\\ncook_time: \\"12m\\"\\ntotal_time: \\"27m\\"\\ningredients:\\n  - name: \\"All-purpose flour\\"\\n    amount: 2.25\\n    unit: \\"cups\\"\\n  - name: \\"Chocolate chips\\"\\n    amount: 2\\n    unit: \\"cups\\"\\ninstructions:\\n  - step: 1\\n    description: \\"Preheat oven to 375°F\\"\\n  - step: 2\\n    description: \\"Mix ingredients and bake for 12 minutes\\"\\nisRecipe: true"
-                                        }]
-                                    }
-                                }]
-                            }
-                            """)));
+                                {
+                                    "candidates": [{
+                                        "content": {
+                                            "parts": [{
+                                                "text": "schema_version: \\"1.0.0\\"\\nrecipe_version: \\"1.0\\"\\ndate_created: \\"2024-01-15\\"\\ntitle: \\"Chocolate Chip Cookies\\"\\ndescription: \\"Classic homemade chocolate chip cookies\\"\\nservings: 24\\nprep_time: \\"15m\\"\\ncook_time: \\"12m\\"\\ntotal_time: \\"27m\\"\\ningredients:\\n  - name: \\"All-purpose flour\\"\\n    amount: 2.25\\n    unit: \\"cups\\"\\n  - name: \\"Chocolate chips\\"\\n    amount: 2\\n    unit: \\"cups\\"\\ninstructions:\\n  - step: 1\\n    description: \\"Preheat oven to 375°F\\"\\n  - step: 2\\n    description: \\"Mix ingredients and bake for 12 minutes\\"\\nisRecipe: true"
+                                            }]
+                                        }
+                                    }]
+                                }
+                                """)));
 
         // Also handle the direct path without /v1beta prefix
         stubFor(post(urlPathMatching("/models/gemini-2.0-flash:generateContent.*"))
@@ -107,16 +105,16 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "candidates": [{
-                                    "content": {
-                                        "parts": [{
-                                            "text": "schema_version: \\"1.0.0\\"\\nrecipe_version: \\"1.0\\"\\ndate_created: \\"2024-01-15\\"\\ntitle: \\"Chocolate Chip Cookies\\"\\ndescription: \\"Classic homemade chocolate chip cookies\\"\\nservings: 24\\nprep_time: \\"15m\\"\\ncook_time: \\"12m\\"\\ntotal_time: \\"27m\\"\\ningredients:\\n  - name: \\"All-purpose flour\\"\\n    amount: 2.25\\n    unit: \\"cups\\"\\n  - name: \\"Chocolate chips\\"\\n    amount: 2\\n    unit: \\"cups\\"\\ninstructions:\\n  - step: 1\\n    description: \\"Preheat oven to 375°F\\"\\n  - step: 2\\n    description: \\"Mix ingredients and bake for 12 minutes\\"\\nisRecipe: true"
-                                        }]
-                                    }
-                                }]
-                            }
-                            """)));
+                                {
+                                    "candidates": [{
+                                        "content": {
+                                            "parts": [{
+                                                "text": "schema_version: \\"1.0.0\\"\\nrecipe_version: \\"1.0\\"\\ndate_created: \\"2024-01-15\\"\\ntitle: \\"Chocolate Chip Cookies\\"\\ndescription: \\"Classic homemade chocolate chip cookies\\"\\nservings: 24\\nprep_time: \\"15m\\"\\ncook_time: \\"12m\\"\\ntotal_time: \\"27m\\"\\ningredients:\\n  - name: \\"All-purpose flour\\"\\n    amount: 2.25\\n    unit: \\"cups\\"\\n  - name: \\"Chocolate chips\\"\\n    amount: 2\\n    unit: \\"cups\\"\\ninstructions:\\n  - step: 1\\n    description: \\"Preheat oven to 375°F\\"\\n  - step: 2\\n    description: \\"Mix ingredients and bake for 12 minutes\\"\\nisRecipe: true"
+                                            }]
+                                        }
+                                    }]
+                                }
+                                """)));
     }
 
     private void setupGoogleDriveMocks() {
@@ -127,14 +125,14 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "files": [{
-                                    "id": "folder-123",
-                                    "name": "kukbuk",
-                                    "mimeType": "application/vnd.google-apps.folder"
-                                }]
-                            }
-                            """)));
+                                {
+                                    "files": [{
+                                        "id": "folder-123",
+                                        "name": "kukbuk",
+                                        "mimeType": "application/vnd.google-apps.folder"
+                                    }]
+                                }
+                                """)));
 
         // Mock Google Drive file search within folder - return empty to trigger file creation
         stubFor(get(urlPathEqualTo("/files"))
@@ -143,10 +141,10 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "files": []
-                            }
-                            """)));
+                                {
+                                    "files": []
+                                }
+                                """)));
 
         // Mock Google Drive file creation
         stubFor(post(urlPathEqualTo("/files"))
@@ -154,12 +152,12 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "id": "file-456",
-                                "name": "chocolate-chip-cookies.yaml",
-                                "webViewLink": "https://drive.google.com/file/d/file-456/view"
-                            }
-                            """)));
+                                {
+                                    "id": "file-456",
+                                    "name": "chocolate-chip-cookies.yaml",
+                                    "webViewLink": "https://drive.google.com/file/d/file-456/view"
+                                }
+                                """)));
 
         // Mock Google Drive file upload/update - handle both new files and existing files
         stubFor(patch(urlPathMatching("/files/.*"))
@@ -167,36 +165,36 @@ class RecipeIntegrationTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                            {
-                                "id": "file-456",
-                                "name": "chocolate-chip-cookies.yaml",
-                                "webViewLink": "https://drive.google.com/file/d/file-456/view"
-                            }
-                            """)));
+                                {
+                                    "id": "file-456",
+                                    "name": "chocolate-chip-cookies.yaml",
+                                    "webViewLink": "https://drive.google.com/file/d/file-456/view"
+                                }
+                                """)));
     }
 
     @Test
     void testPostRecipeWithGoogleIntegration() throws Exception {
         // Prepare request
         String sampleHtml = """
-            <html>
-            <head><title>Chocolate Chip Cookies Recipe</title></head>
-            <body>
-                <h1>Chocolate Chip Cookies</h1>
-                <p>Classic homemade chocolate chip cookies</p>
-                <h2>Ingredients:</h2>
-                <ul>
-                    <li>2 1/4 cups all-purpose flour</li>
-                    <li>2 cups chocolate chips</li>
-                </ul>
-                <h2>Instructions:</h2>
-                <ol>
-                    <li>Preheat oven to 375°F</li>
-                    <li>Mix ingredients and bake for 12 minutes</li>
-                </ol>
-            </body>
-            </html>
-            """;
+                <html>
+                <head><title>Chocolate Chip Cookies Recipe</title></head>
+                <body>
+                    <h1>Chocolate Chip Cookies</h1>
+                    <p>Classic homemade chocolate chip cookies</p>
+                    <h2>Ingredients:</h2>
+                    <ul>
+                        <li>2 1/4 cups all-purpose flour</li>
+                        <li>2 cups chocolate chips</li>
+                    </ul>
+                    <h2>Instructions:</h2>
+                    <ol>
+                        <li>Preheat oven to 375°F</li>
+                        <li>Mix ingredients and bake for 12 minutes</li>
+                    </ol>
+                </body>
+                </html>
+                """;
 
         Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/recipe");
 
@@ -215,15 +213,25 @@ class RecipeIntegrationTest {
         );
 
         // Verify the response
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
 
         RecipeResponse recipeResponse = response.getBody();
-        assertEquals("https://example.com/recipe", recipeResponse.url());
-        assertEquals("Chocolate Chip Cookies", recipeResponse.title());
-        assertEquals("file-456", recipeResponse.driveFileId());
-        assertEquals("https://drive.google.com/file/d/file-456/view", recipeResponse.driveFileUrl());
-        assertTrue(recipeResponse.isRecipe());
+        assertThat(recipeResponse)
+                .extracting(
+                        RecipeResponse::url,
+                        RecipeResponse::title,
+                        RecipeResponse::driveFileId,
+                        RecipeResponse::driveFileUrl,
+                        RecipeResponse::isRecipe
+                )
+                .containsExactly(
+                        "https://example.com/recipe",
+                        "Chocolate Chip Cookies",
+                        "file-456",
+                        "https://drive.google.com/file/d/file-456/view",
+                        true
+                );
 
         // Verify that Google services were called
         verify(getRequestedFor(urlPathEqualTo("/tokeninfo"))
@@ -243,24 +251,24 @@ class RecipeIntegrationTest {
     @Test
     void testPostRecipeWithoutAuthToken() throws Exception {
         String sampleHtml = """
-            <html>
-            <head><title>Simple Recipe</title></head>
-            <body>
-                <h1>Simple Recipe</h1>
-                <p>A simple recipe without Google Drive storage</p>
-                <h2>Ingredients:</h2>
-                <ul>
-                    <li>1 cup flour</li>
-                    <li>2 eggs</li>
-                </ul>
-                <h2>Instructions:</h2>
-                <ol>
-                    <li>Mix ingredients</li>
-                    <li>Bake for 20 minutes</li>
-                </ol>
-            </body>
-            </html>
-            """;
+                <html>
+                <head><title>Simple Recipe</title></head>
+                <body>
+                    <h1>Simple Recipe</h1>
+                    <p>A simple recipe without Google Drive storage</p>
+                    <h2>Ingredients:</h2>
+                    <ul>
+                        <li>1 cup flour</li>
+                        <li>2 eggs</li>
+                    </ul>
+                    <h2>Instructions:</h2>
+                    <ol>
+                        <li>Mix ingredients</li>
+                        <li>Bake for 20 minutes</li>
+                    </ol>
+                </body>
+                </html>
+                """;
 
         Request request = new Request(sampleHtml, "Simple Recipe", "https://example.com/simple");
 
@@ -277,7 +285,7 @@ class RecipeIntegrationTest {
                 String.class
         );
 
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         // Verify that only Gemini was called, not Google Auth or Drive (since auth failed first)
         verify(0, postRequestedFor(urlPathMatching("/v1beta/models/gemini-2.0-flash:generateContent.*")));

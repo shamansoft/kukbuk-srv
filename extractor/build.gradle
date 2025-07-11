@@ -1,14 +1,14 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.4.2'
-    id 'io.spring.dependency-management' version '1.1.7'
-    id 'org.graalvm.buildtools.native' version '0.10.5'
-    id 'jacoco'
-    id 'org.owasp.dependencycheck' version '10.0.4'
+	alias(libs.plugins.spring.boot)
+	alias(libs.plugins.spring.dependency.management)
+	alias(libs.plugins.graalvm.native)
+	alias(libs.plugins.jacoco)
+	alias(libs.plugins.owasp.dependency.check)
 }
 
 group = 'net.shamansoft'
-version = '0.3.22'
+version = '0.3.23'
 
 java {
 	toolchain {
@@ -43,27 +43,41 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// Spring Boot Starters - exclude default logging
+	implementation(libs.bundles.spring.boot.starters) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
 
-	implementation 'org.jsoup:jsoup:1.15.3'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+	// SLF4J Simple Logging for native compatibility
+	implementation libs.slf4j.api
+	implementation libs.slf4j.simple
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// Web Scraping
+	implementation libs.jsoup
 
-	testImplementation("org.mockito:mockito-core:5.18.0")
-	mockitoAgent("org.mockito:mockito-core:5.18.0") {
+	// Google Cloud Services
+	implementation(libs.bundles.google.cloud) {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
+
+	// Annotation Processing
+	compileOnly libs.lombok
+	annotationProcessor libs.lombok
+
+	// Testing - exclude default logging to avoid conflicts with SLF4J Simple
+	testImplementation(libs.bundles.testing) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
+	testImplementation libs.mockito.core
+	mockitoAgent(libs.mockito.core) {
 		transitive = false
 	}
 
 	// Integration test dependencies
-	intTestImplementation 'org.testcontainers:testcontainers:1.19.3'
-	intTestImplementation 'org.testcontainers:junit-jupiter:1.19.3'
-	intTestImplementation 'org.wiremock:wiremock-standalone:3.3.1'
-	intTestImplementation 'org.testcontainers:mockserver:1.19.3'
+	intTestImplementation(libs.bundles.testcontainers) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
+	intTestImplementation libs.wiremock.standalone
 }
 
 bootJar {
@@ -86,7 +100,7 @@ task intTest(type: Test) {
 
 // JaCoCo configuration
 jacoco {
-    toolVersion = "0.8.11" // Use the latest stable version
+	toolVersion = libs.versions.jacoco.get()
 }
 
 jacocoTestReport {
@@ -133,12 +147,6 @@ graalvmNative {
 	binaries {
 		main {
 			imageName = 'cookbook'
-			buildArgs.addAll(
-					'--no-fallback',
-					'--initialize-at-run-time=org.apache.commons.logging.LogFactory,org.apache.commons.logging.LogFactoryService',
-					'--initialize-at-run-time=ch.qos.logback',
-					'-H:+ReportExceptionStackTraces'
-			)
 			resources.autodetect()
 		}
 	}

@@ -1,0 +1,96 @@
+[versions]
+# Spring Boot and Framework
+spring-boot = "3.4.2"
+spring-dependency-management = "1.1.7"
+
+# Java and Build Tools
+graalvm-buildtools = "0.10.5"
+jacoco = "0.8.11"
+owasp-dependency-check = "10.0.4"
+
+# Main Dependencies
+jsoup = "1.15.3"
+google-cloud-firestore = "3.15.4"
+google-cloud-storage = "2.30.1"
+
+# Testing
+junit-jupiter = "5.10.1"
+mockito = "5.18.0"
+assertj = "3.26.3"
+testcontainers = "1.19.3"
+wiremock = "3.3.1"
+
+# Annotation Processing
+lombok = "1.18.30"
+
+# Logging
+slf4j = "2.0.16"
+
+[libraries]
+# Spring Boot Starters
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+
+# Google Cloud
+google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
+google-cloud-storage = { module = "com.google.cloud:google-cloud-storage", version.ref = "google-cloud-storage" }
+
+# Web Scraping
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+
+# Testing
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+
+# TestContainers
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-mockserver = { module = "org.testcontainers:mockserver", version.ref = "testcontainers" }
+testcontainers-gcloud = { module = "org.testcontainers:gcloud", version.ref = "testcontainers" }
+
+# WireMock
+wiremock-standalone = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+
+# Annotation Processing
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+
+[bundles]
+spring-boot-starters = [
+    "spring-boot-starter-web",
+    "spring-boot-starter-webflux",
+    "spring-boot-starter-actuator",
+    "spring-boot-starter-validation"
+]
+
+google-cloud = [
+    "google-cloud-firestore",
+    "google-cloud-storage"
+]
+
+testcontainers = [
+    "testcontainers-testcontainers",
+    "testcontainers-junit-jupiter",
+    "testcontainers-mockserver",
+    "testcontainers-gcloud"
+]
+
+testing = [
+    "spring-boot-starter-test",
+    "assertj-core",
+    "mockito-core"
+]
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-buildtools" }
+jacoco = { id = "jacoco" }
+owasp-dependency-check = { id = "org.owasp.dependencycheck", version.ref = "owasp-dependency-check" }
