@@ -56,7 +56,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
         Optional<Recipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
@@ -75,7 +75,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
         Optional<Recipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
@@ -103,7 +103,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
         Optional<Recipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
@@ -133,7 +133,7 @@ class RecipeServicePerformanceTest {
         long startTime = System.currentTimeMillis();
         CompletableFuture<Optional<Recipe>>[] futures = new CompletableFuture[10];
         for (int i = 0; i < 10; i++) {
-            futures[i] = service.findCachedRecipe(testUrl);
+            futures[i] = service.findStoredRecipe(testUrl);
         }
 
         // Wait for all to complete
@@ -201,7 +201,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
         Optional<Recipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
@@ -220,7 +220,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
         Optional<Recipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;

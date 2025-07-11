@@ -54,7 +54,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
 
         // When
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
 
         // Then
         Optional<Recipe> retrievedCache = result.join();
@@ -75,7 +75,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         // When
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
 
         // Then
         Optional<Recipe> retrievedCache = result.join();
@@ -92,7 +92,7 @@ class RecipeServiceTest {
         when(contentHashService.generateContentHash(testUrl)).thenThrow(new RuntimeException("Hash generation failed"));
 
         // When
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
 
         // Then
         Optional<Recipe> retrievedCache = result.join();
@@ -110,7 +110,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Repository error")));
 
         // When
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipe(testUrl);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipe(testUrl);
 
         // Then
         Optional<Recipe> retrievedCache = result.join();
@@ -279,7 +279,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
 
         // When
-        CompletableFuture<Optional<Recipe>> result = service.findCachedRecipeByHash(testHash);
+        CompletableFuture<Optional<Recipe>> result = service.findStoredRecipeByHash(testHash);
 
         // Then
         Optional<Recipe> retrievedCache = result.join();

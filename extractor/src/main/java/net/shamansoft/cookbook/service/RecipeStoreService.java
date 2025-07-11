@@ -21,17 +21,17 @@ public class RecipeStoreService {
     private final RecipeRepository repository;
     private final ContentHashService contentHashService;
 
-    public CompletableFuture<Optional<Recipe>> findCachedRecipe(String url) {
+    public CompletableFuture<Optional<Recipe>> findStoredRecipe(String url) {
         try {
             String contentHash = contentHashService.generateContentHash(url);
-            return findCachedRecipeByHash(contentHash);
+            return findStoredRecipeByHash(contentHash);
         } catch (Exception e) {
             log.error("Error generating content hash for URL {}: {}", url, e.getMessage(), e);
             return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
-    public CompletableFuture<Optional<Recipe>> findCachedRecipeByHash(String contentHash) {
+    public CompletableFuture<Optional<Recipe>> findStoredRecipeByHash(String contentHash) {
         log.debug("Looking up stored recipe for hash: {}", contentHash);
         
         return repository.findByContentHash(contentHash)
@@ -61,7 +61,7 @@ public class RecipeStoreService {
             String contentHash = contentHashService.generateContentHash(url);
             return storeRecipeWithHash(contentHash, url, recipeYaml);
         } catch (Exception e) {
-            log.error("Error generating content hash for caching URL {}: {}", url, e.getMessage(), e);
+            log.error("Error generating content hash for storing URL {}: {}", url, e.getMessage(), e);
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -81,7 +81,7 @@ public class RecipeStoreService {
         return repository.save(recipe)
                 .handle((result, throwable) -> {
                     if (throwable != null) {
-                        log.error("Error caching recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
+                        log.error("Error storing recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
                     } else {
                         log.debug("Successfully stored recipe for hash: {}", contentHash);
                     }
