@@ -38,7 +38,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .build()
                 .getService();
 
-        repository = new FirestoreRecipeRepository(firestore);
+        repository = new FirestoreRecipeRepository(firestore, new Transformer());
     }
 
     @Test
@@ -50,8 +50,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .sourceUrl("https://example.com/integration-test")
                 .recipeYaml("recipe: integration test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         // When - Save
@@ -68,9 +68,9 @@ class FirestoreRecipeRepositoryIntegrationTest {
         assertEquals("integration-test-hash", retrieved.getContentHash());
         assertEquals("https://example.com/integration-test", retrieved.getSourceUrl());
         assertEquals("recipe: integration test", retrieved.getRecipeYaml());
-        assertEquals(1L, retrieved.getAccessCount());
+        assertEquals(1L, retrieved.getVersion());
         assertNotNull(retrieved.getCreatedAt());
-        assertNotNull(retrieved.getLastAccessedAt());
+        assertNotNull(retrieved.getLastUpdatedAt());
     }
 
     @Test
@@ -93,8 +93,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .sourceUrl("https://example.com/existence-test")
                 .recipeYaml("recipe: existence test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         // When - Save first
@@ -118,8 +118,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .sourceUrl("https://example.com/delete-test")
                 .recipeYaml("recipe: delete test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         // When - Save first
@@ -148,8 +148,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                     .sourceUrl("https://example.com/" + hash)
                     .recipeYaml("recipe: " + hash)
                     .createdAt(Instant.now())
-                    .lastAccessedAt(Instant.now())
-                    .accessCount(1L)
+                    .lastUpdatedAt(Instant.now())
+                    .version(1L)
                     .build();
             repository.save(recipe).join();
         }
@@ -171,8 +171,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .sourceUrl("https://example.com/concurrent-test")
                 .recipeYaml("recipe: concurrent test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(0L)
+                .lastUpdatedAt(Instant.now())
+                .version(0L)
                 .build();
 
         // Save initially
@@ -204,8 +204,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .sourceUrl("https://example.com/performance-test")
                 .recipeYaml("recipe: performance test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         repository.save(recipe).join();
@@ -223,36 +223,28 @@ class FirestoreRecipeRepositoryIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should update access count on retrieval")
-    void shouldUpdateAccessCountOnRetrieval() throws InterruptedException {
+    @DisplayName("Should update version on update")
+    void shouldUpdateVersionOnUpdate() {
         // Given
         Recipe recipe = Recipe.builder()
-                .contentHash("access-count-test-hash")
-                .sourceUrl("https://example.com/access-count-test")
-                .recipeYaml("recipe: access count test")
+                .contentHash("version-test-hash")
+                .sourceUrl("https://example.com/version-test")
+                .recipeYaml("recipe: version test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(0L)
+                .lastUpdatedAt(Instant.now())
+                .version(0L)
                 .build();
 
         repository.save(recipe).join();
 
-        // When - Access the cache multiple times
-        repository.findByContentHash("access-count-test-hash").join();
-        
-        // Wait a bit for the async access count update
-        Thread.sleep(100);
-        
-        repository.findByContentHash("access-count-test-hash").join();
-        
-        // Wait a bit more for the async access count update
-        Thread.sleep(100);
+        // When - Update the recipe
+        Recipe updatedRecipe = recipe.withUpdatedVersion();
+        repository.save(updatedRecipe).join();
 
-        // Then - Access count should be updated (note: due to async nature, exact count may vary)
-        Optional<Recipe> finalResult = repository.findByContentHash("access-count-test-hash").join();
+        // Then - Version should be incremented
+        Optional<Recipe> finalResult = repository.findByContentHash("version-test-hash").join();
         assertTrue(finalResult.isPresent());
-        // Access count should be at least 1 due to the async updates
-        assertTrue(finalResult.get().getAccessCount() >= 1, 
-                "Access count should be at least 1, but was: " + finalResult.get().getAccessCount());
+        assertEquals(1L, finalResult.get().getVersion(), "Version should be incremented to 1");
+        assertNotNull(finalResult.get().getLastUpdatedAt());
     }
 }

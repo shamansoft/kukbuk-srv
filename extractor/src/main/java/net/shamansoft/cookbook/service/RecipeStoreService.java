@@ -74,8 +74,8 @@ public class RecipeStoreService {
                 .sourceUrl(url)
                 .recipeYaml(recipeYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(0L)
+                .lastUpdatedAt(Instant.now())
+                .version(0L)
                 .build();
 
         return repository.save(recipe)

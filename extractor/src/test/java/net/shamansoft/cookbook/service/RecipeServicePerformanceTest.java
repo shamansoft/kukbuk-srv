@@ -47,8 +47,8 @@ class RecipeServicePerformanceTest {
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         when(contentHashService.generateContentHash(testUrl)).thenReturn(testHash);
@@ -94,8 +94,8 @@ class RecipeServicePerformanceTest {
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         when(contentHashService.generateContentHash(testUrl)).thenReturn(testHash);
@@ -122,8 +122,8 @@ class RecipeServicePerformanceTest {
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         when(contentHashService.generateContentHash(testUrl)).thenReturn(testHash);

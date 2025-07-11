@@ -46,8 +46,8 @@ class RecipeServiceTest {
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         when(contentHashService.generateContentHash(testUrl)).thenReturn(testHash);
@@ -139,8 +139,8 @@ class RecipeServiceTest {
                 testUrl.equals(recipeCache.getSourceUrl()) &&
                 testYaml.equals(recipeCache.getRecipeYaml()) &&
                 recipeCache.getCreatedAt() != null &&
-                recipeCache.getLastAccessedAt() != null &&
-                recipeCache.getAccessCount() == 0L
+                recipeCache.getLastUpdatedAt() != null &&
+                recipeCache.getVersion() == 0L
         ));
     }
 
@@ -272,8 +272,8 @@ class RecipeServiceTest {
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
 
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));

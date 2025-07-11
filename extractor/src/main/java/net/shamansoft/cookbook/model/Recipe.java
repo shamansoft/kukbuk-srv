@@ -19,7 +19,18 @@ public class Recipe {
     
     private Instant createdAt;
     
-    private Instant lastAccessedAt;
+    private Instant lastUpdatedAt;
     
-    private long accessCount;
+    private long version;
+    
+    public Recipe withUpdatedVersion() {
+        return Recipe.builder()
+                .contentHash(this.contentHash)
+                .sourceUrl(this.sourceUrl)
+                .recipeYaml(this.recipeYaml)
+                .createdAt(this.createdAt)
+                .lastUpdatedAt(Instant.now())
+                .version(this.version + 1)
+                .build();
+    }
 }

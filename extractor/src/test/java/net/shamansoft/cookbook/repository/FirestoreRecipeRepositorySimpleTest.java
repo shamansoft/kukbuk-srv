@@ -27,8 +27,8 @@ class FirestoreRecipeRepositorySimpleTest {
                 .sourceUrl("https://example.com/recipe")
                 .recipeYaml("recipe: test")
                 .createdAt(Instant.now())
-                .lastAccessedAt(Instant.now())
-                .accessCount(1L)
+                .lastUpdatedAt(Instant.now())
+                .version(1L)
                 .build();
     }
 
@@ -51,8 +51,8 @@ class FirestoreRecipeRepositorySimpleTest {
                 .sourceUrl(null)
                 .recipeYaml(null)
                 .createdAt(null)
-                .lastAccessedAt(null)
-                .accessCount(0L)
+                .lastUpdatedAt(null)
+                .version(0L)
                 .build();
 
         // Then - Should not throw exceptions
@@ -60,7 +60,7 @@ class FirestoreRecipeRepositorySimpleTest {
         assertEquals("test-hash", cacheWithNulls.getContentHash());
         assertNull(cacheWithNulls.getSourceUrl());
         assertNull(cacheWithNulls.getRecipeYaml());
-        assertEquals(0L, cacheWithNulls.getAccessCount());
+        assertEquals(0L, cacheWithNulls.getVersion());
     }
 
     @Test
@@ -73,8 +73,8 @@ class FirestoreRecipeRepositorySimpleTest {
                 .sourceUrl("https://example.com")
                 .recipeYaml("recipe: test")
                 .createdAt(now)
-                .lastAccessedAt(now)
-                .accessCount(1L)
+                .lastUpdatedAt(now)
+                .version(1L)
                 .build();
 
         Recipe cache2 = Recipe.builder()
@@ -82,13 +82,13 @@ class FirestoreRecipeRepositorySimpleTest {
                 .sourceUrl("https://example.com")
                 .recipeYaml("recipe: test")
                 .createdAt(now)
-                .lastAccessedAt(now)
-                .accessCount(1L)
+                .lastUpdatedAt(now)
+                .version(1L)
                 .build();
 
         // Then
         assertEquals(cache1.getCreatedAt(), cache2.getCreatedAt());
-        assertEquals(cache1.getLastAccessedAt(), cache2.getLastAccessedAt());
+        assertEquals(cache1.getLastUpdatedAt(), cache2.getLastUpdatedAt());
         assertNotEquals(cache1.getContentHash(), cache2.getContentHash());
     }
 }

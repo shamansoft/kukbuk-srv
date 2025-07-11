@@ -19,8 +19,8 @@ public class Transformer {
                 .sourceUrl(document.getString("sourceUrl"))
                 .recipeYaml(document.getString("recipeYaml"))
                 .createdAt(toInstant(document.get("createdAt")))
-                .lastAccessedAt(toInstant(document.get("lastAccessedAt")))
-                .accessCount(Optional.ofNullable(document.getLong("accessCount")).orElse(0L))
+                .lastUpdatedAt(toInstant(document.get("lastUpdatedAt")))
+                .version(Optional.ofNullable(document.getLong("version")).orElse(0L))
                 .build();
     }
 
