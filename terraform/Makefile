@@ -17,6 +17,7 @@ help:
 TAG ?= current
 DOCKER_IMAGE = cookbook-opentofu
 DOCKER_VOLUME = tofu-cache
+TERRAFORM_VOLUME = tofu-terraform
 
 GOOGLE_SERVICE_ACCOUNT_CREDENTIALS = "$(PWD)/no-git/kukbuk-sa-tf-key.json"
 
@@ -25,6 +26,7 @@ DOCKER_RUN = docker run --rm -it \
 	-v "$(PWD)/..:/workspace" \
 	-v "$(HOME)/.config/gcloud:/root/.config/gcloud:ro" \
 	-v "$(DOCKER_VOLUME):/root/.terraform.d" \
+	-v "$(TERRAFORM_VOLUME):/workspace/terraform/.terraform" \
 	-w /workspace/terraform \
 	-e GOOGLE_SERVICE_ACCOUNT_CREDENTIALS \
 	-e CLOUDSDK_CONFIG=/root/.config/gcloud \
@@ -93,4 +95,5 @@ clean:
 	@echo "Cleaning up Docker resources..."
 	-docker rmi $(DOCKER_IMAGE)
 	-docker volume rm $(DOCKER_VOLUME)
+	-docker volume rm $(TERRAFORM_VOLUME)
 	@echo "Cleanup completed."

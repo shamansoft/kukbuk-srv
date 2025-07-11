@@ -42,7 +42,7 @@ variable "firestore_location" {
 
 variable "repo_base" {
   type = string
-  default = "gcr.io/cookbook-451120/cookbook"
+  default = "gcr.io/kukbuk-tf/cookbook"
 }
 
 # Local values for processing tags similar to deploy.sh
@@ -96,6 +96,19 @@ resource "google_cloud_run_service" "cookbook" {
   location = var.region
 
   template {
+    metadata {
+      name = "${var.service_name}-${local.final_revision_tag}"
+      labels = {
+        "run.googleapis.com/startupProbeType" = "Custom"
+      }
+
+      annotations = {
+        "autoscaling.knative.dev/maxScale" = "1"
+        "run.googleapis.com/startup-cpu-boost" = "false"
+        "run.googleapis.com/client-name" = "terraform"
+      }
+    }
+    
     spec {
       container_concurrency = 80
       timeout_seconds = 300
@@ -158,15 +171,15 @@ resource "google_cloud_run_service" "cookbook" {
         resources {
           limits = {
             cpu    = "1000m"
-            memory = "256Mi"
+            memory = "512Mi"
           }
         }
 
         startup_probe {
-          initial_delay_seconds = 10
-          timeout_seconds      = 240
-          period_seconds       = 240
-          failure_threshold    = 1
+          initial_delay_seconds = 30
+          timeout_seconds      = 10
+          period_seconds       = 10
+          failure_threshold    = 12
 
           http_get {
             path = "/actuator/health"
@@ -174,18 +187,6 @@ resource "google_cloud_run_service" "cookbook" {
           }
         }
       }
-    }
-
-    metadata {
-      labels = {
-        "run.googleapis.com/startupProbeType" = "Custom"
-      }
-
-      annotations = {
-        "autoscaling.knative.dev/maxScale" = "1"
-        "run.googleapis.com/startup-cpu-boost" = "false"
-      }
-
     }
   }
 

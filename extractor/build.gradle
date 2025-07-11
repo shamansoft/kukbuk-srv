@@ -64,15 +64,19 @@ dependencies {
 	compileOnly libs.lombok
 	annotationProcessor libs.lombok
 
-	// Testing
-	testImplementation libs.bundles.testing
+	// Testing - exclude default logging to avoid conflicts with SLF4J Simple
+	testImplementation(libs.bundles.testing) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
 	testImplementation libs.mockito.core
 	mockitoAgent(libs.mockito.core) {
 		transitive = false
 	}
 
 	// Integration test dependencies
-	intTestImplementation libs.bundles.testcontainers
+	intTestImplementation(libs.bundles.testcontainers) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
 	intTestImplementation libs.wiremock.standalone
 }
 
