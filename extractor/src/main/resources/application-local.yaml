@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: kukbuk-srv
+
+# Local development with Firestore emulator
+google:
+  cloud:
+    project-id: local-dev-project
+    credentials:
+      path: # Not needed for emulator
+
+# Firestore emulator configuration  
+firestore:
+  enabled: true
+  emulator:
+    enabled: true
+    host: localhost
+    port: 8081
+    ui:
+      enabled: true
+      port: 4000
+
+# Recipe cache configuration
+recipe:
+  store:
+    enabled: true
+
+# Local development logging
+logging:
+  level:
+    net.shamansoft: DEBUG
+    net.shamansoft.cookbook: DEBUG
+    com.google.cloud: INFO
+    org.springframework.web.reactive.function.client.WebClient: DEBUG
+    org.testcontainers: INFO
+
+# Cookbook configuration for local development
+cookbook:
+  gemini:
+    api-key: "test-key-for-local-development"
+    base-url: "https://generativelanguage.googleapis.com/v1beta"
+    model: "gemini-2.0-flash"
+    prompt: "Convert the above recipe to YAML format, using the above YAML example as a guide. Provide only the valid YAML output. Markdown formatting is allowed within YAML string values, but do not include any markdown code blocks or any other text outside of the yaml structure. Requirements: schema_version: \"1.0.0\". Generate unique recipe_version. Use current date for date_created if not specified. Format times as \"1d 2h 30m\". Use Markdown for text formatting. Use full path for medias"
+    temperature: 0.1
+    top-p: 0.8
+  drive:
+    folder-name: "kukbuk-local"
+    application-name: "${spring.application.name}"
+    upload-url: "https://www.googleapis.com/upload/drive/v3"
+    base-url: "https://www.googleapis.com/drive/v3"
+    auth-url: "https://oauth2.googleapis.com"
+  google:
+    oauth-id: "local-development-client-id"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,httpexchanges,env,info,firestore
