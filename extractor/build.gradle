@@ -59,6 +59,14 @@ dependencies {
 	implementation(libs.bundles.google.cloud) {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
+	
+	// Testcontainers for local development (Firestore emulator)
+	implementation(libs.testcontainers.gcloud) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
+	implementation(libs.testcontainers.testcontainers) {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	}
 
 	// Annotation Processing
 	compileOnly libs.lombok
