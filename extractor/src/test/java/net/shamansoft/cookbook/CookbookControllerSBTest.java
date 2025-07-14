@@ -4,10 +4,13 @@ import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,8 +23,11 @@ import javax.naming.AuthenticationException;
 import java.util.Map;
 import java.io.IOException;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -42,6 +48,23 @@ class CookbookControllerSBTest {
     private DriveService googleDriveService;
     @MockitoBean
     private TokenService tokenService;
+
+    @MockitoBean
+    private RecipeStoreService recipeStoreService;
+
+    @MockitoBean
+    private ContentHashService contentHashService;
+
+    @BeforeEach
+    void setUp() {
+        // Set up default mock behavior for store services
+        when(recipeStoreService.findStoredRecipeByHash(anyString()))
+                .thenReturn(Optional.empty());
+        
+        // Set up content hash service mock
+        when(contentHashService.generateContentHash(anyString()))
+                .thenReturn("mock-hash");
+    }
 
     @Test
     void healthEndpointReturnsOk() {
@@ -241,7 +264,8 @@ class CookbookControllerSBTest {
     void controllerMethod_createRecipe_worksWithParams() throws IOException, AuthenticationException {
         // Given
         CookbookController controller = new CookbookController(
-                rawContentService, transformer, compressor, googleDriveService, tokenService
+                rawContentService, transformer, compressor, googleDriveService, tokenService, 
+                contentHashService, recipeStoreService
         );
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));

@@ -18,6 +18,7 @@ public class Transformer {
                 .contentHash(document.getId())
                 .sourceUrl(document.getString("sourceUrl"))
                 .recipeYaml(document.getString("recipeYaml"))
+                .isValid(Boolean.TRUE.equals(document.getBoolean("isValid")))
                 .createdAt(toInstant(document.get("createdAt")))
                 .lastUpdatedAt(toInstant(document.get("lastUpdatedAt")))
                 .version(Optional.ofNullable(document.getLong("version")).orElse(0L))

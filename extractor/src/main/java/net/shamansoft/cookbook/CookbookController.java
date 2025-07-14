@@ -3,11 +3,14 @@ package net.shamansoft.cookbook;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.http.HttpHeaders;
@@ -40,6 +43,8 @@ public class CookbookController {
     private final Compressor compressor;
     private final DriveService googleDriveService;
     private final TokenService tokenService;
+    private final ContentHashService contentHashService;
+    private final RecipeStoreService recipeStoreService;
 
     @GetMapping("/")
     public String gcpHealth() {
@@ -70,9 +75,23 @@ public class CookbookController {
             throws IOException, AuthenticationException {
 
         log.debug("Headers: {}", httpHeaders);
-        String authToken = tokenService.getAuthToken(httpHeaders);
-        String html = extractHtml(request, compression);
-        Transformer.Response response = transformer.transform(html);
+        // get hash
+        String contentHash = contentHashService.generateContentHash(request.url());
+        // retrieve from store
+        var stored = recipeStoreService.findStoredRecipeByHash(contentHash);
+        Transformer.Response response;
+        if (stored.isEmpty()) {
+            String html = extractHtml(request, compression);
+            response = transformer.transform(html);
+            if(response.isRecipe()) {
+                recipeStoreService.storeValidRecipe(contentHash, request.url(), response.value());
+            } else {
+                log.info("The content is not a recipe. Skipping storage.");
+                recipeStoreService.storeInvalidRecipe(contentHash, request.url());
+            }
+        } else {
+            response = new Transformer.Response(true, stored.get().getRecipeYaml());
+        }
 
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(request.title())
@@ -80,6 +99,7 @@ public class CookbookController {
                 .isRecipe(response.isRecipe());
 
         if (response.isRecipe()) {
+            String authToken = tokenService.getAuthToken(httpHeaders);
             // Google Drive integration: if auth-token header is present, persist the recipe YAML
             storeToDrive(request, authToken, response.value(), responseBuilder);
         } else {

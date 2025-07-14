@@ -16,6 +16,8 @@ public class Recipe {
     private String sourceUrl;
     
     private String recipeYaml;
+
+    private boolean isValid;
     
     private Instant createdAt;
     
@@ -31,6 +33,7 @@ public class Recipe {
                 .createdAt(this.createdAt)
                 .lastUpdatedAt(Instant.now())
                 .version(this.version + 1)
+                .isValid(this.isValid)
                 .build();
     }
 }

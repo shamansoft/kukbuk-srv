@@ -3,8 +3,10 @@ package net.shamansoft.cookbook;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +45,12 @@ class CookbookControllerTest {
 
     @Mock
     private TokenService tokenService;
+
+    @Mock
+    private RecipeStoreService recipeStoreService;
+
+    @Mock
+    private ContentHashService contentHashService;
 
     @InjectMocks
     private CookbookController controller;
@@ -69,6 +78,8 @@ class CookbookControllerTest {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
+        when(contentHashService.generateContentHash("http://example.com")).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
         when(driveService.getOrCreateFolder("token")).thenReturn("folder-id");
         when(driveService.generateFileName("Title")).thenReturn("file-name");
@@ -84,9 +95,10 @@ class CookbookControllerTest {
 
     @Test
     void createRecipeSkipsStorageIfNotARecipe() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", "Title", "http://example.com");
         when(compressor.decompress("compressed html")).thenReturn("raw html");
+        when(contentHashService.generateContentHash("http://example.com")).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
 
         RecipeResponse response = controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token"));
@@ -102,6 +114,8 @@ class CookbookControllerTest {
     void createRecipeWithNoCompression() throws IOException, AuthenticationException {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request(RAW_HTML, TITLE, URL);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED_CONTENT));
         when(driveService.getOrCreateFolder(TOKEN)).thenReturn(FOLDER_ID);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -120,6 +134,8 @@ class CookbookControllerTest {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request(null, TITLE, URL);
         when(rawContentService.fetch(URL)).thenReturn(RAW_HTML);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED_CONTENT));
         when(driveService.getOrCreateFolder(TOKEN)).thenReturn(FOLDER_ID);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -135,8 +151,9 @@ class CookbookControllerTest {
 
     @Test
     void createRecipeThrowsExceptionWhenDecompressionFailsAndNoUrl() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", TITLE, null);
+        when(contentHashService.generateContentHash(null)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(compressor.decompress("compressed html")).thenThrow(new IOException("test exception"));
 
         assertThatThrownBy(() -> controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token")))
@@ -146,8 +163,9 @@ class CookbookControllerTest {
 
     @Test
     void createRecipeThrowsExceptionWhenDecompressionFailsAndUrlIsPresent() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", TITLE, URL);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(compressor.decompress("compressed html")).thenThrow(new IOException("test exception"));
 
         assertThatThrownBy(() -> controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token")))
@@ -157,8 +175,9 @@ class CookbookControllerTest {
 
     @Test
     void createRecipeThrowsExceptionWhenDecompressionFailsAndUrlIsEmpty() throws IOException, AuthenticationException {
-        when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("compressed html", TITLE, "");
+        when(contentHashService.generateContentHash("")).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(compressor.decompress("compressed html")).thenThrow(new IOException("test exception"));
 
         assertThatThrownBy(() -> controller.createRecipe(request, null, true, Map.of("X-S-AUTH-TOKEN", "token")))
@@ -171,6 +190,8 @@ class CookbookControllerTest {
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(TOKEN);
         Request request = new Request("", TITLE, URL);
         when(rawContentService.fetch(URL)).thenReturn(RAW_HTML);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED_CONTENT));
         when(driveService.getOrCreateFolder(TOKEN)).thenReturn(FOLDER_ID);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
