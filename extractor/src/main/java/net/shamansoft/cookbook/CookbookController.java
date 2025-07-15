@@ -75,6 +75,8 @@ public class CookbookController {
             throws IOException, AuthenticationException {
 
         log.debug("Headers: {}", httpHeaders);
+        // authenticate user - will throw exception if token is invalid
+        String authToken = tokenService.getAuthToken(httpHeaders);
         // get hash
         String contentHash = contentHashService.generateContentHash(request.url());
         // retrieve from store
@@ -97,10 +99,7 @@ public class CookbookController {
                 .title(request.title())
                 .url(request.url())
                 .isRecipe(response.isRecipe());
-
         if (response.isRecipe()) {
-            String authToken = tokenService.getAuthToken(httpHeaders);
-            // Google Drive integration: if auth-token header is present, persist the recipe YAML
             storeToDrive(request, authToken, response.value(), responseBuilder);
         } else {
             log.info("The content is not a recipe. Skipping Drive storage.");

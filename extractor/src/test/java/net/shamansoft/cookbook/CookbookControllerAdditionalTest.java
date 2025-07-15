@@ -149,9 +149,6 @@ class CookbookControllerAdditionalTest {
     void createRecipeThrowsUnauthorizedWhenTokenIsInvalid() throws AuthenticationException {
         // Set up request
         Request request = new Request(RAW_HTML, TITLE, URL);
-        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
-        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
-        when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED));
 
         // Mock token verification to fail
         Map<String, String> headers = Map.of("X-S-AUTH-TOKEN", AUTH_TOKEN);
