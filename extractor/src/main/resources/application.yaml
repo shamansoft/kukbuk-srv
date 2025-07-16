@@ -17,6 +17,10 @@ firestore:
 recipe:
   store:
     enabled: ${RECIPE_CACHE_ENABLED:true}
+    timeout:
+      lookup-ms: ${RECIPE_STORE_LOOKUP_TIMEOUT_MS:200}
+      save-ms: ${RECIPE_STORE_SAVE_TIMEOUT_MS:5000}
+      count-ms: ${RECIPE_STORE_COUNT_TIMEOUT_MS:1000}
 
 logging:
   level:
@@ -45,4 +49,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,httpexchanges,env,info
+        include: health,httpexchanges,env,info,firestore,store-metrics

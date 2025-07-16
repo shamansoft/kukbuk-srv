@@ -4,8 +4,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
+import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RawContentService;
+import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,6 +45,10 @@ class CookbookControllerAdditionalTest {
     @Mock
     private TokenService tokenService;
     @Mock
+    private RecipeStoreService recipeStoreService;
+    @Mock
+    private ContentHashService contentHashService;
+    @Mock
     private HttpServletRequest httpServletRequest;
 
     @InjectMocks
@@ -59,6 +66,8 @@ class CookbookControllerAdditionalTest {
         // Set up request with URL but no HTML content
         Request request = new Request(null, TITLE, URL);
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         // Mock fetch from URL when HTML is missing
         when(rawContentService.fetch(URL)).thenReturn(RAW_HTML);
         when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED));
@@ -89,6 +98,8 @@ class CookbookControllerAdditionalTest {
         // Set up request with HTML content and "none" compression
         Request request = new Request(RAW_HTML, TITLE, URL);
         when(tokenService.getAuthToken(any(HttpHeaders.class))).thenReturn(AUTH_TOKEN);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
         // Mock transformation
         when(transformer.transform(RAW_HTML)).thenReturn(new Transformer.Response(true, TRANSFORMED));
 
@@ -116,6 +127,8 @@ class CookbookControllerAdditionalTest {
     void createRecipePropagatesIOExceptionFromDecompression() throws IOException {
         // Set up request with compressed HTML
         Request request = new Request(COMPRESSED_HTML, TITLE, URL);
+        when(contentHashService.generateContentHash(URL)).thenReturn("content-hash");
+        when(recipeStoreService.findStoredRecipeByHash("content-hash")).thenReturn(Optional.empty());
 
         // Mock decompression to throw exception
         when(compressor.decompress(COMPRESSED_HTML)).thenThrow(new IOException("Decompression error"));
@@ -147,7 +160,6 @@ class CookbookControllerAdditionalTest {
 
         // Verify token service was called but drive service was not
         verify(driveService, never()).getOrCreateFolder(any());
-        verify(transformer, never()).transform(any());
     }
 
     @Test

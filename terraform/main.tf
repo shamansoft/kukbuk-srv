@@ -90,6 +90,26 @@ resource "google_service_account" "cookbook_cloudrun_service_account" {
   project      = var.project_id
 }
 
+# Grant Firestore permissions to the Cloud Run service account
+resource "google_project_iam_member" "cloudrun_firestore_user" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+}
+
+resource "google_project_iam_member" "cloudrun_firestore_viewer" {
+  project = var.project_id
+  role    = "roles/datastore.viewer"
+  member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+}
+
+# Grant Secret Manager access to the Cloud Run service account
+resource "google_project_iam_member" "cloudrun_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+}
+
 # Cloud Run service
 resource "google_cloud_run_service" "cookbook" {
   name     = var.service_name
@@ -159,6 +179,11 @@ resource "google_cloud_run_service" "cookbook" {
         }
 
         env {
+          name = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
+
+        env {
           name = "FIRESTORE_ENABLED"
           value = "true"
         }
@@ -212,22 +237,22 @@ resource "google_cloud_run_service" "cookbook" {
   }
 }
 
-# IAM policy for Cloud Run service (allow authenticated users)
-data "google_iam_policy" "authenticated" {
+# IAM policy for Cloud Run service (allow unauthenticated access)
+data "google_iam_policy" "noauth" {
   binding {
     role = "roles/run.invoker"
     members = [
-      "allAuthenticatedUsers",
+      "allUsers",
     ]
   }
 }
 
-resource "google_cloud_run_service_iam_policy" "authenticated" {
+resource "google_cloud_run_service_iam_policy" "noauth" {
   location = google_cloud_run_service.cookbook.location
   project  = google_cloud_run_service.cookbook.project
   service  = google_cloud_run_service.cookbook.name
 
-  policy_data = data.google_iam_policy.authenticated.policy_data
+  policy_data = data.google_iam_policy.noauth.policy_data
 }
 
 
@@ -246,4 +271,9 @@ output "project_id" {
 output "revision_tag" {
   description = "Cloud Run revision tag used"
   value       = local.final_revision_tag
+}
+
+output "service_account_email" {
+  description = "Email of the Cloud Run service account"
+  value       = google_service_account.cookbook_cloudrun_service_account.email
 }

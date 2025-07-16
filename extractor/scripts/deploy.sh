@@ -28,9 +28,12 @@ gcloud run deploy cookbook \
   --platform managed \
   --region us-west1 \
   --port 8080 \
+  --service-account cookbook-sa@cookbook-451120.iam.gserviceaccount.com \
   --set-secrets="COOKBOOK_GEMINI_API_KEY=gemini-api-key:latest" \
   --set-secrets="COOKBOOK_GOOGLE_OAUTH_ID=google-oauth-id:latest" \
   --set-env-vars SPRING_PROFILES_ACTIVE=gcp \
+  --set-env-vars FIRESTORE_PROJECT_ID=cookbook-451120 \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=cookbook-451120 \
   --tag "$REVISION_TAG" || { echo "Deployment failed"; exit 1; }
 
 # Optional: Print the deployed service URL
