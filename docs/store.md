@@ -126,58 +126,6 @@ Alerts trigger appropriately for store issues
 
 
 Phase 3: Store Optimization
-KS-17.6: Smart Store Key Strategy
-As a system, I want to maximize store hits by recognizing similar content variations.
-Acceptance Criteria:
-
-Recognize recipe variations (different formatting, same content)
-Handle mobile vs desktop versions of same recipe
-Store recipe components separately (ingredients, instructions)
-Fuzzy matching for near-duplicate content
-Maintain store accuracy (no false positives)
-
-Technical Tasks:
-
-Implement content similarity scoring
-Extract recipe-specific content for hashing
-Add fuzzy matching algorithms
-Create store key hierarchies (exact -> similar -> components)
-Add validation to prevent incorrect store hits
-
-Definition of Done:
-
-Similar recipes with minor differences share store entries
-No false positives (different recipes getting same store)
-Store hit rate improves by 15-25% over exact matching
-Performance impact of similarity checking is minimal
-
-
-KS-17.7: Store Warming and Preloading
-As a system, I want to proactively store popular recipes so users get faster responses.
-Acceptance Criteria:
-
-Identify popular recipe sources and URLs
-Batch process popular recipes during low-traffic periods
-Prioritize store warming based on usage patterns
-Respect rate limits and API quotas
-Track effectiveness of preloading
-
-Technical Tasks:
-
-Create background job for store warming
-Implement recipe popularity scoring
-Add batch processing with rate limiting
-Schedule warming jobs during off-peak hours
-Monitor warming job performance and effectiveness
-
-Definition of Done:
-
-Popular recipes are pre-stored before user requests
-Store warming doesn't impact regular user requests
-Warming effectiveness measured and optimized
-System respects API rate limits during warming
-
-
 KS-17.8: Store Invalidation and Updates
 As a system, I want to handle recipe updates and ensure store freshness.
 Acceptance Criteria:
@@ -222,43 +170,3 @@ Add store entry compression for cold storage
 Create smart eviction policies
 Monitor access patterns and optimize accordingly
 Add store tier migration logic
-
-
-KS-17.10: Cross-User Store Sharing
-As a system, I want to share store entries across users for maximum efficiency.
-Acceptance Criteria:
-
-Same recipe stored once, used by all users
-Respect user privacy and data isolation
-Handle user-specific customizations
-Maintain store security and access controls
-Track shared store usage and benefits
-
-Technical Tasks:
-
-Design shared store architecture
-Implement privacy-preserving store keys
-Add user-specific store overlays
-Secure shared store access
-Measure cross-user store effectiveness
-
-
-Success Metrics
-Performance Metrics
-
-Store Hit Rate: Target 60-80% after 3 months
-Response Time: 70% reduction for stored recipes
-API Cost Reduction: 60-80% reduction in Gemini API calls
-Store Growth: <1GB per 10K unique recipes
-
-Quality Metrics
-
-Store Accuracy: <0.1% false positive rate
-User Satisfaction: No degradation in recipe quality
-System Reliability: 99.9% store service uptime
-
-Business Metrics
-
-Cost Savings: Measure monthly Gemini API cost reduction
-User Experience: Faster recipe processing improves retention
-Scalability: System handles 10x traffic with same response times

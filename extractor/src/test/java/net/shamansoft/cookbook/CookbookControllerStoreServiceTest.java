@@ -120,6 +120,7 @@ class CookbookControllerStoreServiceTest {
                         .contentHash("test-hash")
                         .sourceUrl("https://example.com/recipe")
                         .recipeYaml("recipe: test cached recipe")
+                        .isValid(true)
                         .build();
 
         // Override the default mock for this specific hash to return cached recipe
