@@ -5,6 +5,7 @@ RUN microdnf install findutils
 
 # Copy multi-project structure
 COPY settings.gradle ./
+COPY gradle ./gradle
 COPY extractor/build.gradle ./extractor/
 COPY extractor/gradle ./extractor/gradle
 COPY extractor/gradlew ./extractor/
