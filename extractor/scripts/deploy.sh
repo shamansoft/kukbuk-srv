@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Legacy deploy script. Consider using tf for deployments. If you still want to use this script, comment the exit line below."
+exit 0
+
 # Get image tag from command line argument or use "latest" as default
 IMAGE_TAG=${1:-latest}
 

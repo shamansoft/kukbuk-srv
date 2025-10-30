@@ -59,12 +59,16 @@ fi
 # Handle build type based on native flag
 cd ../
 if [ "$NATIVE_FLAG" = true ]; then
-    DOCKERFILE="Dockerfile.native"
+    DOCKERFILE="extractor/Dockerfile.native"
     echo "Building Native image with tag $TAG and memory limit $MEMORY_LIMIT..."
 else
+    DOCKERFILE="extractor/Dockerfile.jvm"
     echo "Building JVM image with tag $TAG..."
     ./gradlew build || { echo "Gradle build failed"; exit 1; }
 fi
+
+# Change to project root for Docker build context (multi-project setup)
+cd ../
 
 # Build command with memory limit
 BUILD_ARGS=""
@@ -92,7 +96,7 @@ else
         --push . || { echo "Docker build failed"; exit 1; }
 fi
 
-cd ./scripts
+cd extractor/scripts
 # Print confirmation and image details
 echo "Build complete! Image details:"
 #docker images | grep cookbook
