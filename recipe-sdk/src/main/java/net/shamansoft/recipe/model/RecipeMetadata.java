@@ -1,0 +1,97 @@
+package net.shamansoft.recipe.model;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * Represents metadata for a recipe.
+ *
+ * @param title Recipe name (required)
+ * @param source Original recipe URL (required)
+ * @param author Recipe author
+ * @param language Language code (e.g., "en", "en/us")
+ * @param dateCreated Date the recipe was created
+ * @param category Recipe categories (e.g., "breakfast", "dessert")
+ * @param tags Recipe tags (e.g., "chocolate", "vegan")
+ * @param servings Number of servings (required)
+ * @param prepTime Preparation time (e.g., "15m", "1h 30m")
+ * @param cookTime Cooking time
+ * @param totalTime Total time
+ * @param difficulty Difficulty level ("easy", "medium", "hard")
+ * @param coverImage Cover image for the recipe
+ */
+public record RecipeMetadata(
+        @NotBlank
+        @JsonProperty("title")
+        String title,
+
+        @NotBlank
+        @JsonProperty("source")
+        String source,
+
+        @JsonProperty("author")
+        String author,
+
+        @Pattern(regexp = "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$", message = "Language must be like 'en' or 'en/us'")
+        @JsonProperty("language")
+        String language,
+
+        @NotNull
+        @JsonProperty("date_created")
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+        LocalDate dateCreated,
+
+        @JsonProperty("category")
+        List<String> category,
+
+        @JsonProperty("tags")
+        List<String> tags,
+
+        @NotNull
+        @Min(1)
+        @JsonProperty("servings")
+        Integer servings,
+
+        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
+        @JsonProperty("prep_time")
+        String prepTime,
+
+        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
+        @JsonProperty("cook_time")
+        String cookTime,
+
+        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
+        @JsonProperty("total_time")
+        String totalTime,
+
+        @Pattern(regexp = "^(easy|medium|hard)$", message = "Difficulty must be 'easy', 'medium', or 'hard'")
+        @JsonProperty("difficulty")
+        String difficulty,
+
+        @Valid
+        @JsonProperty("cover_image")
+        CoverImage coverImage
+) {
+    public RecipeMetadata {
+        if (language == null) {
+            language = "en";
+        }
+        if (category == null) {
+            category = List.of();
+        }
+        if (tags == null) {
+            tags = List.of();
+        }
+        if (difficulty == null) {
+            difficulty = "medium";
+        }
+    }
+}

@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.shamansoft'
-version = '0.3.22'
+version = '0.3.23'
 
 java {
 	toolchain {
@@ -43,6 +43,9 @@ repositories {
 }
 
 dependencies {
+	// Recipe SDK - internal module
+//	implementation project(':recipe-sdk')
+
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
