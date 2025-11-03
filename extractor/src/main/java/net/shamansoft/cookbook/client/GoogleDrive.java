@@ -27,7 +27,9 @@ public class GoogleDrive {
                 .uri(uri -> uri.path("/files")
                         .queryParam("q", "mimeType='application/vnd.google-apps.folder' and name='"
                                 + name.replace("'", "\\'")
-                                + "' and trashed=false")
+                                + "' and 'root' in parents and trashed=false")
+                        .queryParam("orderBy", "createdTime")
+                        .queryParam("pageSize", "1000")
                         .queryParam("fields", "files(id)")
                         .build())
                 .header("Authorization", "Bearer " + authToken)

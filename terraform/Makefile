@@ -63,7 +63,7 @@ apply: build
 	$(DOCKER_RUN) -c "tofu apply -var='image_tag=$(TAG)' -auto-approve"
 
 # Deploy (plan + apply with confirmation)
-deploy: build prepare-function
+deploy: build
 	@echo "Deploying with image tag: $(TAG)"
 	$(DOCKER_RUN) -c "tofu plan -var='image_tag=$(TAG)'"
 	@read -p "Do you want to apply these changes? (y/N) " REPLY; \

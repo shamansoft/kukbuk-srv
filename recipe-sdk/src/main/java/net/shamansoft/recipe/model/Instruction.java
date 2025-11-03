@@ -18,7 +18,7 @@ import java.util.List;
  * @param media List of images or videos for this step
  */
 public record Instruction(
-        @Min(1)
+        @Min(0)
         @JsonProperty("step")
         Integer step,
 
@@ -26,7 +26,6 @@ public record Instruction(
         @JsonProperty("description")
         String description,
 
-        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
         @JsonProperty("time")
         String time,
 

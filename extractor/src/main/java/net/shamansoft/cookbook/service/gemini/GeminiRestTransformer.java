@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-@Service
+@Service("geminiTransformer")
 @Slf4j
 @RequiredArgsConstructor
 public class GeminiRestTransformer implements Transformer {
@@ -26,9 +26,32 @@ public class GeminiRestTransformer implements Transformer {
 
     @Override
     public Response transform(String htmlContent) {
+        return transformInternal(htmlContent, null, null);
+    }
+
+    /**
+     * Transforms HTML content to YAML with validation feedback from a previous attempt.
+     *
+     * @param htmlContent the HTML string to transform
+     * @param previousYaml the YAML from the previous attempt that failed validation
+     * @param validationError the validation error message to help correct the issue
+     * @return the transformed result
+     */
+    public Response transformWithFeedback(String htmlContent, String previousYaml, String validationError) {
+        return transformInternal(htmlContent, previousYaml, validationError);
+    }
+
+    private Response transformInternal(String htmlContent, String previousYaml, String validationError) {
         try {
             String url = "/models/%s:generateContent?key=%s".formatted(model, apiKey);
-            String body = requestBuilder.buildBodyString(htmlContent);
+            String body;
+            if (previousYaml != null && validationError != null) {
+                body = requestBuilder.buildBodyStringWithFeedback(htmlContent, previousYaml, validationError);
+                log.debug("Retrying transformation with validation feedback");
+            } else {
+                body = requestBuilder.buildBodyString(htmlContent);
+            }
+
             JsonNode response = geminiWebClient.post()
                     .uri(url)
                     .header("Content-Type", "application/json")

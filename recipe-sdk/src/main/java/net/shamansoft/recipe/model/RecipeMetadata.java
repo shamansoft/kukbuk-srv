@@ -33,18 +33,15 @@ public record RecipeMetadata(
         @JsonProperty("title")
         String title,
 
-        @NotBlank
         @JsonProperty("source")
         String source,
 
         @JsonProperty("author")
         String author,
 
-        @Pattern(regexp = "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$", message = "Language must be like 'en' or 'en/us'")
         @JsonProperty("language")
         String language,
 
-        @NotNull
         @JsonProperty("date_created")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         LocalDate dateCreated,
@@ -55,24 +52,18 @@ public record RecipeMetadata(
         @JsonProperty("tags")
         List<String> tags,
 
-        @NotNull
-        @Min(1)
         @JsonProperty("servings")
         Integer servings,
 
-        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
         @JsonProperty("prep_time")
         String prepTime,
 
-        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
         @JsonProperty("cook_time")
         String cookTime,
 
-        @Pattern(regexp = "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$", message = "Time must match pattern like '15m', '2h', '1h 30m'")
         @JsonProperty("total_time")
         String totalTime,
 
-        @Pattern(regexp = "^(easy|medium|hard)$", message = "Difficulty must be 'easy', 'medium', or 'hard'")
         @JsonProperty("difficulty")
         String difficulty,
 

@@ -5,19 +5,19 @@ RUN microdnf install findutils
 
 # Copy multi-project structure
 COPY settings.gradle ./
+COPY build.gradle.kts ./
 COPY gradle ./gradle
 COPY extractor/build.gradle ./extractor/
-COPY extractor/gradle ./extractor/gradle
-COPY extractor/gradlew ./extractor/
-RUN chmod +x ./extractor/gradlew
+COPY recipe-sdk/build.gradle ./recipe-sdk/
+COPY gradlew ./
+RUN chmod +x ./gradlew
 
 # Download dependencies
-RUN cd extractor && ./gradlew dependencies
+RUN ./gradlew :cookbook:dependencies
 
 # Copy source code
 COPY extractor/src ./extractor/src
-#RUN --mount=type=cache,target=/root/.gradle \
-#    ./gradlew nativeCompile
+COPY recipe-sdk/src ./recipe-sdk/src
 
 # Extreme memory optimization settings
 ENV JAVA_OPTS="-Xmx8g -XX:MaxMetaspaceSize=512m"
@@ -25,7 +25,7 @@ ENV NATIVE_IMAGE_OPTS="-J-Xmx2560m -J-XX:MaxMetaspaceSize=512m -H:+PrintAnalysis
 
 # Run native compilation with memory constraints and incremental build support
 RUN --mount=type=cache,target=/root/.gradle \
-    cd extractor && ./gradlew -Dorg.gradle.jvmargs="-Xmx6g" nativeCompile \
+    ./gradlew -Dorg.gradle.jvmargs="-Xmx6g" cookbook:nativeCompile \
     -Porg.graalvm.buildtools.native.targetPlatform=linux-amd64 \
     -Porg.graalvm.buildtools.native.imageName=cookbook
 
