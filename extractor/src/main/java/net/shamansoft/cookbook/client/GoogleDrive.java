@@ -23,32 +23,50 @@ public class GoogleDrive {
 
     @SuppressWarnings("unchecked")
     public Optional<Item> getFolder(String name, String authToken) {
+        String query = "mimeType='application/vnd.google-apps.folder' and name='"
+                + name.replace("'", "\\'")
+                + "' and 'root' in parents and trashed=false";
+
+        log.info("Searching for folder '{}' with query: {}", name, query);
+
         Map<String, Object> listResponse = driveClient.get()
                 .uri(uri -> uri.path("/files")
-                        .queryParam("q", "mimeType='application/vnd.google-apps.folder' and name='"
-                                + name.replace("'", "\\'")
-                                + "' and 'root' in parents and trashed=false")
+                        .queryParam("q", query)
                         .queryParam("orderBy", "createdTime")
                         .queryParam("pageSize", "1000")
-                        .queryParam("fields", "files(id)")
+                        .queryParam("fields", "files(id,name,createdTime)")
                         .build())
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .block();
+
         var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
-        if (files != null && !files.isEmpty()) {
-            return Optional.of(new Item(files.getFirst().get("id").toString(), name));
+
+        if (files == null || files.isEmpty()) {
+            log.info("No folder found with name '{}' in root directory", name);
+            return Optional.empty();
         }
-        return Optional.empty();
+
+        log.info("Found {} folder(s) with name '{}': {}", files.size(), name, files);
+
+        String selectedId = files.getFirst().get("id").toString();
+        log.info("Selected folder '{}' with ID: {} (first in ordered results)", name, selectedId);
+
+        return Optional.of(new Item(selectedId, name));
     }
 
     @SuppressWarnings("unchecked")
     public Item createFolder(String name, String authToken) {
+        log.warn("Creating NEW folder '{}' in root directory - this may indicate a duplicate folder issue!", name);
+
         Map<String, Object> metadata = Map.of(
                 "name", name,
                 "mimeType", "application/vnd.google-apps.folder"
         );
+
+        log.debug("Folder metadata: {}", metadata);
+
         try {
             Map<String, Object> created = driveClient.post()
                     .uri(uri -> uri.path("/files").queryParam("fields", "id").build())
@@ -61,10 +79,10 @@ public class GoogleDrive {
             if (created == null || !created.containsKey("id")) {
                 throw new ClientException("Unexpected response: " + created);
             }
-            log.info("Created folder '{}' with ID: {}", name, created.get("id"));
+            log.warn("SUCCESSFULLY created folder '{}' with ID: {} - this is a NEW folder in root!", name, created.get("id"));
             return new Item(created.get("id").toString(), name);
         } catch (Exception e) {
-            log.error("Failed to create folder", e);
+            log.error("Failed to create folder '{}': {}", name, e.getMessage(), e);
             if (e instanceof ClientException) {
                 throw e;
             }
