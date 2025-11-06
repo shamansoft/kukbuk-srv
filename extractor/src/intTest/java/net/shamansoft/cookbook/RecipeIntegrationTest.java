@@ -2,14 +2,24 @@ package net.shamansoft.cookbook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.repository.FirestoreRecipeRepository;
+import net.shamansoft.cookbook.service.ContentHashService;
+import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,11 +32,17 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Instant;
+import java.util.Optional;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = "spring.main.allow-bean-definition-overriding=true"
+)
 class RecipeIntegrationTest {
 
     @LocalServerPort
@@ -38,6 +54,18 @@ class RecipeIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private Firestore firestore;
+
+    @Autowired
+    private FirestoreRecipeRepository recipeRepository;
+
+    @Autowired
+    private ContentHashService contentHashService;
+
+    @Autowired
+    private Transformer transformer;
+
     @Container
     static GenericContainer<?> wiremockContainer = new GenericContainer<>("wiremock/wiremock:3.3.1")
             .withExposedPorts(8080)
@@ -47,6 +75,21 @@ class RecipeIntegrationTest {
     static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
             DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators")
     );
+
+    @TestConfiguration
+    static class FirestoreTestConfig {
+        @Bean
+        @Primary
+        public Firestore firestore() {
+            String emulatorEndpoint = firestoreEmulator.getEmulatorEndpoint();
+            return FirestoreOptions.newBuilder()
+                    .setProjectId("test-project")
+                    .setHost(emulatorEndpoint)
+                    .setCredentials(com.google.auth.oauth2.GoogleCredentials.newBuilder().build())
+                    .build()
+                    .getService();
+        }
+    }
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -64,10 +107,6 @@ class RecipeIntegrationTest {
         registry.add("recipe.store.enabled", () -> "true");
         registry.add("firestore.enabled", () -> "true");
         registry.add("google.cloud.project-id", () -> "test-project");
-
-        // Point Firestore SDK to emulator via environment variable
-        String emulatorHost = firestoreEmulator.getEmulatorEndpoint();
-        System.setProperty("FIRESTORE_EMULATOR_HOST", emulatorHost);
     }
 
     @BeforeEach
@@ -308,5 +347,126 @@ class RecipeIntegrationTest {
         verify(0, postRequestedFor(urlPathMatching("/v1beta/models/gemini-2.0-flash:generateContent.*")));
         verify(0, getRequestedFor(urlPathEqualTo("/tokeninfo")));
         verify(0, getRequestedFor(urlPathEqualTo("/files")));
+    }
+
+    @Test
+    void testPostRecipeWithFirestoreCacheHit() throws Exception {
+        // Prepare the cached recipe YAML
+        String cachedRecipeYaml = """
+                metadata:
+                  title: "Cached Chocolate Chip Cookies"
+                  source: "https://example.com/cached-recipe"
+                  date_created: "2024-01-10"
+                  servings: 24
+                  prep_time: "15m"
+                  cook_time: "12m"
+                  total_time: "27m"
+                description: "Classic homemade chocolate chip cookies from cache"
+                ingredients:
+                  - item: "All-purpose flour"
+                    amount: 2.25
+                    unit: "cups"
+                  - item: "Chocolate chips"
+                    amount: 2
+                    unit: "cups"
+                instructions:
+                  - step: 1
+                    description: "Preheat oven to 375°F"
+                  - step: 2
+                    description: "Mix ingredients and bake for 12 minutes"
+                schema_version: "1.0.0"
+                recipe_version: "1.0.0"
+                """;
+
+        // Generate content hash for the URL
+        String testUrl = "https://example.com/cached-recipe";
+        String contentHash = contentHashService.generateContentHash(testUrl);
+
+        // Pre-populate Firestore with the cached recipe
+        Recipe cachedRecipe = Recipe.builder()
+                .contentHash(contentHash)
+                .sourceUrl(testUrl)
+                .recipeYaml(cachedRecipeYaml)
+                .isValid(true)
+                .createdAt(Instant.now())
+                .lastUpdatedAt(Instant.now())
+                .version(0L)
+                .build();
+
+        // Save to Firestore and wait for completion
+        recipeRepository.save(cachedRecipe).join();
+
+        // Verify the recipe was actually saved
+        Optional<Recipe> verifyStored = recipeRepository.findByContentHash(contentHash).join();
+        assertThat(verifyStored)
+                .as("Recipe should be stored in Firestore before making request")
+                .isPresent()
+                .get()
+                .extracting(Recipe::getContentHash, Recipe::getSourceUrl, Recipe::isValid)
+                .containsExactly(contentHash, testUrl, true);
+
+        // Prepare request
+        String sampleHtml = """
+                <html>
+                <head><title>Cached Chocolate Chip Cookies Recipe</title></head>
+                <body>
+                    <h1>This HTML should not be processed</h1>
+                    <p>Because we have a cache hit</p>
+                </body>
+                </html>
+                """;
+
+        Request request = new Request(sampleHtml, "Cached Chocolate Chip Cookies", testUrl);
+
+        // Set up headers with auth token
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-S-AUTH-TOKEN", "valid-token");
+        headers.set("Content-Type", "application/json");
+
+        HttpEntity<Request> entity = new HttpEntity<>(request, headers);
+
+        // Make the request with compression=none
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/recipe?compression=none",
+                entity,
+                RecipeResponse.class
+        );
+
+        // Verify the response
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+
+        RecipeResponse recipeResponse = response.getBody();
+        assertThat(recipeResponse)
+                .extracting(
+                        RecipeResponse::url,
+                        RecipeResponse::title,
+                        RecipeResponse::driveFileId,
+                        RecipeResponse::driveFileUrl,
+                        RecipeResponse::isRecipe
+                )
+                .containsExactly(
+                        testUrl,
+                        "Cached Chocolate Chip Cookies",
+                        "file-456",
+                        "https://drive.google.com/file/d/file-456/view",
+                        true
+                );
+
+        // Verify that Google Auth was called (for Drive upload)
+        verify(getRequestedFor(urlPathEqualTo("/tokeninfo"))
+                .withQueryParam("access_token", equalTo("valid-token")));
+
+        // Verify that Gemini was NOT called (cache hit, so no transformation needed)
+        verify(0, postRequestedFor(urlPathMatching("/v1beta/models/gemini-2.0-flash:generateContent.*")));
+        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.0-flash:generateContent.*")));
+
+        // Verify that Google Drive operations were still performed
+        verify(getRequestedFor(urlPathEqualTo("/files"))
+                .withQueryParam("q", containing("name='kukbuk'")));
+
+        verify(postRequestedFor(urlPathEqualTo("/files")));
+
+        verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
     }
 }
