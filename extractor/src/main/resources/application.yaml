@@ -15,6 +15,12 @@ firestore:
 
 # Recipe cache configuration
 recipe:
+  llm:
+    # Number of retry attempts for LLM transformation when validation fails
+    # 0 = no validation, save raw YAML as-is
+    # 1 = validate once, retry 1 time if validation fails
+    # 2 = validate once, retry 2 times if validation fails, etc.
+    retry: ${RECIPE_LLM_RETRY:1}
   store:
     enabled: ${RECIPE_CACHE_ENABLED:true}
     timeout:

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +61,11 @@ class GeminiRestTransformerTest {
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+
+        // Mock requestBuilder to return non-null body
+        when(requestBuilder.buildBodyString(anyString())).thenReturn("{}");
+        // Use lenient() since not all tests call transformWithFeedback
+        lenient().when(requestBuilder.buildBodyStringWithFeedback(anyString(), anyString(), anyString())).thenReturn("{}");
     }
 
     @Test

@@ -76,6 +76,11 @@ public class CookbookController {
     )
             throws IOException, AuthenticationException {
 
+        log.info("Processing recipe request - URL: {}, Title: {}, Has HTML: {}, Compression: {}",
+            request.url(),
+            request.title(),
+            request.html() != null && !request.html().isEmpty(),
+            compression != null ? compression : "default");
         log.debug("Headers: {}", httpHeaders);
         // authenticate user - will throw exception if token is invalid
         String authToken = tokenService.getAuthToken(httpHeaders);
@@ -90,12 +95,16 @@ public class CookbookController {
         Transformer.Response response;
         if (stored.isEmpty()) {
             String html = extractHtml(request, compression);
+            log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}",
+                request.url(),
+                html.length(),
+                contentHash);
             response = transformer.transform(html);
             if (contentHash != null) {
                 if(response.isRecipe()) {
                     recipeStoreService.storeValidRecipe(contentHash, request.url(), response.value());
                 } else {
-                    log.info("The content is not a recipe. Skipping storage.");
+                    log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", request.url(), contentHash);
                     recipeStoreService.storeInvalidRecipe(contentHash, request.url());
                 }
             }
@@ -111,7 +120,7 @@ public class CookbookController {
         if (response.isRecipe()) {
             storeToDrive(request, authToken, response.value(), responseBuilder);
         } else {
-            log.info("The content is not a recipe. Skipping Drive storage.");
+            log.info("Content is not a recipe. Skipping Drive storage - URL: {}", request.url());
         }
 
         return responseBuilder.build();

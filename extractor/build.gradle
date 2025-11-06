@@ -7,14 +7,7 @@ plugins {
 	alias(libs.plugins.owasp.dependency.check)
 }
 
-group = 'net.shamansoft'
-version = '0.4.1'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
-}
+version = '0.5.4'
 
 springBoot {
 	buildInfo()   // This will generate a build-info.properties file with accurate values
@@ -38,11 +31,10 @@ configurations {
 	intTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
-repositories {
-	mavenCentral()
-}
-
 dependencies {
+	// Recipe SDK - internal library for recipe parsing and validation
+	implementation project(':recipe-sdk')
+
 	// Spring Boot Starters - exclude default logging
 	implementation(libs.bundles.spring.boot.starters) {
 		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
@@ -59,6 +51,9 @@ dependencies {
 	implementation(libs.bundles.google.cloud) {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
+
+	// Bean Validation Implementation (runtime only - needed for validation to work)
+	runtimeOnly libs.hibernate.validator
 
 	// Annotation Processing
 	compileOnly libs.lombok

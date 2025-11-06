@@ -37,8 +37,20 @@ public class GoogleDriveService implements DriveService {
 
     @Override
     public String getOrCreateFolder(String authToken) {
-        return drive.getFolder(folderName, authToken)
-                .orElseGet(() -> drive.createFolder(folderName, authToken)).id();
+        log.info("Getting or creating folder: '{}'", folderName);
+
+        var existingFolder = drive.getFolder(folderName, authToken);
+
+        if (existingFolder.isPresent()) {
+            String folderId = existingFolder.get().id();
+            log.info("Using existing folder '{}' with ID: {}", folderName, folderId);
+            return folderId;
+        }
+
+        log.warn("Folder '{}' not found - will create a new one", folderName);
+        var newFolder = drive.createFolder(folderName, authToken);
+        log.info("Created and will use new folder '{}' with ID: {}", folderName, newFolder.id());
+        return newFolder.id();
     }
 
     @Override

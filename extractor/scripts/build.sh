@@ -7,6 +7,7 @@ DOCKERFILE="Dockerfile.jvm"
 DEBUG_FLAG=false
 MEMORY_LIMIT="12g"  # Increased from original
 BUILD_SUCCESS=false
+PUSH_FLAG=false
 PROJECT_ID="kukbuk-tf" # cookbook-451120
 
 # Parse arguments
@@ -16,7 +17,10 @@ for arg in "$@"; do
     elif [ "$arg" == "--debug" ]; then
         DEBUG_FLAG=true
     elif [ "$arg" == "--local" ]; then
+        # Backward compatibility: --local is now default behavior (no-op)
         TAG="local"
+    elif [ "$arg" == "--push" ]; then
+        PUSH_FLAG=true
     elif [ "$arg" == "--dry-run" ]; then
         DRY_RUN=true
     elif [ "$arg" == "--tag" ]; then
@@ -59,12 +63,16 @@ fi
 # Handle build type based on native flag
 cd ../
 if [ "$NATIVE_FLAG" = true ]; then
-    DOCKERFILE="Dockerfile.native"
+    DOCKERFILE="extractor/Dockerfile.native"
     echo "Building Native image with tag $TAG and memory limit $MEMORY_LIMIT..."
 else
+    DOCKERFILE="extractor/Dockerfile.jvm"
     echo "Building JVM image with tag $TAG..."
-    ./gradlew build || { echo "Gradle build failed"; exit 1; }
+    ../gradlew build || { echo "Gradle build failed"; exit 1; }
 fi
+
+# Change to project root for Docker build context (multi-project setup)
+cd ../
 
 # Build command with memory limit
 BUILD_ARGS=""
@@ -72,28 +80,26 @@ if [ "$DEBUG_FLAG" = true ]; then
     BUILD_ARGS="$BUILD_ARGS --progress=plain"
 fi
 
-if [ "$TAG" = "local" ]; then
+# Build image locally (always use --load, push is separate step)
 docker buildx build \
-        --platform linux/amd64 \
-        -f $DOCKERFILE \
-        -t gcr.io/$PROJECT_ID/cookbook:$TAG \
-        --memory=$MEMORY_LIMIT \
-        --memory-swap=$MEMORY_LIMIT \
-        $BUILD_ARGS \
-        --load . || { echo "Docker build failed"; exit 1; }
-else
-    docker buildx build \
-        --platform linux/amd64 \
-        -f $DOCKERFILE \
-        -t gcr.io/$PROJECT_ID/cookbook:$TAG \
-        --memory=$MEMORY_LIMIT \
-        --memory-swap=$MEMORY_LIMIT \
-        $BUILD_ARGS \
-        --push . || { echo "Docker build failed"; exit 1; }
-fi
+    --platform linux/amd64 \
+    -f $DOCKERFILE \
+    -t gcr.io/$PROJECT_ID/cookbook:$TAG \
+    --memory=$MEMORY_LIMIT \
+    --memory-swap=$MEMORY_LIMIT \
+    $BUILD_ARGS \
+    --load . || { echo "Docker build failed"; exit 1; }
 
-cd ./scripts
+cd extractor/scripts
+
 # Print confirmation and image details
 echo "Build complete! Image details:"
-#docker images | grep cookbook
-echo "$TAG"
+echo "Tag: $TAG"
+echo "Image: gcr.io/$PROJECT_ID/cookbook:$TAG"
+
+# If --push flag was provided, push the image to GCR
+if [ "$PUSH_FLAG" = true ]; then
+    echo ""
+    echo "Pushing image to Google Container Registry..."
+    ./push.sh "$TAG" || { echo "Push failed"; exit 1; }
+fi

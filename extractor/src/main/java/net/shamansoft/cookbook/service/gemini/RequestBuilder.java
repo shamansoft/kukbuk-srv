@@ -46,8 +46,31 @@ public class RequestBuilder {
         return prompt.formatted(withDate(), jsonSchema, exampleYaml, html);
     }
 
+    String withHtmlAndFeedback(String html, String previousYaml, String validationError) {
+        String basePrompt = withHtml(html);
+        StringBuilder feedbackPrompt = new StringBuilder(basePrompt);
+        feedbackPrompt.append("\n\n---VALIDATION FEEDBACK---\n\n");
+        feedbackPrompt.append("Your previous attempt produced YAML that failed validation:\n\n");
+        feedbackPrompt.append("```yaml\n");
+        feedbackPrompt.append(previousYaml);
+        feedbackPrompt.append("\n```\n\n");
+        feedbackPrompt.append("Validation Error:\n");
+        feedbackPrompt.append(validationError);
+        feedbackPrompt.append("\n\nPlease correct these issues and provide a valid recipe YAML that conforms to the schema.");
+        return feedbackPrompt.toString();
+    }
+
     public String buildBodyString(String htmlContent) throws JsonProcessingException {
         String fullPrompt = withHtml(htmlContent);
+        return buildRequestBody(fullPrompt);
+    }
+
+    public String buildBodyStringWithFeedback(String htmlContent, String previousYaml, String validationError) throws JsonProcessingException {
+        String fullPrompt = withHtmlAndFeedback(htmlContent, previousYaml, validationError);
+        return buildRequestBody(fullPrompt);
+    }
+
+    private String buildRequestBody(String fullPrompt) throws JsonProcessingException {
         GeminiRequest request = GeminiRequest.builder()
                 .contents(List.of(
                         GeminiRequest.Content.builder()
