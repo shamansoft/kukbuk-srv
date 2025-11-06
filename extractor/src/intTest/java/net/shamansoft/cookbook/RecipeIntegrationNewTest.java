@@ -20,9 +20,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.testcontainers.containers.FirestoreEmulatorContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -57,6 +59,11 @@ class RecipeIntegrationNewTest {
             .withExposedPorts(8080)
             .withCommand("--global-response-templating");
 
+    @Container
+    static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
+            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators")
+    );
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         String wiremockUrl = "http://localhost:" + wiremockContainer.getMappedPort(8080);
@@ -68,6 +75,15 @@ class RecipeIntegrationNewTest {
         registry.add("cookbook.drive.auth-url", () -> wiremockUrl);
         registry.add("cookbook.google.oauth-id", () -> "test-client-id");
         registry.add("cookbook.gemini.api-key", () -> "test-api-key");
+
+        // Configure Firestore to use emulator
+        registry.add("recipe.store.enabled", () -> "true");
+        registry.add("firestore.enabled", () -> "true");
+        registry.add("google.cloud.project-id", () -> "test-project");
+
+        // Point Firestore SDK to emulator via environment variable
+        String emulatorHost = firestoreEmulator.getEmulatorEndpoint();
+        System.setProperty("FIRESTORE_EMULATOR_HOST", emulatorHost);
     }
 
     @BeforeEach
@@ -106,7 +122,7 @@ class RecipeIntegrationNewTest {
                                     "candidates": [{
                                         "content": {
                                             "parts": [{
-                                                "text": "schema_version: \"1.0.0\"\nrecipe_version: \"1.0\"\ndate_created: \"2024-01-15\"\ntitle: \"Chocolate Chip Cookies\"\ndescription: \"Classic homemade chocolate chip cookies\"\nservings: 24\nprep_time: \"15m\"\ncook_time: \"12m\"\ntotal_time: \"27m\"\ningredients:\n  - name: \"All-purpose flour\"\n    amount: 2.25\n    unit: \"cups\"\n  - name: \"Chocolate chips\"\n    amount: 2\n    unit: \"cups\"\ninstructions:\n  - step: 1\n    description: \"Preheat oven to 375°F\"\n  - step: 2\n    description: \"Mix ingredients and bake for 12 minutes\"\nisRecipe: true"
+                                                "text": "metadata:\n  title: \"Chocolate Chip Cookies\"\n  source: \"https://example.com/recipe\"\n  date_created: \"2024-01-15\"\n  servings: 24\n  prep_time: \"15m\"\n  cook_time: \"12m\"\n  total_time: \"27m\"\ndescription: \"Classic homemade chocolate chip cookies\"\ningredients:\n  - item: \"All-purpose flour\"\n    amount: 2.25\n    unit: \"cups\"\n  - item: \"Chocolate chips\"\n    amount: 2\n    unit: \"cups\"\ninstructions:\n  - step: 1\n    description: \"Preheat oven to 375°F\"\n  - step: 2\n    description: \"Mix ingredients and bake for 12 minutes\"\nschema_version: \"1.0.0\"\nrecipe_version: \"1.0.0\""
                                             }]
                                         }
                                     }]
@@ -115,8 +131,10 @@ class RecipeIntegrationNewTest {
     }
 
     private void setupGoogleDriveMocks() {
+        // Folder search stub - use priority 1 to ensure it matches before the file search stub
         stubFor(get(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("mimeType='application/vnd.google-apps.folder'"))
+                .atPriority(1)
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
