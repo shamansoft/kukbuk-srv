@@ -46,7 +46,7 @@ public class ValidatingTransformerService implements Transformer {
 
         // If it's not a recipe, return immediately without validation
         if (!initialResponse.isRecipe()) {
-            log.info("Content identified as not a recipe, skipping validation");
+            log.warn("Gemini initial response: Content identified as NOT a recipe - skipping validation");
             return initialResponse;
         }
 
@@ -69,11 +69,16 @@ public class ValidatingTransformerService implements Transformer {
             return new Response(true, validationResult.getNormalizedYaml());
         }
 
-        log.warn("Initial recipe YAML failed validation: {}", validationResult.getErrorMessage());
+        log.warn("Initial recipe YAML failed validation - Will retry up to {} times. Error: {}",
+            maxRetries,
+            validationResult.getErrorMessage());
 
         // Retry with feedback
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            log.info("Retrying transformation with validation feedback (attempt {}/{})", attempt, maxRetries);
+            log.info("Retry attempt {}/{} - Sending validation feedback to Gemini: {}",
+                attempt,
+                maxRetries,
+                validationResult.getErrorMessage().substring(0, Math.min(200, validationResult.getErrorMessage().length())));
 
             Response retryResponse = geminiTransformer.transformWithFeedback(
                     htmlContent,
@@ -83,7 +88,9 @@ public class ValidatingTransformerService implements Transformer {
 
             // If the model decides it's not a recipe after feedback, respect that
             if (!retryResponse.isRecipe()) {
-                log.info("Model determined content is not a recipe after validation feedback");
+                log.warn("Gemini changed decision after validation feedback (attempt {}/{}): Content is NOT a recipe",
+                    attempt,
+                    maxRetries);
                 return retryResponse;
             }
 
@@ -99,7 +106,9 @@ public class ValidatingTransformerService implements Transformer {
         }
 
         // All retries exhausted, return the last attempt with warning
-        log.error("Failed to produce valid recipe YAML after {} attempts. Returning last attempt.", maxRetries);
+        log.error("VALIDATION FAILED after {} retry attempts. Final error: {}. Returning as NOT a recipe.",
+            maxRetries,
+            validationResult.getErrorMessage());
         // Return as non-recipe since validation failed
         return new Response(false, currentYaml);
     }

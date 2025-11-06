@@ -45,7 +45,10 @@ public class RecipeValidationService {
         try {
             // Parse YAML to Recipe object - this validates the structure
             Recipe recipe = parser.parse(yaml);
-            log.debug("Successfully parsed recipe: {}", recipe.metadata().title());
+            log.debug("Successfully parsed recipe - Title: '{}', Has ingredients: {}, Has instructions: {}",
+                recipe.metadata().title(),
+                recipe.ingredients() != null && !recipe.ingredients().isEmpty(),
+                recipe.instructions() != null && !recipe.instructions().isEmpty());
 
             // Validate using Bean Validation annotations
             Set<ConstraintViolation<Recipe>> violations = validator.validate(recipe);
@@ -53,7 +56,9 @@ public class RecipeValidationService {
                 String validationErrors = violations.stream()
                         .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                         .collect(Collectors.joining(", "));
-                log.warn("Recipe validation failed: {}", validationErrors);
+                log.warn("Recipe validation failed with {} constraint violations: {}",
+                    violations.size(),
+                    validationErrors);
                 return ValidationResult.failure("Validation failed: " + validationErrors);
             }
 

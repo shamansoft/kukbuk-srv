@@ -16,7 +16,7 @@ public class CompressorHTMLBase64 implements Compressor {
 
     @Override
     public String decompress(String content) throws IOException {
-        log.debug("Decompressing content of size: {}", content.length());
+        log.debug("Decompressing Base64+GZIP content - Compressed size: {} chars", content.length());
 
         try {
             // Decode Base64
@@ -35,11 +35,16 @@ public class CompressorHTMLBase64 implements Compressor {
 
                 // Convert to string
                 String result = outputStream.toString(StandardCharsets.UTF_8);
-                log.debug("Decompressed to size: {}", result.length());
+                log.debug("Successfully decompressed - Compressed: {} chars, Decompressed: {} chars, Ratio: {}x",
+                    content.length(),
+                    result.length(),
+                    String.format("%.2f", (double)result.length() / content.length()));
                 return result;
             }
         } catch (IllegalArgumentException e) {
-            log.warn("Content doesn't appear to be Base64 encoded: {}", e.getMessage());
+            log.error("Failed to decompress Base64 content - Input length: {}, Error: {}",
+                content.length(),
+                e.getMessage());
             throw new IOException("Content isn't Base64 encoded", e);
         }
     }
