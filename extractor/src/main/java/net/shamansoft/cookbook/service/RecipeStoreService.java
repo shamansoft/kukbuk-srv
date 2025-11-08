@@ -2,7 +2,7 @@ package net.shamansoft.cookbook.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.RecipeRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ public class RecipeStoreService {
 
     private final RecipeRepository repository;
 
-    public Optional<Recipe> findStoredRecipeByHash(String contentHash) {
+    public Optional<StoredRecipe> findStoredRecipeByHash(String contentHash) {
         if (!enabled) {
             log.debug("Recipe store is disabled, skipping cache lookup for hash: {}", contentHash);
             return Optional.empty();
@@ -43,7 +43,7 @@ public class RecipeStoreService {
                     .handle((result, throwable) -> {
                         if (throwable != null) {
                             log.error("Error retrieving stored recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
-                            return Optional.<Recipe>empty();
+                            return Optional.<StoredRecipe>empty();
                         }
 
                         if (result.isPresent()) {
@@ -57,7 +57,7 @@ public class RecipeStoreService {
                     .orTimeout(lookupTimeoutMs, TimeUnit.MILLISECONDS)
                     .exceptionally(throwable -> {
                         log.warn("Cache lookup timed out or failed for hash {}: {}", contentHash, throwable.getMessage());
-                        return Optional.<Recipe>empty();
+                        return Optional.<StoredRecipe>empty();
                     })
                     .join();
         } catch (Exception e) {
@@ -82,7 +82,7 @@ public class RecipeStoreService {
 
         log.debug("Caching recipe for hash: {}", contentHash);
 
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash(contentHash)
                 .sourceUrl(url)
                 .recipeYaml(recipeYaml)

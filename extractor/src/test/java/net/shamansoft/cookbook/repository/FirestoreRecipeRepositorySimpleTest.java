@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.repository;
 
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,13 +16,13 @@ class FirestoreRecipeRepositorySimpleTest {
     @Mock
     private com.google.cloud.firestore.Firestore firestore;
 
-    private Recipe testRecipe;
+    private StoredRecipe testRecipe;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         
-        testRecipe = Recipe.builder()
+        testRecipe = StoredRecipe.builder()
                 .contentHash("test-hash-123")
                 .sourceUrl("https://example.com/recipe")
                 .recipeYaml("recipe: test")
@@ -46,7 +46,7 @@ class FirestoreRecipeRepositorySimpleTest {
     @DisplayName("Should handle null values in RecipeCache model")
     void shouldHandleNullValuesInRecipeCacheModel() {
         // Given
-        Recipe cacheWithNulls = Recipe.builder()
+        StoredRecipe cacheWithNulls = StoredRecipe.builder()
                 .contentHash("test-hash")
                 .sourceUrl(null)
                 .recipeYaml(null)
@@ -59,10 +59,10 @@ class FirestoreRecipeRepositorySimpleTest {
         assertThat(cacheWithNulls)
                 .isNotNull()
                 .extracting(
-                        Recipe::getContentHash,
-                        Recipe::getSourceUrl,
-                        Recipe::getRecipeYaml,
-                        Recipe::getVersion
+                        StoredRecipe::getContentHash,
+                        StoredRecipe::getSourceUrl,
+                        StoredRecipe::getRecipeYaml,
+                        StoredRecipe::getVersion
                 )
                 .containsExactly(
                         "test-hash",
@@ -77,7 +77,7 @@ class FirestoreRecipeRepositorySimpleTest {
     void shouldHandleInstantComparisonsCorrectly() {
         // Given
         Instant now = Instant.now();
-        Recipe cache1 = Recipe.builder()
+        StoredRecipe cache1 = StoredRecipe.builder()
                 .contentHash("test-hash-1")
                 .sourceUrl("https://example.com")
                 .recipeYaml("recipe: test")
@@ -86,7 +86,7 @@ class FirestoreRecipeRepositorySimpleTest {
                 .version(1L)
                 .build();
 
-        Recipe cache2 = Recipe.builder()
+        StoredRecipe cache2 = StoredRecipe.builder()
                 .contentHash("test-hash-2")
                 .sourceUrl("https://example.com")
                 .recipeYaml("recipe: test")

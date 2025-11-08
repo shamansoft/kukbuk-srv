@@ -9,7 +9,7 @@ import java.time.Instant;
 @Data
 @Builder
 @Jacksonized
-public class Recipe {
+public class StoredRecipe {
     
     private String contentHash;
     
@@ -25,8 +25,8 @@ public class Recipe {
     
     private long version;
     
-    public Recipe withUpdatedVersion() {
-        return Recipe.builder()
+    public StoredRecipe withUpdatedVersion() {
+        return StoredRecipe.builder()
                 .contentHash(this.contentHash)
                 .sourceUrl(this.sourceUrl)
                 .recipeYaml(this.recipeYaml)

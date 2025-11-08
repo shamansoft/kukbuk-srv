@@ -2,7 +2,7 @@ package net.shamansoft.cookbook.repository;
 
 import com.google.cloud.firestore.DocumentSnapshot;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -13,8 +13,8 @@ import java.util.Optional;
 @Component
 public class Transformer {
 
-    public Recipe documentToRecipeCache(DocumentSnapshot document) {
-        return Recipe.builder()
+    public StoredRecipe documentToRecipeCache(DocumentSnapshot document) {
+        return StoredRecipe.builder()
                 .contentHash(document.getId())
                 .sourceUrl(document.getString("sourceUrl"))
                 .recipeYaml(document.getString("recipeYaml"))
