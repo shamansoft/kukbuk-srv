@@ -3,10 +3,9 @@ package net.shamansoft.cookbook;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import java.util.Optional;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
@@ -87,7 +86,7 @@ public class CookbookController {
         // get hash
         String contentHash = contentHashService.generateContentHash(request.url());
         // retrieve from store
-        Optional<Recipe> stored = Optional.empty();
+        Optional<StoredRecipe> stored = Optional.empty();
         if (contentHash != null) {
             stored = recipeStoreService.findStoredRecipeByHash(contentHash);
         }
@@ -109,7 +108,7 @@ public class CookbookController {
                 }
             }
         } else {
-            Recipe storedRecipe = stored.get();
+            StoredRecipe storedRecipe = stored.get();
             response = new Transformer.Response(storedRecipe.isValid(), storedRecipe.getRecipeYaml());
         }
 

@@ -7,7 +7,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.WriteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -27,7 +27,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     private final Transformer transformer;
 
     @Override
-    public CompletableFuture<Optional<Recipe>> findByContentHash(String contentHash) {
+    public CompletableFuture<Optional<StoredRecipe>> findByContentHash(String contentHash) {
         log.debug("Retrieving recipe for hash: {}", contentHash);
         long startTime = System.currentTimeMillis();
         
@@ -41,22 +41,22 @@ public class FirestoreRecipeRepository implements RecipeRepository {
                 
                 if (!documentSnapshot.exists()) {
                     log.debug("Recipe not found for hash: {} (retrieved in {}ms)", contentHash, duration);
-                    return Optional.<Recipe>empty();
+                    return Optional.<StoredRecipe>empty();
                 }
                 
-                Recipe recipe = transformer.documentToRecipeCache(documentSnapshot);
+                StoredRecipe recipe = transformer.documentToRecipeCache(documentSnapshot);
                 log.debug("Retrieved recipe for hash: {} (retrieved in {}ms)", contentHash, duration);
                 
                 return Optional.of(recipe);
             } catch (Exception e) {
                 log.error("Error retrieving recipe for hash {}: {}", contentHash, e.getMessage(), e);
-                return Optional.<Recipe>empty();
+                return Optional.<StoredRecipe>empty();
             }
         }, executor);
     }
 
     @Override
-    public CompletableFuture<Void> save(Recipe recipe) {
+    public CompletableFuture<Void> save(StoredRecipe recipe) {
         log.debug("Saving recipe for hash: {}", recipe.getContentHash());
         
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(recipe.getContentHash());

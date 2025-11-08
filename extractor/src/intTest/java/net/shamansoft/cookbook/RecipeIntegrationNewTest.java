@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.junit.jupiter.api.BeforeEach;
@@ -191,7 +191,7 @@ class RecipeIntegrationNewTest {
         Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/recipe");
 
         // Mock recipe store to return a recipe
-        Recipe storedRecipe = Recipe.builder()
+        StoredRecipe storedRecipe = StoredRecipe.builder()
                 .contentHash("hash")
                 .sourceUrl("https://example.com/recipe")
                 .recipeYaml("yaml")

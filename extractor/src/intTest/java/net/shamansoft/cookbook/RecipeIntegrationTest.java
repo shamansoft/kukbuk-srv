@@ -2,12 +2,11 @@ package net.shamansoft.cookbook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.FirestoreRecipeRepository;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.Transformer;
@@ -383,7 +382,7 @@ class RecipeIntegrationTest {
         String contentHash = contentHashService.generateContentHash(testUrl);
 
         // Pre-populate Firestore with the cached recipe
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(contentHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(cachedRecipeYaml)
@@ -397,12 +396,12 @@ class RecipeIntegrationTest {
         recipeRepository.save(cachedRecipe).join();
 
         // Verify the recipe was actually saved
-        Optional<Recipe> verifyStored = recipeRepository.findByContentHash(contentHash).join();
+        Optional<StoredRecipe> verifyStored = recipeRepository.findByContentHash(contentHash).join();
         assertThat(verifyStored)
                 .as("Recipe should be stored in Firestore before making request")
                 .isPresent()
                 .get()
-                .extracting(Recipe::getContentHash, Recipe::getSourceUrl, Recipe::isValid)
+                .extracting(StoredRecipe::getContentHash, StoredRecipe::getSourceUrl, StoredRecipe::isValid)
                 .containsExactly(contentHash, testUrl, true);
 
         // Prepare request

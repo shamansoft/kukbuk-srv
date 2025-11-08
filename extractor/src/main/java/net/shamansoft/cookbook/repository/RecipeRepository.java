@@ -1,15 +1,15 @@
 package net.shamansoft.cookbook.repository;
 
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public interface RecipeRepository {
     
-    CompletableFuture<Optional<Recipe>> findByContentHash(String contentHash);
+    CompletableFuture<Optional<StoredRecipe>> findByContentHash(String contentHash);
     
-    CompletableFuture<Void> save(Recipe recipe);
+    CompletableFuture<Void> save(StoredRecipe recipe);
     
     CompletableFuture<Boolean> existsByContentHash(String contentHash);
     

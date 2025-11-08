@@ -2,7 +2,7 @@ package net.shamansoft.cookbook.repository;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should save and retrieve recipe cache successfully")
     void shouldSaveAndRetrieveRecipeCacheSuccessfully() {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("integration-test-hash")
                 .sourceUrl("https://example.com/integration-test")
                 .recipeYaml("recipe: integration test")
@@ -60,8 +60,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
         assertThatCode(() -> saveResult.join()).doesNotThrowAnyException();
 
         // When - Retrieve
-        CompletableFuture<Optional<Recipe>> retrieveResult = repository.findByContentHash("integration-test-hash");
-        Optional<Recipe> retrievedCache = retrieveResult.join();
+        CompletableFuture<Optional<StoredRecipe>> retrieveResult = repository.findByContentHash("integration-test-hash");
+        Optional<StoredRecipe> retrievedCache = retrieveResult.join();
 
         // Then
         assertThat(retrievedCache)
@@ -81,8 +81,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should return empty for non-existent recipe cache")
     void shouldReturnEmptyForNonExistentRecipeCache() {
         // When
-        CompletableFuture<Optional<Recipe>> result = repository.findByContentHash("non-existent-hash");
-        Optional<Recipe> recipeCache = result.join();
+        CompletableFuture<Optional<StoredRecipe>> result = repository.findByContentHash("non-existent-hash");
+        Optional<StoredRecipe> recipeCache = result.join();
 
         // Then
         assertThat(recipeCache).isEmpty();
@@ -92,7 +92,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should check existence correctly")
     void shouldCheckExistenceCorrectly() {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("existence-test-hash")
                 .sourceUrl("https://example.com/existence-test")
                 .recipeYaml("recipe: existence test")
@@ -117,7 +117,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should delete recipe cache successfully")
     void shouldDeleteRecipeCacheSuccessfully() {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("delete-test-hash")
                 .sourceUrl("https://example.com/delete-test")
                 .recipeYaml("recipe: delete test")
@@ -147,7 +147,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         String[] hashes = {"count-test-1", "count-test-2", "count-test-3"};
         
         for (String hash : hashes) {
-            Recipe recipe = Recipe.builder()
+            StoredRecipe recipe = StoredRecipe.builder()
                     .contentHash(hash)
                     .sourceUrl("https://example.com/" + hash)
                     .recipeYaml("recipe: " + hash)
@@ -172,7 +172,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should handle concurrent access correctly")
     void shouldHandleConcurrentAccessCorrectly() throws InterruptedException {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("concurrent-test-hash")
                 .sourceUrl("https://example.com/concurrent-test")
                 .recipeYaml("recipe: concurrent test")
@@ -185,7 +185,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         repository.save(recipe).join();
 
         // When - Multiple concurrent reads
-        CompletableFuture<Optional<Recipe>>[] futures = new CompletableFuture[10];
+        CompletableFuture<Optional<StoredRecipe>>[] futures = new CompletableFuture[10];
         for (int i = 0; i < 10; i++) {
             futures[i] = repository.findByContentHash("concurrent-test-hash");
         }
@@ -194,12 +194,12 @@ class FirestoreRecipeRepositoryIntegrationTest {
         CompletableFuture.allOf(futures).join();
 
         // Then - All should succeed
-        for (CompletableFuture<Optional<Recipe>> future : futures) {
-            Optional<Recipe> result = future.join();
+        for (CompletableFuture<Optional<StoredRecipe>> future : futures) {
+            Optional<StoredRecipe> result = future.join();
             assertThat(result)
                     .isPresent()
                     .get()
-                    .extracting(Recipe::getContentHash)
+                    .extracting(StoredRecipe::getContentHash)
                     .isEqualTo("concurrent-test-hash");
         }
     }
@@ -208,7 +208,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should meet performance requirements for retrieval")
     void shouldMeetPerformanceRequirementsForRetrieval() {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("performance-test-hash")
                 .sourceUrl("https://example.com/performance-test")
                 .recipeYaml("recipe: performance test")
@@ -221,8 +221,8 @@ class FirestoreRecipeRepositoryIntegrationTest {
 
         // When - Measure retrieval time
         long startTime = System.currentTimeMillis();
-        CompletableFuture<Optional<Recipe>> result = repository.findByContentHash("performance-test-hash");
-        Optional<Recipe> retrievedCache = result.join();
+        CompletableFuture<Optional<StoredRecipe>> result = repository.findByContentHash("performance-test-hash");
+        Optional<StoredRecipe> retrievedCache = result.join();
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -237,7 +237,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     @DisplayName("Should update version on update")
     void shouldUpdateVersionOnUpdate() {
         // Given
-        Recipe recipe = Recipe.builder()
+        StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("version-test-hash")
                 .sourceUrl("https://example.com/version-test")
                 .recipeYaml("recipe: version test")
@@ -249,11 +249,11 @@ class FirestoreRecipeRepositoryIntegrationTest {
         repository.save(recipe).join();
 
         // When - Update the recipe
-        Recipe updatedRecipe = recipe.withUpdatedVersion();
+        StoredRecipe updatedRecipe = recipe.withUpdatedVersion();
         repository.save(updatedRecipe).join();
 
         // Then - Version should be incremented
-        Optional<Recipe> finalResult = repository.findByContentHash("version-test-hash").join();
+        Optional<StoredRecipe> finalResult = repository.findByContentHash("version-test-hash").join();
         assertThat(finalResult)
                 .isPresent()
                 .get()

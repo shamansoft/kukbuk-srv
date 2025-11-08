@@ -2,6 +2,7 @@ package net.shamansoft.cookbook;
 
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -115,8 +116,8 @@ class CookbookControllerStoreServiceTest {
                 "https://example.com/recipe"
         );
 
-        net.shamansoft.cookbook.model.Recipe cachedRecipe = 
-                net.shamansoft.cookbook.model.Recipe.builder()
+        StoredRecipe cachedRecipe =
+                StoredRecipe.builder()
                         .contentHash("test-hash")
                         .sourceUrl("https://example.com/recipe")
                         .recipeYaml("recipe: test cached recipe")

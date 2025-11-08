@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.service;
 
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.RecipeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +51,7 @@ class RecipeServiceTest {
     @DisplayName("Should find cached recipe successfully")
     void shouldFindCachedRecipeSuccessfully() {
         // Given
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
@@ -64,7 +63,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
 
         // When
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
 
         // Then
         assertTrue(retrievedCache.isPresent());
@@ -82,7 +81,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         // When
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
 
         // Then
         assertFalse(retrievedCache.isPresent());
@@ -97,7 +96,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(null);
         
         // When
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
 
         // Then
         assertFalse(retrievedCache.isPresent());
@@ -112,7 +111,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Repository error")));
 
         // When
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
 
         // Then
         assertFalse(retrievedCache.isPresent());
@@ -124,7 +123,7 @@ class RecipeServiceTest {
     @DisplayName("Should cache recipe successfully")
     void shouldCacheRecipeSuccessfully() {
         // Given
-        when(repository.save(any(Recipe.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.completedFuture(null));
 
         // When & Then
         assertDoesNotThrow(() -> service.storeRecipeWithHash(testHash, testUrl, testYaml, true));
@@ -143,12 +142,12 @@ class RecipeServiceTest {
     @DisplayName("Should handle cache save error gracefully")
     void shouldHandleCacheSaveErrorGracefully() {
         // Given
-        when(repository.save(any(Recipe.class))).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Save failed")));
+        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Save failed")));
 
         // When & Then
         assertDoesNotThrow(() -> service.storeRecipeWithHash(testHash, testUrl, testYaml, true));
 
-        verify(repository).save(any(Recipe.class));
+        verify(repository).save(any(StoredRecipe.class));
     }
 
     @Test
@@ -185,7 +184,7 @@ class RecipeServiceTest {
     @DisplayName("Should find cached recipe by hash directly")
     void shouldFindCachedRecipeByHashDirectly() {
         // Given
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
@@ -197,7 +196,7 @@ class RecipeServiceTest {
         when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
 
         // When
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
 
         // Then
         assertTrue(retrievedCache.isPresent());
@@ -210,7 +209,7 @@ class RecipeServiceTest {
     @DisplayName("Should cache recipe with hash directly")
     void shouldCacheRecipeWithHashDirectly() {
         // Given
-        when(repository.save(any(Recipe.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.completedFuture(null));
 
         // When & Then
         assertDoesNotThrow(() -> service.storeValidRecipe(testHash, testUrl, testYaml));

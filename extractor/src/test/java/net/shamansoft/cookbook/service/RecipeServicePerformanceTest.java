@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.service;
 
-import net.shamansoft.cookbook.model.Recipe;
+import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.RecipeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class RecipeServicePerformanceTest {
     @DisplayName("Should retrieve cached recipe within 100ms performance requirement")
     void shouldRetrieveCachedRecipeWithin100ms() {
         // Given
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
@@ -60,7 +60,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -77,7 +77,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -90,7 +90,7 @@ class RecipeServicePerformanceTest {
     @DisplayName("Should consistently meet performance requirements across multiple runs")
     void shouldConsistentlyMeetPerformanceRequirementsAcrossMultipleRuns() {
         // Given
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
@@ -103,7 +103,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -116,7 +116,7 @@ class RecipeServicePerformanceTest {
     @DisplayName("Should handle concurrent retrieval requests efficiently")
     void shouldHandleConcurrentRetrievalRequestsEfficiently() {
         // Given
-        Recipe cachedRecipe = Recipe.builder()
+        StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
                 .recipeYaml(testYaml)
@@ -129,7 +129,7 @@ class RecipeServicePerformanceTest {
 
         // When - Multiple sequential requests (since API is now synchronous)
         long startTime = System.currentTimeMillis();
-        Optional<Recipe>[] results = new Optional[10];
+        Optional<StoredRecipe>[] results = new Optional[10];
         for (int i = 0; i < 10; i++) {
             results[i] = service.findStoredRecipeByHash(testHash);
         }
@@ -137,7 +137,7 @@ class RecipeServicePerformanceTest {
         long totalDuration = endTime - startTime;
 
         // Then
-        for (Optional<Recipe> result : results) {
+        for (Optional<StoredRecipe> result : results) {
             assertTrue(result.isPresent());
         }
         
@@ -149,7 +149,7 @@ class RecipeServicePerformanceTest {
     @DisplayName("Should cache recipe efficiently without blocking")
     void shouldCacheRecipeEfficientlyWithoutBlocking() {
         // Given
-        when(repository.save(any(Recipe.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.completedFuture(null));
 
         // When
         long startTime = System.currentTimeMillis();
@@ -167,12 +167,12 @@ class RecipeServicePerformanceTest {
     void shouldTimeoutGracefullyWhenOperationsTakeTooLong() {
 
         // Create a future that never completes to simulate a slow operation
-        CompletableFuture<Optional<Recipe>> slowFuture = new CompletableFuture<>();
+        CompletableFuture<Optional<StoredRecipe>> slowFuture = new CompletableFuture<>();
         when(repository.findByContentHash(testHash)).thenReturn(slowFuture);
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -191,7 +191,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<Recipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
