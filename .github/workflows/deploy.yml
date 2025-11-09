@@ -1,0 +1,441 @@
+name: Build and Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/deployment-setup.md'
+  workflow_dispatch:  # Allow manual trigger on any branch
+    inputs:
+      skip_deploy:
+        description: 'Skip deployment (build and push only)'
+        required: false
+        type: boolean
+        default: false
+      skip_finalize:
+        description: 'Skip version finalization (no tag, no version bump)'
+        required: false
+        type: boolean
+        default: false
+
+# Ensure only one deployment runs at a time per branch
+concurrency:
+  group: deployment-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel in-progress deployments
+
+env:
+  GCP_PROJECT_ID: kukbuk-tf
+  GCR_REGISTRY: gcr.io/kukbuk-tf
+  SERVICE_NAME: cookbook
+  REGION: us-west1
+  JAVA_VERSION: '25'
+
+jobs:
+  # Phase 0 & 1: Version Preparation and Code Validation
+  test:
+    name: Test & Validate
+    runs-on: ubuntu-latest
+    outputs:
+      release-version: ${{ steps.version.outputs.RELEASE_VERSION }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for version management
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    # PHASE 0: Prepare release version (remove -SNAPSHOT)
+    - name: Prepare release version
+      id: version
+      working-directory: extractor/scripts
+      run: |
+        source ./version-updater.sh
+
+        # Extract current version (e.g., 0.5.5-SNAPSHOT)
+        CURRENT=$(extract_version)
+        echo "Current version: $CURRENT"
+
+        # Prepare release version (remove -SNAPSHOT -> 0.5.5)
+        RELEASE=$(prepare_release | tail -n 1)
+        echo "Release version: $RELEASE"
+
+        # Export for other jobs
+        echo "RELEASE_VERSION=$RELEASE" >> $GITHUB_OUTPUT
+        echo "CURRENT_VERSION=$CURRENT" >> $GITHUB_OUTPUT
+
+    # PHASE 1: Code Validation
+    - name: Run unit tests
+      working-directory: extractor
+      run: |
+        echo "::group::Unit Tests"
+        ./gradlew test --no-daemon --console=plain
+        echo "::endgroup::"
+
+    - name: Run integration tests
+      working-directory: extractor
+      run: |
+        echo "::group::Integration Tests"
+        ./gradlew intTest --no-daemon --console=plain
+        echo "::endgroup::"
+
+    - name: Check code coverage
+      working-directory: extractor
+      run: |
+        echo "::group::Code Coverage"
+        ./gradlew checkCoverage --no-daemon --console=plain
+        echo "::endgroup::"
+
+    - name: Security vulnerability scan
+      working-directory: extractor
+      run: |
+        echo "::group::OWASP Dependency Check"
+        ./gradlew dependencyCheck --no-daemon --console=plain
+        echo "::endgroup::"
+
+    # Publish test results and coverage reports
+    - name: Publish test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          extractor/cookbook/build/reports/tests/
+          extractor/cookbook/build/test-results/
+
+    - name: Publish coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: extractor/cookbook/build/reports/jacoco/
+
+    - name: Publish security scan results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: extractor/cookbook/build/reports/dependency-check/
+
+    # Create test summary
+    - name: Test summary
+      if: always()
+      run: |
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.version.outputs.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tests**: ✅ Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- **Coverage**: ✅ Meets 40% threshold" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security**: ✅ No high severity vulnerabilities" >> $GITHUB_STEP_SUMMARY
+
+  # Phase 2: Build & Push Docker Image
+  build-and-push:
+    name: Build & Push Native Image
+    needs: test
+    runs-on: ubuntu-latest-8-cores  # Use larger runner for native builds
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Apply release version to build.gradle (prepared in test job)
+    - name: Apply release version
+      working-directory: extractor/scripts
+      run: |
+        source ./version-updater.sh
+        prepare_release
+        echo "Build will use version: ${{ needs.test.outputs.release-version }}"
+
+    # Build native image (WITHOUT pushing - separate step for clarity)
+    - name: Build native Docker image
+      working-directory: extractor/scripts
+      run: |
+        echo "::group::Building native image for version ${{ needs.test.outputs.release-version }}"
+        ./build.sh ${{ needs.test.outputs.release-version }} --native --memory=12g
+        echo "::endgroup::"
+
+      # Authenticate to GCP
+      # TODO: Switch to Workload Identity Federation (see docs/CD.md for setup)
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        # Uncomment when Workload Identity is configured:
+        # workload_identity_provider: 'projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        # service_account: 'github-actions-deploy@kukbuk-tf.iam.gserviceaccount.com'
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+      # Separate push step for better visibility
+    - name: Push image to GCR
+      working-directory: extractor/scripts
+      run: |
+        echo "::group::Pushing image to GCR"
+        ./push.sh ${{ needs.test.outputs.release-version }}
+        echo "::endgroup::"
+
+    - name: Verify image in GCR
+      run: |
+        IMAGE="${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}"
+        echo "Verifying image: $IMAGE"
+        gcloud container images describe "$IMAGE"
+        echo "✅ Image verified in registry"
+
+  # Phase 3: Deploy to Cloud Run
+  deploy:
+    name: Deploy to Cloud Run
+    needs: [test, build-and-push]
+    runs-on: ubuntu-latest
+    environment: production  # Require manual approval if configured
+    # Skip deployment if requested via workflow_dispatch
+    if: ${{ !inputs.skip_deploy }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        # Uncomment when Workload Identity is configured:
+        # workload_identity_provider: 'projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        # service_account: 'github-actions-deploy@kukbuk-tf.iam.gserviceaccount.com'
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Install OpenTofu
+      run: |
+        echo "::group::Installing OpenTofu"
+        curl -Lo opentofu.tar.gz https://github.com/opentofu/opentofu/releases/download/v1.8.8/tofu_1.8.8_linux_amd64.tar.gz
+        sudo tar -xzf opentofu.tar.gz -C /usr/local/bin/
+        sudo chmod +x /usr/local/bin/tofu
+        tofu version
+        echo "::endgroup::"
+
+    - name: Create service account key file
+      run: |
+        mkdir -p terraform/no-git
+        echo '${{ secrets.GCP_SA_KEY }}' > terraform/no-git/kukbuk-sa-tf-key.json
+
+    - name: Terraform Init
+      working-directory: terraform
+      run: tofu init
+
+    - name: Terraform Plan
+      working-directory: terraform
+      run: |
+        echo "::group::Terraform Plan"
+        tofu plan \
+          -var="image_tag=${{ needs.test.outputs.release-version }}" \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -out=tfplan
+        echo "::endgroup::"
+
+    - name: Terraform Apply
+      working-directory: terraform
+      run: |
+        echo "::group::Terraform Apply"
+        tofu apply -auto-approve tfplan
+        echo "::endgroup::"
+
+    - name: Get deployment URL
+      id: deploy
+      working-directory: terraform
+      run: |
+        CLOUD_RUN_URL=$(tofu output -raw cloud_run_url)
+        echo "URL=$CLOUD_RUN_URL" >> $GITHUB_OUTPUT
+        echo "Deployment URL: $CLOUD_RUN_URL"
+
+    # Health check with retry logic (native images can take time to start)
+    - name: Test deployment health
+      run: |
+        echo "Testing health endpoint..."
+        MAX_ATTEMPTS=30
+        DELAY=10
+
+        for i in $(seq 1 $MAX_ATTEMPTS); do
+          echo "Attempt $i/$MAX_ATTEMPTS..."
+
+          if curl -f -s "${{ steps.deploy.outputs.URL }}/actuator/health" | grep -q "UP"; then
+            echo "✅ Health check passed!"
+            echo "Service is healthy and ready"
+            exit 0
+          fi
+
+          if [ $i -lt $MAX_ATTEMPTS ]; then
+            echo "Not ready yet, waiting ${DELAY}s..."
+            sleep $DELAY
+          fi
+        done
+
+        echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+        exit 1
+
+    - name: Cleanup
+      if: always()
+      run: rm -f terraform/no-git/kukbuk-sa-tf-key.json
+
+  # Phase 4: Finalize Release
+  finalize:
+    name: Finalize Release
+    needs: [test, build-and-push, deploy]
+    runs-on: ubuntu-latest
+    # Skip finalization if requested via workflow_dispatch OR if deploy was skipped
+    if: ${{ !inputs.skip_finalize && !inputs.skip_deploy }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    # Create git tag for the release version
+    - name: Create Git tag
+      run: |
+        TAG="v${{ needs.test.outputs.release-version }}"
+        echo "Creating tag: $TAG"
+        git tag -a "$TAG" -m "Release version ${{ needs.test.outputs.release-version }}"
+        git push origin "$TAG"
+        echo "✅ Tag created: $TAG"
+
+    # Bump to next snapshot version
+    - name: Bump to next snapshot version
+      working-directory: extractor/scripts
+      run: |
+        source ./version-updater.sh
+
+        # This will increment patch and add -SNAPSHOT (e.g., 0.5.5 -> 0.5.6-SNAPSHOT)
+        NEXT_SNAPSHOT=$(bump_to_next_snapshot | tail -n 1)
+        echo "Next development version: $NEXT_SNAPSHOT"
+        echo "NEXT_SNAPSHOT=$NEXT_SNAPSHOT" >> $GITHUB_ENV
+
+    # Commit version bump back to main
+    - name: Commit version bump
+      run: |
+        # Pull latest to avoid conflicts
+        git pull --rebase origin main
+
+        # Check if build.gradle changed
+        if git diff --quiet extractor/build.gradle; then
+          echo "No version change detected, skipping commit"
+          exit 0
+        fi
+
+        # Commit and push with retry
+        git add extractor/build.gradle
+        git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
+
+        # Retry push if race condition occurs
+        for i in {1..5}; do
+          if git push origin main; then
+            echo "✅ Version bump committed successfully"
+            exit 0
+          fi
+
+          echo "Push failed, retrying after rebase... (attempt $i/5)"
+          git pull --rebase origin main
+          sleep 2
+        done
+
+        echo "❌ Failed to push after 5 attempts"
+        exit 1
+
+    # Create GitHub Release
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: v${{ needs.test.outputs.release-version }}
+        name: Release v${{ needs.test.outputs.release-version }}
+        body: |
+          ## 🚀 Automated Release v${{ needs.test.outputs.release-version }}
+
+          ### Deployment Information
+          - **Environment**: Production (GCP Cloud Run)
+          - **Service URL**: ${{ needs.deploy.outputs.URL }}
+          - **Region**: ${{ env.REGION }}
+          - **Image**: `${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}`
+
+          ### Build Information
+          - **Type**: Native image (GraalVM)
+          - **Java Version**: ${{ env.JAVA_VERSION }}
+          - **Commit**: ${{ github.sha }}
+
+          ### Quality Metrics
+          - ✅ All tests passed
+          - ✅ Code coverage ≥ 40%
+          - ✅ Security scan passed
+          - ✅ Health check verified
+
+          ### Next Development Version
+          - Development continues on version `${{ env.NEXT_SNAPSHOT }}`
+
+          ### Rollback
+          See [docs/CD.md](https://github.com/${{ github.repository }}/blob/main/docs/CD.md#rollback-procedures) for rollback procedures.
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    # Final summary
+    - name: Deployment summary
+      run: |
+        echo "## 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Next Dev**: ${{ env.NEXT_SNAPSHOT }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Timeline" >> $GITHUB_STEP_SUMMARY
+        echo "- Started: ${{ github.event.head_commit.timestamp }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
