@@ -329,6 +329,8 @@ jobs:
     runs-on: ubuntu-latest
     # Skip finalization if requested via workflow_dispatch OR if deploy was skipped
     if: ${{ !inputs.skip_finalize && !inputs.skip_deploy }}
+    permissions:
+      contents: write  # Required to push tags, commits, and create releases
 
     steps:
     - name: Checkout code
