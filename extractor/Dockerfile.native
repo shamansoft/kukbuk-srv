@@ -30,9 +30,9 @@ RUN --mount=type=cache,target=/root/.gradle \
     -Porg.graalvm.buildtools.native.imageName=cookbook
 
 FROM --platform=linux/amd64 gcr.io/distroless/base-debian12
-# Install libz dependency
-COPY --from=debian:11-slim /lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/
-COPY --from=debian:11-slim /lib/x86_64-linux-gnu/libz.so.1.2.11 /lib/x86_64-linux-gnu/
+# Install libz dependency (from matching Debian 12)
+COPY --from=debian:12-slim /usr/lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/
+COPY --from=debian:12-slim /usr/lib/x86_64-linux-gnu/libz.so.1.2.13 /lib/x86_64-linux-gnu/
 
 WORKDIR /app
 COPY --from=builder /app/extractor/build/native/nativeCompile/cookbook .
