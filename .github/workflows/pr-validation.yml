@@ -119,7 +119,7 @@ jobs:
         echo "- ✅ Unit Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Integration Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Code Coverage: ≥ 40%" >> $GITHUB_STEP_SUMMARY
-#        echo "- ✅ Security Scan: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        # echo "- ✅ Security Scan: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Build Information" >> $GITHUB_STEP_SUMMARY
         echo "- Java Version: ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
@@ -130,7 +130,7 @@ jobs:
         echo "- After approval and merge, automatic deployment will begin" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
-        echo "- Test results, coverage reports, and security scan available in artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Test results and coverage reports available in artifacts" >> $GITHUB_STEP_SUMMARY
 
   # Optional: Build verification (without deployment)
   build-check:
