@@ -39,34 +39,30 @@ jobs:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
 
     # Validation Phase
     - name: Run unit tests
-      working-directory: extractor
       run: |
         echo "::group::Unit Tests"
         ./gradlew test --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Run integration tests
-      working-directory: extractor
       run: |
         echo "::group::Integration Tests"
         ./gradlew intTest --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Check code coverage
-      working-directory: extractor
       run: |
         echo "::group::Code Coverage Check (40% minimum)"
         ./gradlew checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Security vulnerability scan
-      working-directory: extractor
       run: |
         echo "::group::OWASP Dependency Check"
         ./gradlew dependencyCheck --no-daemon --console=plain
@@ -95,17 +91,6 @@ jobs:
       with:
         name: pr-security-reports
         path: extractor/cookbook/build/reports/dependency-check/
-
-    # Optional: Upload to Codecov if token is available
-    - name: Upload coverage to Codecov
-      if: vars.CODECOV_ENABLED == 'true'
-      uses: codecov/codecov-action@v4
-      with:
-        files: extractor/cookbook/build/reports/jacoco/test/jacocoTestReport.xml
-        flags: unittests
-        name: codecov-pr
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: false
 
     # Comment on PR with coverage
     - name: Comment PR with coverage
@@ -165,22 +150,20 @@ jobs:
         path: |
           ~/.gradle/caches
           ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('extractor/**/*.gradle*', 'extractor/**/gradle-wrapper.properties') }}
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
 
     # Verify that regular JAR builds successfully
     - name: Build JAR
-      working-directory: extractor
       run: |
         echo "::group::Building JAR"
         ./gradlew bootJar --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Verify JAR artifact
-      working-directory: extractor
       run: |
-        JAR_PATH="cookbook/build/libs/cookbook.jar"
+        JAR_PATH="extractor/cookbook/build/libs/cookbook.jar"
         if [ -f "$JAR_PATH" ]; then
           echo "✅ JAR built successfully"
           ls -lh "$JAR_PATH"
