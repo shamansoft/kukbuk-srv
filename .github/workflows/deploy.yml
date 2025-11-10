@@ -367,20 +367,17 @@ jobs:
     # Commit version bump back to main
     - name: Commit version bump
       run: |
-        # Pull latest to avoid conflicts
-        git pull --rebase origin main
-
         # Check if build.gradle changed
         if git diff --quiet extractor/build.gradle; then
           echo "No version change detected, skipping commit"
           exit 0
         fi
 
-        # Commit and push with retry
+        # Stage and commit the version bump
         git add extractor/build.gradle
         git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
 
-        # Retry push if race condition occurs
+        # Retry push if race condition occurs (pull only if push fails)
         for i in {1..5}; do
           if git push origin main; then
             echo "✅ Version bump committed successfully"
