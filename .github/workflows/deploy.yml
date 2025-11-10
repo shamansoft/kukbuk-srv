@@ -145,7 +145,7 @@ jobs:
   build-and-push:
     name: Build & Push Native Image
     needs: test
-    runs-on: ubuntu-latest-8-cores  # Use larger runner for native builds
+    runs-on: ubuntu-latest  # Standard runner (free tier)
 
     steps:
     - name: Checkout code
