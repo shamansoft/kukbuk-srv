@@ -83,31 +83,27 @@ jobs:
 
     # PHASE 1: Code Validation
     - name: Run unit tests
-      working-directory: extractor
       run: |
         echo "::group::Unit Tests"
-        ./gradlew test --no-daemon --console=plain
+        ./gradlew :cookbook:test --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Run integration tests
-      working-directory: extractor
       run: |
         echo "::group::Integration Tests"
-        ./gradlew intTest --no-daemon --console=plain
+        ./gradlew :cookbook:intTest --no-daemon --console=plain
         echo "::endgroup::"
 
 #    - name: Check code coverage
-#      working-directory: extractor
 #      run: |
 #        echo "::group::Code Coverage"
-#        ./gradlew checkCoverage --no-daemon --console=plain
+#        ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
 #        echo "::endgroup::"
 
 #    - name: Security vulnerability scan
-#      working-directory: extractor
 #      run: |
 #        echo "::group::OWASP Dependency Check"
-#        ./gradlew dependencyCheckAnalyze --no-daemon --console=plain
+#        ./gradlew :cookbook:dependencyCheckAnalyze --no-daemon --console=plain
 #        echo "::endgroup::"
 
     # Publish test results and coverage reports
