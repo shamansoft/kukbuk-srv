@@ -30,7 +30,7 @@ env:
   GCR_REGISTRY: gcr.io/kukbuk-tf
   SERVICE_NAME: cookbook
   REGION: us-west1
-  JAVA_VERSION: '25'
+  JAVA_VERSION: '21'
 
 jobs:
   # Phase 0 & 1: Version Preparation and Code Validation
