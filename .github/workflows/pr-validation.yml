@@ -45,31 +45,27 @@ jobs:
 
     # Validation Phase
     - name: Run unit tests
-      working-directory: extractor
       run: |
         echo "::group::Unit Tests"
-        ./gradlew test --no-daemon --console=plain
+        ./gradlew :cookbook:test --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Run integration tests
-      working-directory: extractor
       run: |
         echo "::group::Integration Tests"
-        ./gradlew intTest --no-daemon --console=plain
+        ./gradlew :cookbook:intTest --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Check code coverage
-      working-directory: extractor
       run: |
         echo "::group::Code Coverage Check (40% minimum)"
-        ./gradlew checkCoverage --no-daemon --console=plain
+        ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
 #    - name: Security vulnerability scan
-#      working-directory: extractor
 #      run: |
 #        echo "::group::OWASP Dependency Check"
-#        ./gradlew dependencyCheckAnalyze --no-daemon --console=plain
+#        ./gradlew :cookbook:dependencyCheckAnalyze --no-daemon --console=plain
 #        echo "::endgroup::"
 
     # Publish test results
@@ -79,22 +75,22 @@ jobs:
       with:
         name: pr-test-results
         path: |
-          extractor/cookbook/build/reports/tests/
-          extractor/cookbook/build/test-results/
+          extractor/build/reports/tests/
+          extractor/build/test-results/
 
     - name: Publish coverage reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: pr-coverage-reports
-        path: extractor/cookbook/build/reports/jacoco/
+        path: extractor/build/reports/jacoco/
 
 #    - name: Publish security scan results
 #      if: always()
 #      uses: actions/upload-artifact@v4
 #      with:
 #        name: pr-security-reports
-#        path: extractor/cookbook/build/reports/dependency-check/
+#        path: extractor/build/reports/dependency-check/
 
     # Comment on PR with coverage
     - name: Comment PR with coverage
@@ -102,7 +98,7 @@ jobs:
       uses: madrapps/jacoco-report@v1.6.1
       with:
         paths: |
-          ${{ github.workspace }}/extractor/cookbook/build/reports/jacoco/test/jacocoTestReport.xml
+          ${{ github.workspace }}/extractor/build/reports/jacoco/test/jacocoTestReport.xml
         token: ${{ secrets.GITHUB_TOKEN }}
         min-coverage-overall: 40
         min-coverage-changed-files: 60
@@ -160,15 +156,14 @@ jobs:
 
     # Verify that regular JAR builds successfully
     - name: Build JAR
-      working-directory: extractor
       run: |
         echo "::group::Building JAR"
-        ./gradlew bootJar --no-daemon --console=plain
+        ./gradlew :cookbook:bootJar --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Verify JAR artifact
       run: |
-        JAR_PATH="extractor/cookbook/build/libs/cookbook.jar"
+        JAR_PATH="extractor/build/libs/cookbook.jar"
         if [ -f "$JAR_PATH" ]; then
           echo "✅ JAR built successfully"
           ls -lh "$JAR_PATH"
