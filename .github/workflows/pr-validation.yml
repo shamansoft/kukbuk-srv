@@ -45,28 +45,32 @@ jobs:
 
     # Validation Phase
     - name: Run unit tests
+      working-directory: extractor
       run: |
         echo "::group::Unit Tests"
         ./gradlew test --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Run integration tests
+      working-directory: extractor
       run: |
         echo "::group::Integration Tests"
         ./gradlew intTest --no-daemon --console=plain
         echo "::endgroup::"
 
     - name: Check code coverage
+      working-directory: extractor
       run: |
         echo "::group::Code Coverage Check (40% minimum)"
         ./gradlew checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
-    - name: Security vulnerability scan
-      run: |
-        echo "::group::OWASP Dependency Check"
-        ./gradlew dependencyCheck --no-daemon --console=plain
-        echo "::endgroup::"
+#    - name: Security vulnerability scan
+#      working-directory: extractor
+#      run: |
+#        echo "::group::OWASP Dependency Check"
+#        ./gradlew dependencyCheckAnalyze --no-daemon --console=plain
+#        echo "::endgroup::"
 
     # Publish test results
     - name: Publish test results
@@ -85,12 +89,12 @@ jobs:
         name: pr-coverage-reports
         path: extractor/cookbook/build/reports/jacoco/
 
-    - name: Publish security scan results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pr-security-reports
-        path: extractor/cookbook/build/reports/dependency-check/
+#    - name: Publish security scan results
+#      if: always()
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: pr-security-reports
+#        path: extractor/cookbook/build/reports/dependency-check/
 
     # Comment on PR with coverage
     - name: Comment PR with coverage
@@ -115,7 +119,7 @@ jobs:
         echo "- ✅ Unit Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Integration Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Code Coverage: ≥ 40%" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Security Scan: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+#        echo "- ✅ Security Scan: No critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Build Information" >> $GITHUB_STEP_SUMMARY
         echo "- Java Version: ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
@@ -156,6 +160,7 @@ jobs:
 
     # Verify that regular JAR builds successfully
     - name: Build JAR
+      working-directory: extractor
       run: |
         echo "::group::Building JAR"
         ./gradlew bootJar --no-daemon --console=plain

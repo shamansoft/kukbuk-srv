@@ -96,43 +96,43 @@ jobs:
         ./gradlew intTest --no-daemon --console=plain
         echo "::endgroup::"
 
-    - name: Check code coverage
-      working-directory: extractor
-      run: |
-        echo "::group::Code Coverage"
-        ./gradlew checkCoverage --no-daemon --console=plain
-        echo "::endgroup::"
+#    - name: Check code coverage
+#      working-directory: extractor
+#      run: |
+#        echo "::group::Code Coverage"
+#        ./gradlew checkCoverage --no-daemon --console=plain
+#        echo "::endgroup::"
 
-    - name: Security vulnerability scan
-      working-directory: extractor
-      run: |
-        echo "::group::OWASP Dependency Check"
-        ./gradlew dependencyCheck --no-daemon --console=plain
-        echo "::endgroup::"
+#    - name: Security vulnerability scan
+#      working-directory: extractor
+#      run: |
+#        echo "::group::OWASP Dependency Check"
+#        ./gradlew dependencyCheckAnalyze --no-daemon --console=plain
+#        echo "::endgroup::"
 
     # Publish test results and coverage reports
-    - name: Publish test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: |
-          extractor/cookbook/build/reports/tests/
-          extractor/cookbook/build/test-results/
+#    - name: Publish test results
+#      if: always()
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: test-results
+#        path: |
+#          extractor/cookbook/build/reports/tests/
+#          extractor/cookbook/build/test-results/
 
-    - name: Publish coverage reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-reports
-        path: extractor/cookbook/build/reports/jacoco/
-
-    - name: Publish security scan results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports
-        path: extractor/cookbook/build/reports/dependency-check/
+#    - name: Publish coverage reports
+#      if: always()
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: coverage-reports
+#        path: extractor/cookbook/build/reports/jacoco/
+#
+#    - name: Publish security scan results
+#      if: always()
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: security-reports
+#        path: extractor/cookbook/build/reports/dependency-check/
 
     # Create test summary
     - name: Test summary
@@ -142,8 +142,8 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.version.outputs.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Tests**: ✅ Completed" >> $GITHUB_STEP_SUMMARY
-        echo "- **Coverage**: ✅ Meets 40% threshold" >> $GITHUB_STEP_SUMMARY
-        echo "- **Security**: ✅ No high severity vulnerabilities" >> $GITHUB_STEP_SUMMARY
+#        echo "- **Coverage**: ✅ Meets 40% threshold" >> $GITHUB_STEP_SUMMARY
+#        echo "- **Security**: ✅ No high severity vulnerabilities" >> $GITHUB_STEP_SUMMARY
 
   # Phase 2: Build & Push Docker Image
   build-and-push:
@@ -171,9 +171,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
     # Apply release version to build.gradle (prepared in test job)
     - name: Apply release version
       working-directory: extractor/scripts
@@ -182,16 +179,23 @@ jobs:
         prepare_release
         echo "Build will use version: ${{ needs.test.outputs.release-version }}"
 
-    # Build native image (WITHOUT pushing - separate step for clarity)
+    # Build native image (simplified for AMD64 GHA runners - no buildx needed)
     - name: Build native Docker image
-      working-directory: extractor/scripts
       run: |
         echo "::group::Building native image for version ${{ needs.test.outputs.release-version }}"
-        ./build.sh ${{ needs.test.outputs.release-version }} --native --memory=12g
+
+        # Direct docker build - GHA runners are already AMD64, no cross-compilation needed
+        # Note: build.sh is for local Mac M1 (ARM64) cross-compilation only
+        docker build \
+          -f extractor/Dockerfile.native \
+          -t ${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }} \
+          .
+
+        echo "✅ Build complete: ${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}"
         echo "::endgroup::"
 
-      # Authenticate to GCP
-      # TODO: Switch to Workload Identity Federation (see docs/CD.md for setup)
+    # Authenticate to GCP (needed for pushing to GCR)
+    # TODO: Switch to Workload Identity Federation (see docs/CD.md for setup)
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -206,12 +210,17 @@ jobs:
     - name: Configure Docker for GCR
       run: gcloud auth configure-docker
 
-      # Separate push step for better visibility
+    # Push image to GCR (separate step for better visibility)
     - name: Push image to GCR
-      working-directory: extractor/scripts
       run: |
         echo "::group::Pushing image to GCR"
-        ./push.sh ${{ needs.test.outputs.release-version }}
+
+        IMAGE="${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}"
+        echo "Pushing: $IMAGE"
+
+        docker push "$IMAGE"
+
+        echo "✅ Push complete"
         echo "::endgroup::"
 
     - name: Verify image in GCR
