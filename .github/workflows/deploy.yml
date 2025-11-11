@@ -135,6 +135,15 @@ jobs:
 #        name: security-reports
 #        path: extractor/cookbook/build/reports/dependency-check/
 
+    # Upload coverage report for finalize job
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: extractor/build/reports/jacoco/test/jacocoTestReport.xml
+        retention-days: 1
+
     # Create test summary
     - name: Test summary
       if: always()
@@ -383,18 +392,101 @@ jobs:
         echo "Next development version: $NEXT_SNAPSHOT"
         echo "NEXT_SNAPSHOT=$NEXT_SNAPSHOT" >> $GITHUB_ENV
 
-    # Commit version bump back to current branch
-    - name: Commit version bump
+    # Download coverage report from test job
+    - name: Download coverage report
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-report
+        path: extractor/build/reports/jacoco/test/
+
+    # Update README with coverage badge
+    - name: Update coverage badge in README
       run: |
-        # Check if build.gradle changed
-        if git diff --quiet extractor/build.gradle; then
-          echo "No version change detected, skipping commit"
+        # Install xmllint for XML parsing
+        sudo apt-get update && sudo apt-get install -y libxml2-utils
+
+        # Get coverage percentage from JaCoCo XML report
+        COVERAGE_XML="extractor/build/reports/jacoco/test/jacocoTestReport.xml"
+
+        if [ ! -f "$COVERAGE_XML" ]; then
+          echo "⚠️ Coverage report not found, skipping badge update"
+          echo "COVERAGE_UPDATED=false" >> $GITHUB_ENV
           exit 0
         fi
 
-        # Stage and commit the version bump
-        git add extractor/build.gradle
-        git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
+        # Extract coverage percentage
+        COVERED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@covered)" "$COVERAGE_XML" || echo 0)
+        MISSED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@missed)" "$COVERAGE_XML" || echo 0)
+
+        if [ "$COVERED" = "0" ] && [ "$MISSED" = "0" ]; then
+          echo "⚠️ No coverage data found, skipping badge update"
+          echo "COVERAGE_UPDATED=false" >> $GITHUB_ENV
+          exit 0
+        fi
+
+        TOTAL=$((COVERED + MISSED))
+        COVERAGE=$((COVERED * 100 / TOTAL))
+
+        echo "📊 Coverage: ${COVERAGE}%"
+        echo "COVERAGE_PCT=${COVERAGE}" >> $GITHUB_ENV
+
+        # Determine badge color
+        if [ $COVERAGE -ge 80 ]; then
+          COLOR="brightgreen"
+        elif [ $COVERAGE -ge 60 ]; then
+          COLOR="green"
+        elif [ $COVERAGE -ge 40 ]; then
+          COLOR="yellow"
+        else
+          COLOR="red"
+        fi
+
+        # Create badge markdown
+        BADGE="![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})"
+
+        # Update README.md
+        if grep -q "!\[Coverage\]" README.md; then
+          # Replace existing badge
+          sed -i.bak "s|!\[Coverage\].*|$BADGE|" README.md
+          rm README.md.bak
+          echo "✅ Updated existing coverage badge"
+        else
+          # Add badge after title
+          sed -i.bak "2i\\
+$BADGE\\
+" README.md
+          rm README.md.bak
+          echo "✅ Added new coverage badge"
+        fi
+
+        # Check if README changed
+        if git diff --quiet README.md; then
+          echo "No README changes"
+          echo "COVERAGE_UPDATED=false" >> $GITHUB_ENV
+        else
+          echo "COVERAGE_UPDATED=true" >> $GITHUB_ENV
+        fi
+
+    # Commit version bump and README update together
+    - name: Commit version and coverage badge
+      run: |
+        # Check if anything changed
+        if git diff --quiet extractor/build.gradle README.md; then
+          echo "No changes detected, skipping commit"
+          exit 0
+        fi
+
+        # Stage all changes
+        git add extractor/build.gradle README.md
+
+        # Build commit message
+        if [ "${{ env.COVERAGE_UPDATED }}" = "true" ]; then
+          COMMIT_MSG="chore: bump version to ${{ env.NEXT_SNAPSHOT }} and update coverage badge to ${{ env.COVERAGE_PCT }}% [skip ci]"
+        else
+          COMMIT_MSG="chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
+        fi
+
+        git commit -m "$COMMIT_MSG"
 
         # Get current branch name
         BRANCH="${{ github.ref_name }}"
@@ -403,7 +495,7 @@ jobs:
         # Retry push if race condition occurs (pull only if push fails)
         for i in {1..5}; do
           if git push origin HEAD:"$BRANCH"; then
-            echo "✅ Version bump committed successfully"
+            echo "✅ Version and coverage badge committed successfully"
             exit 0
           fi
 
