@@ -2,7 +2,8 @@
 
 # Enable Firestore API
 resource "google_project_service" "firestore_api" {
-  service = "firestore.googleapis.com"
+  service    = "firestore.googleapis.com"
+  depends_on = [google_project_service.serviceusage_api]
 }
 
 # Firestore database for recipe storage

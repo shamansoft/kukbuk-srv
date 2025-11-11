@@ -2,11 +2,13 @@
 
 # Enable required APIs
 resource "google_project_service" "cloudfunctions_api" {
-  service = "cloudfunctions.googleapis.com"
+  service    = "cloudfunctions.googleapis.com"
+  depends_on = [google_project_service.serviceusage_api]
 }
 
 resource "google_project_service" "cloudbuild_api" {
-  service = "cloudbuild.googleapis.com"
+  service    = "cloudbuild.googleapis.com"
+  depends_on = [google_project_service.serviceusage_api]
 }
 
 # Create a storage bucket for Cloud Function source code

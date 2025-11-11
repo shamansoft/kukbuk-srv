@@ -59,12 +59,14 @@ locals {
 
 # Enable required APIs
 resource "google_project_service" "run_api" {
-  service = "run.googleapis.com"
+  service    = "run.googleapis.com"
+  depends_on = [google_project_service.serviceusage_api]
 }
 
 
 resource "google_project_service" "secretmanager_api" {
-  service = "secretmanager.googleapis.com"
+  service    = "secretmanager.googleapis.com"
+  depends_on = [google_project_service.serviceusage_api]
 }
 
 # Secret Manager secrets

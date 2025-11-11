@@ -9,6 +9,11 @@ on:
       - '.github/deployment-setup.md'
   workflow_dispatch:  # Allow manual trigger on any branch
     inputs:
+      skip_build:
+        description: 'Skip build and push (test finalize only)'
+        required: false
+        type: boolean
+        default: false
       skip_deploy:
         description: 'Skip deployment (build and push only)'
         required: false
@@ -145,7 +150,9 @@ jobs:
   build-and-push:
     name: Build & Push Native Image
     needs: test
-    runs-on: ubuntu-latest-8-cores  # Use larger runner for native builds
+    runs-on: ubuntu-latest  # Standard runner (free tier)
+    # Skip build if requested via workflow_dispatch
+    if: ${{ !inputs.skip_build }}
 
     steps:
     - name: Checkout code
@@ -232,8 +239,8 @@ jobs:
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
     environment: production  # Require manual approval if configured
-    # Skip deployment if requested via workflow_dispatch
-    if: ${{ !inputs.skip_deploy }}
+    # Skip deployment if requested via workflow_dispatch OR if build was skipped
+    if: ${{ !inputs.skip_deploy && !inputs.skip_build }}
 
     steps:
     - name: Checkout code
@@ -327,8 +334,14 @@ jobs:
     name: Finalize Release
     needs: [test, build-and-push, deploy]
     runs-on: ubuntu-latest
-    # Skip finalization if requested via workflow_dispatch OR if deploy was skipped
-    if: ${{ !inputs.skip_finalize && !inputs.skip_deploy }}
+    # Allow finalize to run even if build/deploy are skipped (for testing)
+    # Only skip if explicitly requested OR if test failed
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      !inputs.skip_finalize
+    permissions:
+      contents: write  # Required to push tags, commits, and create releases
 
     steps:
     - name: Checkout code
@@ -362,39 +375,41 @@ jobs:
         echo "Next development version: $NEXT_SNAPSHOT"
         echo "NEXT_SNAPSHOT=$NEXT_SNAPSHOT" >> $GITHUB_ENV
 
-    # Commit version bump back to main
+    # Commit version bump back to current branch
     - name: Commit version bump
       run: |
-        # Pull latest to avoid conflicts
-        git pull --rebase origin main
-
         # Check if build.gradle changed
         if git diff --quiet extractor/build.gradle; then
           echo "No version change detected, skipping commit"
           exit 0
         fi
 
-        # Commit and push with retry
+        # Stage and commit the version bump
         git add extractor/build.gradle
         git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
 
-        # Retry push if race condition occurs
+        # Get current branch name
+        BRANCH="${{ github.ref_name }}"
+        echo "Pushing to branch: $BRANCH"
+
+        # Retry push if race condition occurs (pull only if push fails)
         for i in {1..5}; do
-          if git push origin main; then
+          if git push origin HEAD:"$BRANCH"; then
             echo "✅ Version bump committed successfully"
             exit 0
           fi
 
           echo "Push failed, retrying after rebase... (attempt $i/5)"
-          git pull --rebase origin main
+          git pull --rebase origin "$BRANCH"
           sleep 2
         done
 
         echo "❌ Failed to push after 5 attempts"
         exit 1
 
-    # Create GitHub Release
+    # Create GitHub Release (only if deployment actually happened)
     - name: Create GitHub Release
+      if: needs.deploy.result == 'success'
       uses: ncipollo/release-action@v1
       with:
         tag: v${{ needs.test.outputs.release-version }}
@@ -431,15 +446,26 @@ jobs:
     # Final summary
     - name: Deployment summary
       run: |
-        echo "## 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Version Information" >> $GITHUB_STEP_SUMMARY
-        echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Next Dev**: ${{ env.NEXT_SNAPSHOT }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Deployment" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+          echo "## 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Next Dev**: ${{ env.NEXT_SNAPSHOT }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ✅ Version Finalization Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tagged**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Next Dev**: ${{ env.NEXT_SNAPSHOT }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Note" >> $GITHUB_STEP_SUMMARY
+          echo "Build and/or deployment were skipped. Only version management was performed." >> $GITHUB_STEP_SUMMARY
+        fi
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Timeline" >> $GITHUB_STEP_SUMMARY
         echo "- Started: ${{ github.event.head_commit.timestamp }}" >> $GITHUB_STEP_SUMMARY
