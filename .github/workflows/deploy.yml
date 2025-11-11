@@ -344,16 +344,24 @@ jobs:
       contents: write  # Required to push tags, commits, and create releases
 
     steps:
+    # Generate token from GitHub App (can bypass branch protection)
+    - name: Generate GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ vars.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ steps.app-token.outputs.token }}
 
     - name: Configure Git
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "sar-ci-bot[bot]"
+        git config user.email "sar-ci-bot[bot]@users.noreply.github.com"
 
     # Create git tag for the release version
     - name: Create Git tag
@@ -441,7 +449,7 @@ jobs:
           See [docs/CD.md](https://github.com/${{ github.repository }}/blob/main/docs/CD.md#rollback-procedures) for rollback procedures.
         draft: false
         prerelease: false
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ steps.app-token.outputs.token }}
 
     # Final summary
     - name: Deployment summary
