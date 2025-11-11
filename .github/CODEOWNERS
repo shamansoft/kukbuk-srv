@@ -1,0 +1,33 @@
+# CODEOWNERS - Define who must approve changes to specific files/directories
+#
+# When a PR modifies files, GitHub automatically requests review from the owners.
+# Combined with branch protection "Require review from Code Owners", this enforces
+# that changes cannot be merged without owner approval.
+#
+# Syntax: <pattern> <owner1> <owner2> ...
+# Owners can be: @username, @org/team-name, or email
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+# This catches any files not explicitly listed below
+* @khisamutdinov
+
+# Critical infrastructure files - require explicit review
+/.github/workflows/** @khisamutdinov
+/terraform/** @khisamutdinov
+/extractor/Dockerfile.native @khisamutdinov
+/extractor/scripts/*.sh @khisamutdinov
+
+# Configuration files - require explicit review
+/extractor/src/main/resources/application*.yaml @khisamutdinov
+/extractor/build.gradle @khisamutdinov
+/settings.gradle @khisamutdinov
+
+# Source code - require explicit review
+/extractor/src/** @khisamutdinov
+/recipe-sdk/src/** @khisamutdinov
+
+# Documentation - require review (optional: remove this if you want docs to be more relaxed)
+/docs/** @khisamutdinov
+/*.md @khisamutdinov
