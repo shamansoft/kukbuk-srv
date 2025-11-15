@@ -5,12 +5,12 @@
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.java.net/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
-A Spring Boot service that extracts recipe data from web pages using AI (Google Gemini) and stores them in Google Drive.
+A Spring Boot service that extracts recipe data from web pages using AI (Google Gemini) and stores them in Firestore.
 
 ## Features
 
 - 🤖 **AI-Powered Recipe Extraction**: Uses Google Gemini 2.0 Flash to convert HTML content to structured YAML recipes
-- 📁 **Google Drive Integration**: Automatically stores extracted recipes in your Google Drive
+- 📁 **Firestore Integration**: Automatically stores extracted recipes in Firestore NoSQL database
 - 🔐 **OAuth Authentication**: Secure authentication using Google OAuth 2.0
 - 📊 **Recipe Schema Validation**: Follows a comprehensive recipe schema (v1.0.0)
 - 🗜️ **Content Compression**: Supports Base64 compressed HTML input
@@ -34,7 +34,7 @@ Extracts recipe data from HTML content.
 ```
 
 **Headers:**
-- `X-S-AUTH-TOKEN`: Google OAuth access token (optional, required for Drive storage)
+- `X-S-AUTH-TOKEN`: Google OAuth access token (optional, required for Firestore storage)
 
 **Query Parameters:**
 - `compression`: Set to "none" for uncompressed HTML (default: auto-detect Base64)
@@ -44,8 +44,7 @@ Extracts recipe data from HTML content.
 {
   "url": "https://...",
   "title": "Recipe Title",
-  "driveFileId": "abc123",           // Present if stored in Drive
-  "driveFileUrl": "https://...",     // Present if stored in Drive  
+  "recipeId": "abc123",              // Present if stored in Firestore
   "isRecipe": true
 }
 ```
@@ -147,24 +146,34 @@ Fails build if coverage drops below 40%.
 
 ### GitHub Actions
 
-The project uses GitHub Actions for continuous integration:
+The project uses GitHub Actions for continuous integration and deployment:
 
 - **PR Validation**: Runs on every pull request
   - Unit tests (`./gradlew test`)
-  - Integration tests (`./gradlew intTest`) 
+  - Integration tests (`./gradlew intTest`)
   - Code coverage verification
   - Security vulnerability scanning
-  - Coverage reporting to Codecov
+  - Coverage reporting with badges
+
+- **Automated Deployment**: Deploys to Google Cloud Run on main branch
+  - Automated testing before deployment
+  - Version auto-increment
+  - Native Docker image build
+  - Health check verification
+  - Git tagging and GitHub releases
 
 - **Branch Protection**: Main branch is protected
   - Requires PR approval
   - Requires all tests to pass
   - Requires up-to-date branch
 
-### Workflow Files
+### Documentation
 
-- `../.github/workflows/pr-validation.yml`: Main CI pipeline (at repository root)
-- `../.github/branch-protection.md`: Branch protection setup guide (at repository root)
+For detailed CI/CD documentation, see:
+- `../docs/CI_CD_WORKFLOW.md` - Complete CI/CD workflow guide
+- `../docs/TESTING_WORKFLOW.md` - Testing workflow on feature branches
+- `../docs/deployment/` - Deployment strategy, rollback, and monitoring
+- `../docs/github-setup/` - GitHub Actions and branch protection setup
 
 ## Security
 
@@ -179,20 +188,22 @@ The project uses GitHub Actions for continuous integration:
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
 │   Web Client    │───▶│  Controller  │───▶│  Gemini AI API  │
 └─────────────────┘    └──────────────┘    └─────────────────┘
-                              │                       
-                              ▼                       
-                    ┌──────────────────┐              
-                    │ Google Drive API │              
-                    └──────────────────┘              
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │    Firestore     │
+                    └──────────────────┘
 ```
 
 ### Key Components
 
 - **CookbookController**: REST API endpoint
 - **GeminiRestTransformer**: AI-powered HTML to YAML conversion
-- **GoogleDriveService**: File storage and management  
+- **FirestoreService**: Recipe storage and management in Firestore
 - **TokenRestService**: OAuth token validation
 - **CompressorHTMLBase64**: Content compression/decompression
+
+For detailed Firestore schema, see `../terraform/firestore-schema.md`.
 
 ## Recipe Schema
 

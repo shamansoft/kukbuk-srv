@@ -1,0 +1,39 @@
+# Example: Version bump via PR instead of direct push
+# This is the most restrictive approach - even version bumps go through PR
+
+# Replace the "Commit version bump" step in deploy.yml with this:
+
+    - name: Create version bump PR
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Check if build.gradle changed
+        if git diff --quiet extractor/build.gradle; then
+          echo "No version change detected, skipping"
+          exit 0
+        fi
+
+        # Create branch for version bump
+        BRANCH_NAME="auto/version-bump-${{ env.NEXT_SNAPSHOT }}"
+        git checkout -b "$BRANCH_NAME"
+
+        # Stage and commit
+        git add extractor/build.gradle
+        git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
+
+        # Push branch
+        git push origin "$BRANCH_NAME"
+
+        # Create PR
+        gh pr create \
+          --base main \
+          --head "$BRANCH_NAME" \
+          --title "chore: bump version to ${{ env.NEXT_SNAPSHOT }}" \
+          --body "Automated version bump after release v${{ needs.test.outputs.release-version }}" \
+          --label "automated"
+
+        # Auto-approve (as code owner)
+        # Note: This requires a PAT with workflow permissions
+        gh pr merge --auto --squash "$BRANCH_NAME"
+
+        echo "✅ Version bump PR created and set to auto-merge"
