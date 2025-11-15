@@ -229,7 +229,7 @@ Error: Tag 'v0.0.55' already exists
 
 **Solution**:
 - Delete the existing tag: `git push --delete origin v0.0.55`
-- Manually increment version in `extractor/build.gradle`
+- Manually increment version in `extractor/build.gradle.kts`
 
 ## Cost Considerations
 

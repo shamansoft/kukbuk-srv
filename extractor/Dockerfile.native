@@ -7,8 +7,8 @@ RUN microdnf install findutils
 COPY settings.gradle ./
 COPY build.gradle.kts ./
 COPY gradle ./gradle
-COPY extractor/build.gradle ./extractor/
-COPY recipe-sdk/build.gradle ./recipe-sdk/
+COPY extractor/build.gradle.kts ./extractor/
+COPY recipe-sdk/build.gradle.kts ./recipe-sdk/
 COPY gradlew ./
 RUN chmod +x ./gradlew
 

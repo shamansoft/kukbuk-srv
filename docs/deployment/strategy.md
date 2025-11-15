@@ -45,7 +45,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 - Supports `--native` flag for GraalVM builds
 - Supports `--push` flag to push to GCR
 - Auto-increments version via `version-updater.sh`
-- Updates `build.gradle` with new version
+- Updates `build.gradle.kts` with new version
 - Memory configurable via `--memory=12g`
 
 #### `extractor/scripts/push.sh`
@@ -54,9 +54,9 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 - Supports dry-run mode
 
 #### `extractor/scripts/version-updater.sh`
-- Reads version from `build.gradle`
+- Reads version from `build.gradle.kts`
 - Increments patch version (0.5.4 → 0.5.5)
-- Updates `build.gradle` in-place
+- Updates `build.gradle.kts` in-place
 
 ## Deployment Workflow
 
@@ -74,7 +74,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. BUILD & PUSH (10-15 min)                                 │
 │    ├── Authenticate to GCP (Workload Identity)              │
-│    ├── Increment version in build.gradle                    │
+│    ├── Increment version in build.gradle.kts                    │
 │    ├── Build native Docker image (--native)                 │
 │    ├── Push image to GCR                                    │
 │    └── Verify image in registry                             │
@@ -244,7 +244,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
   run: |
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
-    git add extractor/build.gradle
+    git add extractor/build.gradle.kts
     git commit -m "chore: bump version to ${{ steps.version.outputs.VERSION }} [skip ci]"
     git push origin main
 ```
@@ -296,7 +296,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 
 **Advantages**:
 - ✅ Version visible in git history
-- ✅ `build.gradle` always shows current production version
+- ✅ `build.gradle.kts` always shows current production version
 - ✅ Local builds use correct version
 - ✅ Easy to see what version is deployed
 
@@ -321,15 +321,15 @@ chore: bump version to 0.5.5 [skip ci]
     # Pull latest to avoid conflicts
     git pull --rebase origin main
 
-    # Only commit if build.gradle changed
-    if git diff --quiet extractor/build.gradle; then
+    # Only commit if build.gradle.kts changed
+    if git diff --quiet extractor/build.gradle.kts; then
       echo "No version change detected, skipping commit"
       exit 0
     fi
 
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
-    git add extractor/build.gradle
+    git add extractor/build.gradle.kts
     git commit -m "chore: bump version to ${{ steps.version.outputs.VERSION }} [skip ci]"
 
     # Retry push if race condition occurs
