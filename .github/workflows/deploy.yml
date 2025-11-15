@@ -471,13 +471,13 @@ jobs:
     - name: Commit version and coverage badge
       run: |
         # Check if anything changed
-        if git diff --quiet extractor/build.gradle README.md; then
+        if git diff --quiet extractor/build.gradle.kts README.md; then
           echo "No changes detected, skipping commit"
           exit 0
         fi
 
         # Stage all changes
-        git add extractor/build.gradle README.md
+        git add extractor/build.gradle.kts README.md
 
         # Build commit message
         if [ "${{ env.COVERAGE_UPDATED }}" = "true" ]; then

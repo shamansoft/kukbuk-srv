@@ -1,18 +1,26 @@
 #!/bin/bash
 
-GRADLE_FILE="../build.gradle"
+# Support both build.gradle and build.gradle.kts
+if [ -f "../build.gradle.kts" ]; then
+    GRADLE_FILE="../build.gradle.kts"
+elif [ -f "../build.gradle" ]; then
+    GRADLE_FILE="../build.gradle"
+else
+    echo "Error: Could not find build.gradle or build.gradle.kts" >&2
+    exit 1
+fi
 
 # Function to extract version from build.gradle (supports -SNAPSHOT suffix)
 extract_version() {
-    # Extract version from a line like: version = '0.2.2' or version = '0.2.2-SNAPSHOT'
-    VERSION=$(grep "version = '" $GRADLE_FILE | grep -oE "[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?" | head -1)
+    # Extract version from a line like: version = '0.2.2' or version = "0.2.2" or version = "0.2.2-SNAPSHOT"
+    VERSION=$(grep "version = " $GRADLE_FILE | grep -oE "[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?" | head -1)
 
     # Validate the extracted version
     if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
         echo $VERSION
         return 0
     else
-        echo "Error: Could not extract valid version from build.gradle." >&2
+        echo "Error: Could not extract valid version from $GRADLE_FILE." >&2
         return 1
     fi
 }
@@ -68,15 +76,22 @@ update_version_in_gradle() {
     local old_version=$1
     local new_version=$2
 
-    echo "Updating build.gradle: changing version from $old_version to $new_version"
+    echo "Updating $GRADLE_FILE: changing version from $old_version to $new_version"
+
+    # Detect which quote style is used in the file
+    if grep -q 'version = "' $GRADLE_FILE; then
+        QUOTE='"'
+    else
+        QUOTE="'"
+    fi
 
     # Create a temporary file
     TEMP_FILE=$(mktemp)
 
     # Process the file line by line
     while IFS= read -r line; do
-        if [[ "$line" == "version = '$old_version'" ]]; then
-            echo "version = '$new_version'" >> "$TEMP_FILE"
+        if [[ "$line" == "version = ${QUOTE}${old_version}${QUOTE}" ]]; then
+            echo "version = ${QUOTE}${new_version}${QUOTE}" >> "$TEMP_FILE"
             echo "Found and replaced version line" >&2
         else
             echo "$line" >> "$TEMP_FILE"
@@ -84,13 +99,13 @@ update_version_in_gradle() {
     done < $GRADLE_FILE
 
     # Check if any replacements were made
-    if grep -q "version = '$new_version'" "$TEMP_FILE"; then
+    if grep -q "version = ${QUOTE}${new_version}${QUOTE}" "$TEMP_FILE"; then
         # Move the temp file to the original
         mv "$TEMP_FILE" $GRADLE_FILE
-        echo "Successfully updated build.gradle"
+        echo "Successfully updated $GRADLE_FILE"
         return 0
     else
-        echo "Error: Failed to update version in build.gradle" >&2
+        echo "Error: Failed to update version in $GRADLE_FILE" >&2
         rm "$TEMP_FILE"
         return 1
     fi
@@ -98,17 +113,17 @@ update_version_in_gradle() {
 
 # Main function to update the version (legacy - increments patch)
 update_version() {
-    echo "Checking build.gradle for version..."
+    echo "Checking $GRADLE_FILE for version..."
 
     # Extract current version from build.gradle
     CURRENT_VERSION=$(extract_version)
 
     if [ -z "$CURRENT_VERSION" ]; then
-        echo "Error: Could not extract version from build.gradle"
+        echo "Error: Could not extract version from $GRADLE_FILE"
         return 1
     fi
 
-    echo "Current version in build.gradle: $CURRENT_VERSION"
+    echo "Current version in $GRADLE_FILE: $CURRENT_VERSION"
 
     # Increment patch version (removes -SNAPSHOT if present)
     NEW_VERSION=$(increment_patch $CURRENT_VERSION)
@@ -144,7 +159,7 @@ prepare_release() {
 
     CURRENT_VERSION=$(extract_version)
     if [ -z "$CURRENT_VERSION" ]; then
-        echo "Error: Could not extract version from build.gradle"
+        echo "Error: Could not extract version from $GRADLE_FILE"
         return 1
     fi
 
@@ -180,7 +195,7 @@ bump_to_next_snapshot() {
 
     CURRENT_VERSION=$(extract_version)
     if [ -z "$CURRENT_VERSION" ]; then
-        echo "Error: Could not extract version from build.gradle"
+        echo "Error: Could not extract version from $GRADLE_FILE"
         return 1
     fi
 

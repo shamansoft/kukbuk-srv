@@ -156,7 +156,7 @@ See [extractor/scripts/README.md](extractor/scripts/README.md) for legacy deploy
 │   └── pr-validation.yml # PR checks
 ├── extractor/            # Main application (renamed to 'cookbook' in Gradle)
 │   ├── src/             # Java source code
-│   ├── build.gradle     # Build configuration
+│   ├── build.gradle.kts # Build configuration
 │   ├── Dockerfile.native # Native image Docker build
 │   └── scripts/         # Legacy deployment scripts
 ├── recipe-sdk/          # Recipe data models

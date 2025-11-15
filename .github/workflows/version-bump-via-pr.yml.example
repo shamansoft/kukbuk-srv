@@ -7,8 +7,8 @@
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Check if build.gradle changed
-        if git diff --quiet extractor/build.gradle; then
+        # Check if build.gradle.kts changed
+        if git diff --quiet extractor/build.gradle.kts; then
           echo "No version change detected, skipping"
           exit 0
         fi
@@ -18,7 +18,7 @@
         git checkout -b "$BRANCH_NAME"
 
         # Stage and commit
-        git add extractor/build.gradle
+        git add extractor/build.gradle.kts
         git commit -m "chore: bump version to ${{ env.NEXT_SNAPSHOT }} [skip ci]"
 
         # Push branch
