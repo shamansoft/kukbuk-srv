@@ -195,7 +195,7 @@ docker stop cookbook
 
 ### version-updater.sh
 
-Manages version numbers in `build.gradle`.
+Manages version numbers in `build.gradle.kts` (or `build.gradle`).
 
 **Usage**:
 ```bash
@@ -217,7 +217,7 @@ add_snapshot
 ```
 
 **Functions**:
-- `extract_version`: Print current version from build.gradle
+- `extract_version`: Print current version from build.gradle.kts
 - `prepare_release`: Remove -SNAPSHOT suffix (0.6.5-SNAPSHOT → 0.6.5)
 - `bump_to_next_snapshot`: Increment patch and add -SNAPSHOT (0.6.5 → 0.6.6-SNAPSHOT)
 - `remove_snapshot`: Remove -SNAPSHOT from current version
@@ -246,7 +246,7 @@ bump_to_next_snapshot  # 0.6.5 → 0.6.6-SNAPSHOT
 
 # 5. Commit version bump
 cd ../../
-git add extractor/build.gradle
+git add extractor/build.gradle.kts
 git commit -m "chore: bump version to 0.6.6-SNAPSHOT"
 git push origin main
 ```
@@ -307,7 +307,7 @@ cd extractor/scripts
 source ./version-updater.sh
 bump_to_next_snapshot
 
-git add ../../extractor/build.gradle
+git add ../../extractor/build.gradle.kts
 git commit -m "chore: bump to 0.6.6-SNAPSHOT"
 git push origin main
 ```
