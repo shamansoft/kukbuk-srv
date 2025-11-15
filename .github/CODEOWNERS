@@ -21,7 +21,7 @@
 
 # Configuration files - require explicit review
 /extractor/src/main/resources/application*.yaml @khisamutdinov
-/extractor/build.gradle @khisamutdinov
+/extractor/build.gradle.kts @khisamutdinov
 /settings.gradle @khisamutdinov
 
 # Source code - require explicit review

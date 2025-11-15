@@ -206,7 +206,7 @@ Location: `extractor/scripts/version-updater.sh`
 
 **Initial state** (in `main` branch):
 ```
-build.gradle: version = '0.5.5-SNAPSHOT'
+build.gradle.kts: version = '0.5.5-SNAPSHOT'
 ```
 
 **On merge to main**, workflow:
@@ -218,7 +218,7 @@ build.gradle: version = '0.5.5-SNAPSHOT'
 
 **Final state**:
 ```
-build.gradle: version = '0.5.6-SNAPSHOT'
+build.gradle.kts: version = '0.5.6-SNAPSHOT'
 Git tags: v0.5.5
 Production: running 0.5.5
 ```
@@ -296,7 +296,7 @@ Configure in GitHub Settings → Secrets:
 
 1. Check coverage report in PR comment
 2. Add tests for uncovered code
-3. Or adjust threshold in `build.gradle` (not recommended)
+3. Or adjust threshold in `build.gradle.kts` (not recommended)
 
 ### Security Scan Fails
 
@@ -363,7 +363,7 @@ refactor: simplify extraction logic
 
 ### Version Management
 
-- **Never** manually edit version in `build.gradle` after merge
+- **Never** manually edit version in `build.gradle.kts` after merge
 - Always use -SNAPSHOT for development
 - Let CI/CD handle version bumps
 
@@ -371,7 +371,7 @@ refactor: simplify extraction logic
 
 If you have an existing workflow:
 
-1. **Update build.gradle** to use -SNAPSHOT version
+1. **Update build.gradle.kts** to use -SNAPSHOT version
    ```gradle
    version = '0.5.5-SNAPSHOT'
    ```

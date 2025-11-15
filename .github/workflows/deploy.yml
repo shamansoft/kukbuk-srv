@@ -183,7 +183,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    # Apply release version to build.gradle (prepared in test job)
+    # Apply release version to build.gradle.kts (prepared in test job)
     - name: Apply release version
       working-directory: extractor/scripts
       run: |

@@ -104,7 +104,7 @@ cd extractor/scripts
 # Expected: 0.6.1-SNAPSHOT
 
 # Reset to original
-git checkout ../build.gradle
+git checkout ../build.gradle.kts
 ```
 
 ### Scenario 2: Test PR Validation
@@ -144,7 +144,7 @@ git push origin --delete v0.6.0
 # Reset version in main
 git checkout main
 git pull
-# Edit build.gradle to revert version
+# Edit build.gradle.kts to revert version
 git commit -am "chore: revert test version [skip ci]"
 git push
 ```
@@ -235,7 +235,7 @@ echo "Next: $NEXT"
 # 0.6.1-SNAPSHOT
 
 # Reset
-git checkout ../build.gradle
+git checkout ../build.gradle.kts
 ```
 
 ### Test Build Script Changes

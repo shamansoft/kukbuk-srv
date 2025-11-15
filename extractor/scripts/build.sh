@@ -43,7 +43,7 @@ fi
 
 # Check for tag and auto-generate if missing
 if [ -z "$TAG" ]; then
-    echo "No tag provided. Generating from build.gradle version..."
+    echo "No tag provided. Generating from build.gradle.kts version..."
     # Source the version updater script
     source ./version-updater.sh
     # Capture only the last line (the new version) from update_version's output
