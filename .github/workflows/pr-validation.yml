@@ -158,24 +158,24 @@ jobs:
 
           const body = `## 🔒 Security Scan Results
 
-${status}
+          ${status}
 
-| Severity | Count |
-|----------|-------|
-| 🚨 Critical | ${critical} |
-| ⚠️ High | ${high} |
-| ⚡ Medium | ${medium} |
-| ℹ️ Low | ${low} |
-| **Total** | **${total}** |
+          | Severity | Count |
+          |----------|-------|
+          | 🚨 Critical | ${critical} |
+          | ⚠️ High | ${high} |
+          | ⚡ Medium | ${medium} |
+          | ℹ️ Low | ${low} |
+          | **Total** | **${total}** |
 
-${parseInt(critical) > 0 || parseInt(high) > 0 ? '⚠️ **Action Required**: Please review and address critical/high severity vulnerabilities before merging.' : '✅ All clear! No critical or high severity vulnerabilities detected.'}
+          ${parseInt(critical) > 0 || parseInt(high) > 0 ? '⚠️ **Action Required**: Please review and address critical/high severity vulnerabilities before merging.' : '✅ All clear! No critical or high severity vulnerabilities detected.'}
 
-<details>
-<summary>View detailed report</summary>
+          <details>
+          <summary>View detailed report</summary>
 
-Download the \`pr-security-reports\` artifact from the workflow run for the full OWASP Dependency-Check report.
+          Download the \`pr-security-reports\` artifact from the workflow run for the full OWASP Dependency-Check report.
 
-</details>`;
+          </details>`;
 
           // Find existing comment
           const { data: comments } = await github.rest.issues.listComments({
