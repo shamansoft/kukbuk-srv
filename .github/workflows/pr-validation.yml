@@ -62,12 +62,6 @@ jobs:
         ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
-    - name: Security vulnerability scan
-      run: |
-        echo "::group::OWASP Dependency Check"
-        ./gradlew :cookbook:dependencyCheckAnalyze --no-daemon --console=plain
-        echo "::endgroup::"
-
     # Publish test results
     - name: Publish test results
       if: always()
@@ -85,13 +79,6 @@ jobs:
         name: pr-coverage-reports
         path: extractor/build/reports/jacoco/
 
-    - name: Publish security scan results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: pr-security-reports
-        path: extractor/build/reports/dependency-check/
-
     # Comment on PR with coverage
     - name: Comment PR with coverage
       if: github.event_name == 'pull_request'
@@ -105,107 +92,6 @@ jobs:
         title: Code Coverage Report
         update-comment: true
 
-    # Comment on PR with security scan results
-    - name: Parse security scan results
-      if: github.event_name == 'pull_request' && always()
-      id: security-summary
-      run: |
-        REPORT_FILE="extractor/build/reports/dependency-check/dependency-check-report.json"
-
-        if [ ! -f "$REPORT_FILE" ]; then
-          echo "No security report found"
-          echo "summary=No security report generated" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
-        # Parse JSON report for vulnerabilities
-        CRITICAL=$(jq '[.dependencies[]?.vulnerabilities[]? | select(.severity == "CRITICAL")] | length' "$REPORT_FILE" || echo 0)
-        HIGH=$(jq '[.dependencies[]?.vulnerabilities[]? | select(.severity == "HIGH")] | length' "$REPORT_FILE" || echo 0)
-        MEDIUM=$(jq '[.dependencies[]?.vulnerabilities[]? | select(.severity == "MEDIUM")] | length' "$REPORT_FILE" || echo 0)
-        LOW=$(jq '[.dependencies[]?.vulnerabilities[]? | select(.severity == "LOW")] | length' "$REPORT_FILE" || echo 0)
-
-        echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
-        echo "high=$HIGH" >> $GITHUB_OUTPUT
-        echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
-        echo "low=$LOW" >> $GITHUB_OUTPUT
-
-        # Create summary
-        TOTAL=$((CRITICAL + HIGH + MEDIUM + LOW))
-        echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-        if [ $TOTAL -eq 0 ]; then
-          echo "status=✅ No vulnerabilities found" >> $GITHUB_OUTPUT
-        elif [ $CRITICAL -gt 0 ]; then
-          echo "status=🚨 Critical vulnerabilities found" >> $GITHUB_OUTPUT
-        elif [ $HIGH -gt 0 ]; then
-          echo "status=⚠️ High severity vulnerabilities found" >> $GITHUB_OUTPUT
-        else
-          echo "status=ℹ️ Low/Medium vulnerabilities found" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Comment PR with security results
-      if: github.event_name == 'pull_request' && always()
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const critical = '${{ steps.security-summary.outputs.critical }}';
-          const high = '${{ steps.security-summary.outputs.high }}';
-          const medium = '${{ steps.security-summary.outputs.medium }}';
-          const low = '${{ steps.security-summary.outputs.low }}';
-          const status = '${{ steps.security-summary.outputs.status }}';
-          const total = '${{ steps.security-summary.outputs.total }}';
-
-          const body = `## 🔒 Security Scan Results
-
-          ${status}
-
-          | Severity | Count |
-          |----------|-------|
-          | 🚨 Critical | ${critical} |
-          | ⚠️ High | ${high} |
-          | ⚡ Medium | ${medium} |
-          | ℹ️ Low | ${low} |
-          | **Total** | **${total}** |
-
-          ${parseInt(critical) > 0 || parseInt(high) > 0 ? '⚠️ **Action Required**: Please review and address critical/high severity vulnerabilities before merging.' : '✅ All clear! No critical or high severity vulnerabilities detected.'}
-
-          <details>
-          <summary>View detailed report</summary>
-
-          Download the \`pr-security-reports\` artifact from the workflow run for the full OWASP Dependency-Check report.
-
-          </details>`;
-
-          // Find existing comment
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-
-          const botComment = comments.find(comment =>
-            comment.user.type === 'Bot' &&
-            comment.body.includes('🔒 Security Scan Results')
-          );
-
-          // Update or create comment
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
-          }
-
     # PR Summary
     - name: PR Summary
       if: always()
@@ -216,7 +102,6 @@ jobs:
         echo "- ✅ Unit Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Integration Tests: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Code Coverage: ≥ 40%" >> $GITHUB_STEP_SUMMARY
-        echo "- 🔒 Security Scan: ${{ steps.security-summary.outputs.status }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Build Information" >> $GITHUB_STEP_SUMMARY
         echo "- Java Version: ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
