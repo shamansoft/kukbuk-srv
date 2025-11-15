@@ -452,10 +452,10 @@ jobs:
           echo "✅ Updated existing coverage badge"
         else
           # Add badge after title
-          sed -i.bak "2i\\
-$BADGE\\
-" README.md
-          rm README.md.bak
+          # Use a temp file to avoid YAML parsing issues
+          echo "$BADGE" > /tmp/badge.txt
+          sed -i.bak "2r /tmp/badge.txt" README.md
+          rm README.md.bak /tmp/badge.txt
           echo "✅ Added new coverage badge"
         fi
 
