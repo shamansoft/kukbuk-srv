@@ -12,6 +12,8 @@ owasp-dependency-check = "10.0.4"
 jsoup = "1.15.3"
 google-cloud-firestore = "3.15.4"
 google-cloud-storage = "2.30.1"
+firebase-admin = "9.3.0"
+google-cloud-kms = "2.30.0"
 
 # Testing
 junit-jupiter = "5.10.1"
@@ -44,6 +46,8 @@ spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-star
 # Google Cloud
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
 google-cloud-storage = { module = "com.google.cloud:google-cloud-storage", version.ref = "google-cloud-storage" }
+firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = "firebase-admin" }
+google-cloud-kms = { module = "com.google.cloud:google-cloud-kms", version.ref = "google-cloud-kms" }
 
 # Web Scraping
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
@@ -88,7 +92,9 @@ spring-boot-starters = [
 
 google-cloud = [
     "google-cloud-firestore",
-    "google-cloud-storage"
+    "google-cloud-storage",
+    "firebase-admin",
+    "google-cloud-kms"
 ]
 
 testcontainers = [
