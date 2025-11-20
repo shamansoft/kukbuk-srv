@@ -1,22 +1,16 @@
 # Token Broker Cloud Function configuration
 
-# Enable required APIs
-resource "google_project_service" "cloudfunctions_api" {
-  service    = "cloudfunctions.googleapis.com"
-  depends_on = [google_project_service.serviceusage_api]
-}
-
-resource "google_project_service" "cloudbuild_api" {
-  service    = "cloudbuild.googleapis.com"
-  depends_on = [google_project_service.serviceusage_api]
-}
-
 # Create a storage bucket for Cloud Function source code
 resource "google_storage_bucket" "function_source" {
   name                        = "${var.project_id}-function-source"
   location                    = var.region
   uniform_bucket_level_access = true
   force_destroy               = true
+
+  depends_on = [
+    google_project_service.cloudfunctions_api,
+    google_project_service.cloudbuild_api
+  ]
 }
 
 # Create source code archive
@@ -71,9 +65,6 @@ resource "google_cloudfunctions2_function" "token_broker" {
     google_project_service.cloudbuild_api,
   ]
 }
-
-# Get current project info
-data "google_project" "current" {}
 
 # Make the function publicly accessible
 resource "google_cloudfunctions2_function_iam_member" "invoker" {
