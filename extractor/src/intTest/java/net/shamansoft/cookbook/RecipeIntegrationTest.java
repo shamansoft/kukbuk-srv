@@ -88,6 +88,17 @@ class RecipeIntegrationTest {
                     .build()
                     .getService();
         }
+
+        @Bean
+        @Primary
+        public com.google.firebase.auth.FirebaseAuth firebaseAuth() throws Exception {
+            com.google.firebase.auth.FirebaseAuth mockAuth = org.mockito.Mockito.mock(com.google.firebase.auth.FirebaseAuth.class);
+            com.google.firebase.auth.FirebaseToken mockToken = org.mockito.Mockito.mock(com.google.firebase.auth.FirebaseToken.class);
+            org.mockito.Mockito.when(mockToken.getUid()).thenReturn("test-user-id");
+            org.mockito.Mockito.when(mockToken.getEmail()).thenReturn("test@example.com");
+            org.mockito.Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString())).thenReturn(mockToken);
+            return mockAuth;
+        }
     }
 
     @DynamicPropertySource
@@ -100,12 +111,16 @@ class RecipeIntegrationTest {
         registry.add("cookbook.drive.upload-url", () -> wiremockUrl);
         registry.add("cookbook.drive.auth-url", () -> wiremockUrl);
         registry.add("cookbook.google.oauth-id", () -> "test-client-id");
+        registry.add("cookbook.google.oauth-secret", () -> "test-client-secret");
         registry.add("cookbook.gemini.api-key", () -> "test-api-key");
 
         // Configure Firestore to use emulator
         registry.add("recipe.store.enabled", () -> "true");
         registry.add("firestore.enabled", () -> "true");
         registry.add("google.cloud.project-id", () -> "test-project");
+
+        // Disable Firebase (use mock instead)
+        registry.add("firebase.enabled", () -> "false");
     }
 
     @BeforeEach
@@ -253,9 +268,10 @@ class RecipeIntegrationTest {
 
         Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/recipe");
 
-        // Set up headers with auth token
+        // Set up headers with auth tokens
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-S-AUTH-TOKEN", "valid-token");
+        headers.setBearerAuth("test-firebase-token");  // Firebase ID token
+        headers.set("X-Google-Token", "valid-token");  // Google OAuth token for Drive
         headers.set("Content-Type", "application/json");
 
         HttpEntity<Request> entity = new HttpEntity<>(request, headers);
@@ -417,9 +433,10 @@ class RecipeIntegrationTest {
 
         Request request = new Request(sampleHtml, "Cached Chocolate Chip Cookies", testUrl);
 
-        // Set up headers with auth token
+        // Set up headers with auth tokens
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-S-AUTH-TOKEN", "valid-token");
+        headers.setBearerAuth("test-firebase-token");  // Firebase ID token
+        headers.set("X-Google-Token", "valid-token");  // Google OAuth token for Drive
         headers.set("Content-Type", "application/json");
 
         HttpEntity<Request> entity = new HttpEntity<>(request, headers);
