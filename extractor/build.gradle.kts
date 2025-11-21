@@ -147,6 +147,7 @@ graalvmNative {
         named("main") {
             imageName.set("cookbook")
             resources.autodetect()
+            buildArgs.add("--initialize-at-build-time=org.slf4j")
         }
     }
 }
