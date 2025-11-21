@@ -1,8 +1,9 @@
 package net.shamansoft.cookbook.config;
 
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
-import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -12,13 +13,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test configuration that provides a mock FirebaseAuth bean for integration tests.
+ * Test configuration that provides mock Firebase/Firestore beans for integration tests.
  *
- * This replaces the production FirebaseAuth bean during tests, allowing tests
- * to control authentication behavior without needing real Firebase credentials.
+ * This replaces the production beans during tests, allowing tests to run
+ * without needing real GCP credentials.
  */
 @TestConfiguration
 public class TestFirebaseConfig {
+
+    @Bean
+    @Primary
+    public FirebaseApp mockFirebaseApp() {
+        return mock(FirebaseApp.class);
+    }
 
     @Bean
     @Primary
@@ -34,5 +41,11 @@ public class TestFirebaseConfig {
         when(mockAuth.verifyIdToken(anyString())).thenReturn(mockToken);
 
         return mockAuth;
+    }
+
+    @Bean
+    @Primary
+    public Firestore mockFirestore() {
+        return mock(Firestore.class);
     }
 }

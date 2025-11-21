@@ -1,0 +1,38 @@
+# Test configuration - disables real GCP services
+firestore:
+  enabled: false
+
+firebase:
+  enabled: false
+
+recipe:
+  cache:
+    enabled: false
+
+spring:
+  application:
+    name: cookbook-test
+
+cookbook:
+  gemini:
+    api-key: "test-api-key"
+    base-url: "https://generativelanguage.googleapis.com/v1beta"
+    model: "gemini-2.0-flash"
+    prompt: "test prompt"
+    temperature: 0.1
+    top-p: 0.8
+  drive:
+    folder-name: "kukbuk-test"
+    application-name: "cookbook-test"
+    upload-url: "https://www.googleapis.com/upload/drive/v3"
+    base-url: "https://www.googleapis.com/drive/v3"
+    auth-url: "https://oauth2.googleapis.com"
+  google:
+    oauth-id: "test-oauth-id"
+    oauth-secret: "test-oauth-secret"
+
+logging:
+  level:
+    net.shamansoft.cookbook: DEBUG
+    com.google.cloud: WARN
+    root: WARN

@@ -5,6 +5,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,6 +16,7 @@ import java.io.IOException;
 public class FirebaseConfig {
 
     @Bean
+    @ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = true)
     public FirebaseApp firebaseApp() throws IOException {
         if (FirebaseApp.getApps().isEmpty()) {
             FirebaseOptions options = FirebaseOptions.builder()
@@ -31,6 +33,7 @@ public class FirebaseConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = true)
     public FirebaseAuth firebaseAuth(FirebaseApp app) {
         return FirebaseAuth.getInstance(app);
     }
