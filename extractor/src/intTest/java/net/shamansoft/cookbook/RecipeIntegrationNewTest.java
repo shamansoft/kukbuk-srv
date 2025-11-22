@@ -54,6 +54,9 @@ class RecipeIntegrationNewTest {
     @MockitoSpyBean
     private Transformer transformer;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.google.firebase.auth.FirebaseAuth firebaseAuth;
+
     @Container
     static GenericContainer<?> wiremockContainer = new GenericContainer<>("wiremock/wiremock:3.3.1")
             .withExposedPorts(8080)
@@ -74,6 +77,7 @@ class RecipeIntegrationNewTest {
         registry.add("cookbook.drive.upload-url", () -> wiremockUrl);
         registry.add("cookbook.drive.auth-url", () -> wiremockUrl);
         registry.add("cookbook.google.oauth-id", () -> "test-client-id");
+        registry.add("cookbook.google.oauth-secret", () -> "test-client-secret");
         registry.add("cookbook.gemini.api-key", () -> "test-api-key");
 
         // Configure Firestore to use emulator
@@ -81,15 +85,24 @@ class RecipeIntegrationNewTest {
         registry.add("firestore.enabled", () -> "true");
         registry.add("google.cloud.project-id", () -> "test-project");
 
+        // Disable Firebase (use mock instead)
+        registry.add("firebase.enabled", () -> "false");
+
         // Point Firestore SDK to emulator via environment variable
         String emulatorHost = firestoreEmulator.getEmulatorEndpoint();
         System.setProperty("FIRESTORE_EMULATOR_HOST", emulatorHost);
     }
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         WireMock.configureFor("localhost", wiremockContainer.getMappedPort(8080));
         WireMock.reset(); // Clear any existing stubs
+
+        // Setup Firebase mock
+        com.google.firebase.auth.FirebaseToken mockToken = org.mockito.Mockito.mock(com.google.firebase.auth.FirebaseToken.class);
+        org.mockito.Mockito.when(mockToken.getUid()).thenReturn("test-user-id");
+        org.mockito.Mockito.when(mockToken.getEmail()).thenReturn("test@example.com");
+        org.mockito.Mockito.when(firebaseAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString())).thenReturn(mockToken);
 
         setupGoogleAuthMock();
         setupGeminiMock();
@@ -205,7 +218,8 @@ class RecipeIntegrationNewTest {
 
         // Set up headers with auth token
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-S-AUTH-TOKEN", "valid-token");
+        headers.setBearerAuth("test-firebase-token");  // Firebase ID token
+        headers.set("X-Google-Token", "valid-token");  // Google OAuth token for Drive
         headers.set("Content-Type", "application/json");
 
         HttpEntity<Request> entity = new HttpEntity<>(request, headers);
@@ -255,7 +269,8 @@ class RecipeIntegrationNewTest {
 
         // Set up headers with auth token
         HttpHeaders headers = new HttpHeaders();
-        headers.set("X-S-AUTH-TOKEN", "valid-token");
+        headers.setBearerAuth("test-firebase-token");  // Firebase ID token
+        headers.set("X-Google-Token", "valid-token");  // Google OAuth token for Drive
         headers.set("Content-Type", "application/json");
 
         HttpEntity<Request> entity = new HttpEntity<>(request, headers);

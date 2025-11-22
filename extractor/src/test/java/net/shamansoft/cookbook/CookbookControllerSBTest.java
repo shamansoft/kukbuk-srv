@@ -1,20 +1,26 @@
 package net.shamansoft.cookbook;
 
 import net.shamansoft.cookbook.client.ClientException;
+import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
+import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.UserProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -31,21 +37,21 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(TestFirebaseConfig.class)
 class CookbookControllerSBTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @MockitoBean
-    private RawContentService rawContentService;
+    private HtmlExtractor htmlExtractor;
 
     @MockitoBean
     private Transformer transformer;
 
     @MockitoBean
-    private Compressor compressor;
-    @MockitoBean
     private DriveService googleDriveService;
+
     @MockitoBean
     private TokenService tokenService;
 
@@ -55,15 +61,35 @@ class CookbookControllerSBTest {
     @MockitoBean
     private ContentHashService contentHashService;
 
+    @MockitoBean
+    private UserProfileService userProfileService;
+
+    @MockitoBean
+    private Compressor compressor;
+
+    @MockitoBean
+    private RawContentService rawContentService;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         // Set up default mock behavior for store services
         when(recipeStoreService.findStoredRecipeByHash(anyString()))
                 .thenReturn(Optional.empty());
-        
+
         // Set up content hash service mock
         when(contentHashService.generateContentHash(anyString()))
                 .thenReturn("mock-hash");
+
+        // Set up UserProfileService to fall back to header tokens
+        when(userProfileService.getValidOAuthToken(anyString()))
+                .thenThrow(new Exception("No OAuth token in profile"));
+    }
+
+    private HttpHeaders createHeadersWithOAuthToken() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Google-Token", "test-oauth-token");
+        headers.setBearerAuth("test-firebase-token");
+        return headers;
     }
 
     @Test
@@ -85,16 +111,18 @@ class CookbookControllerSBTest {
     @Test
     void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
-        when(compressor.decompress("compressed html")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
-        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
+        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
+
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 RecipeResponse.class
         );
 
@@ -107,17 +135,18 @@ class CookbookControllerSBTest {
     @Test
     void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
-        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
-        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
+        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 RecipeResponse.class
         );
 
@@ -132,9 +161,10 @@ class CookbookControllerSBTest {
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenThrow(new ClientException("Transformation error"));
 
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 Map.class
         );
 
@@ -147,9 +177,10 @@ class CookbookControllerSBTest {
     void invalidRequestReturnsBadRequest() {
         Request request = new Request(null, null, null);
 
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 Map.class
         );
 
@@ -163,12 +194,13 @@ class CookbookControllerSBTest {
     void createRecipe_withDecompressionFailure_shouldThrowException() throws IOException, AuthenticationException {
         // Given
         Request request = new Request("compressed html", "Title", "http://example.com");
-        when(compressor.decompress("compressed html")).thenThrow(new IOException("Decompression failed"));
+        when(htmlExtractor.extractHtml(request, null)).thenThrow(new IOException("Decompression failed"));
 
         // When/Then
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 Map.class
         );
 
@@ -181,17 +213,19 @@ class CookbookControllerSBTest {
     void createRecipe_withNoneCompression_shouldSkipDecompression() throws IOException, AuthenticationException {
         // Given
         Request request = new Request("raw html", "Title", "http://example.com");
+        when(htmlExtractor.extractHtml(request, "none")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
-        when(googleDriveService.getOrCreateFolder("auth-token")).thenReturn("folder-id");
+        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
+        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         // When
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe?compression=none",
-                request,
+                requestEntity,
                 RecipeResponse.class
         );
 
@@ -204,14 +238,15 @@ class CookbookControllerSBTest {
     void createRecipe_whenContentIsNotRecipe_shouldNotStoreToDrive() throws IOException, AuthenticationException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
-        when(tokenService.getAuthToken(any())).thenReturn("auth-token");
+        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
 
         // When
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 RecipeResponse.class
         );
 
@@ -226,14 +261,15 @@ class CookbookControllerSBTest {
     void createRecipe_withAuthenticationFailure_shouldReturnUnauthorized() throws IOException, AuthenticationException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(rawContentService.fetch("http://example.com")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
         when(tokenService.getAuthToken(any())).thenThrow(new AuthenticationException("Invalid token"));
 
         // When
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 Map.class
         );
 
@@ -246,12 +282,13 @@ class CookbookControllerSBTest {
     void createRecipe_whenUrlFetchFails_shouldReturnBadRequest() throws IOException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(rawContentService.fetch("http://example.com")).thenThrow(new IOException("Failed to fetch URL"));
+        when(htmlExtractor.extractHtml(request, null)).thenThrow(new IOException("Failed to fetch URL"));
 
         // When
+        HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "/recipe",
-                request,
+                requestEntity,
                 Map.class
         );
 
@@ -263,9 +300,10 @@ class CookbookControllerSBTest {
     @Test
     void controllerMethod_createRecipe_worksWithParams() throws IOException, AuthenticationException {
         // Given
+        HtmlExtractor htmlExtractor = new HtmlExtractor(compressor, rawContentService);
         CookbookController controller = new CookbookController(
-                rawContentService, transformer, compressor, googleDriveService, tokenService, 
-                contentHashService, recipeStoreService
+                htmlExtractor, transformer, googleDriveService, tokenService,
+                contentHashService, recipeStoreService, userProfileService
         );
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));

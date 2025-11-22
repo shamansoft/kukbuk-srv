@@ -135,7 +135,7 @@ class TokenRestServiceTest {
         // Arrange
         String authToken = "test-token";
         HttpHeaders headers = new HttpHeaders();
-        headers.add("X-S-AUTH-TOKEN", authToken);
+        headers.add("X-Google-Token", authToken);
         Map<String, Object> tokenInfo = Map.of("aud", "test-aud");
 
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
@@ -157,7 +157,7 @@ class TokenRestServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> tokenRestService.getAuthToken(headers))
                 .isInstanceOf(javax.naming.AuthenticationException.class)
-                .hasMessage("Invalid auth token");
+                .hasMessage("Google OAuth token required for Drive access");
     }
 
     @Test
@@ -165,7 +165,7 @@ class TokenRestServiceTest {
         // Arrange
         String authToken = "invalid-token";
         HttpHeaders headers = new HttpHeaders();
-        headers.add("X-S-AUTH-TOKEN", authToken);
+        headers.add("X-Google-Token", authToken);
         when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
@@ -176,6 +176,6 @@ class TokenRestServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> tokenRestService.getAuthToken(headers))
                 .isInstanceOf(javax.naming.AuthenticationException.class)
-                .hasMessage("Invalid auth token");
+                .hasMessage("Invalid Google OAuth token");
     }
 }

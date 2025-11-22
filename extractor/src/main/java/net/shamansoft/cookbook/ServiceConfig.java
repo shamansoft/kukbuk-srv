@@ -73,6 +73,11 @@ public class ServiceConfig {
     }
 
     @Bean
+    public WebClient webClient() {
+        return WebClient.builder().build();
+    }
+
+    @Bean
     public HttpExchangeRepository httpExchangeRepository() {
         return new InMemoryHttpExchangeRepository();
     }

@@ -9,6 +9,14 @@ google:
     credentials:
       path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:}
 
+# GCP configuration
+gcp:
+  project-id: ${GCP_PROJECT_ID:kukbuk-tf}
+  kms:
+    location: ${GCP_KMS_LOCATION:us-west1}
+    keyring: ${GCP_KMS_KEYRING:cookbook-keyring}
+    key: ${GCP_KMS_KEY:oauth-token-key}
+
 # Firestore configuration
 firestore:
   enabled: ${FIRESTORE_ENABLED:true}
@@ -51,6 +59,7 @@ cookbook:
     auth-url: "https://oauth2.googleapis.com"
   google:
     oauth-id: "REPLACE WITH YOUR CLIENT ID"
+    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:}"
 management:
   endpoints:
     web:

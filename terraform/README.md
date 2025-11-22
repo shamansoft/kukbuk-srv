@@ -72,9 +72,11 @@ tofu apply -var="image_tag=v1.0.0"
 
 ### Core Infrastructure
 - **Cloud Run Service**: Main cookbook API service with auto-scaling
-- **Cloud Function**: Token broker for OAuth handling  
+- **Cloud Function**: Token broker for OAuth handling
 - **Firestore Database**: Native mode database for recipe storage
-- **Secret Manager**: Secure storage for API keys and service account keys
+- **Firestore Indexes**: Composite indexes for efficient queries (userId+createdAt, userId+title)
+- **Cloud KMS**: Key ring and crypto key for OAuth token encryption with 90-day rotation
+- **Secret Manager**: Secure storage for API keys and OAuth credentials
 - **Storage Bucket**: Cloud Function source code storage
 - **IAM Policies**: Service access permissions and roles
 
@@ -83,11 +85,22 @@ tofu apply -var="image_tag=v1.0.0"
 - Cloud Functions API (Gen 2)
 - Cloud Build API
 - Firestore API
+- Firebase API
+- Firebase Rules API
+- Identity Toolkit API (Firebase Auth)
 - Secret Manager API
+- Cloud KMS API
+- IAM Credentials API
 
 ### Service Accounts
 - **Cookbook Cloud Run Service Account**: For the main API service
-- **Firestore Service Account**: For database access with `datastore.user` role
+- **IAM Roles Granted**:
+  - `roles/datastore.user` - Firestore read/write access
+  - `roles/datastore.viewer` - Firestore read access
+  - `roles/firebase.admin` - Firebase token verification
+  - `roles/secretmanager.secretAccessor` - Secret Manager access
+  - `roles/run.invoker` - Cloud Run self-invocation
+  - `roles/cloudkms.cryptoKeyEncrypterDecrypter` - KMS encryption/decryption
 
 ## Managing Secrets
 
@@ -106,14 +119,45 @@ echo -n "your-oauth-client-id" | gcloud secrets create google-oauth-id --data-fi
 # Firestore service account key is created automatically by Terraform
 ```
 
+## OAuth Token Encryption (KMS)
+
+The infrastructure includes Cloud KMS for encrypting Google OAuth tokens before storing them in Firestore:
+
+### Security Features
+- **Automatic Key Rotation**: Crypto key rotates every 90 days for enhanced security
+- **Encryption at Rest**: OAuth tokens encrypted using Google-managed encryption keys
+- **Access Control**: Only the cookbook service account can encrypt/decrypt
+- **Audit Logging**: All encryption operations logged via Cloud Logging
+
+### KMS Resources Created
+- **Key Ring**: `cookbook-keyring` (regional, in us-west1)
+- **Crypto Key**: `oauth-token-key` (ENCRYPT_DECRYPT purpose)
+- **IAM Binding**: Service account granted `roles/cloudkms.cryptoKeyEncrypterDecrypter`
+
+### Backend Integration
+Your backend's `TokenEncryptionService` should use this key to:
+1. Encrypt OAuth tokens when users sign in
+2. Decrypt OAuth tokens when making Drive API calls
+3. Benefit from automatic key rotation
+
+### Accessing KMS from Backend
+```java
+// Example: Get the KMS key ID from outputs
+// tofu output -raw kms_crypto_key_id
+String cryptoKeyId = "projects/kukbuk-tf/locations/us-west1/keyRings/cookbook-keyring/cryptoKeys/oauth-token-key";
+```
+
 ## Environment Variables
 
 The Cloud Run service is automatically configured with:
 - `SPRING_PROFILES_ACTIVE=gcp`
 - `COOKBOOK_GEMINI_API_KEY` (from Secret Manager)
 - `COOKBOOK_GOOGLE_OAUTH_ID` (from Secret Manager)
-- `FIRESTORE_SERVICE_KEY` (from Secret Manager - auto-generated)
+- `GOOGLE_CLOUD_PROJECT_ID` (your GCP project ID)
 - `FIRESTORE_PROJECT_ID` (your GCP project ID)
+- `GOOGLE_CLOUD_PROJECT` (your GCP project ID)
+- `FIRESTORE_ENABLED=true`
+- `RECIPE_CACHE_ENABLED=true`
 
 ## Testing Setup
 
@@ -156,7 +200,13 @@ After successful deployment:
 - `cloud_run_url`: Main API service URL
 - `token_broker_url`: OAuth token broker URL
 - `firestore_database_name`: Database name (usually "(default)")
+- `firestore_location`: Firestore database location
 - `firestore_service_account_email`: Service account for database access
+- `service_account_email`: Cookbook service account email
+- `kms_keyring_name`: KMS Key Ring name
+- `kms_crypto_key_name`: KMS Crypto Key name for OAuth token encryption
+- `kms_crypto_key_id`: Full KMS Crypto Key ID (use this in backend)
+- `enabled_apis`: List of all enabled GCP APIs
 - `project_id`: GCP Project ID used
 - `revision_tag`: Cloud Run revision tag
 
@@ -202,11 +252,22 @@ curl $(tofu output -raw token_broker_url)
 
 ## Files Structure
 
-- `main.tf` - Core Cloud Run service and variables
-- `firestore.tf` - Firestore database and service account
-- `token-broker.tf` - Cloud Function for OAuth
-- `versions.tf` - Provider requirements  
-- `Makefile` - Docker-based automation
+### Configuration Files
+- `main.tf` - Provider configuration, locals, and data sources
+- `variables.tf` - Input variables for all resources
+- `versions.tf` - Terraform/OpenTofu and provider version requirements
+- `apis.tf` - Centralized GCP API enablement (13 APIs)
+- `iam.tf` - Service account and IAM role bindings
+- `cloudrun.tf` - Cloud Run service and Secret Manager integration
+- `firestore.tf` - Firestore database, indexes, and security rules
+- `kms.tf` - Cloud KMS key ring and crypto key for OAuth token encryption
+- `token-broker.tf` - Cloud Function for OAuth token handling
+
+### Supporting Files
+- `Makefile` - Docker-based automation commands
+- `Dockerfile` - OpenTofu container with gcloud SDK
+- `Dockerfile.minimal` - Minimal OpenTofu container
+- `firestore.rules` - Firestore security rules
 - `firestore-schema.md` - Database schema documentation
 - `no-git/` - Service account keys (gitignored)
 

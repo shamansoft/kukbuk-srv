@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.owasp.dependency.check)
 }
 
-version = "0.6.9-SNAPSHOT"
+version = "0.7.0-SNAPSHOT"
 
 springBoot {
     buildInfo()   // This will generate a build-info.properties file with accurate values
@@ -147,6 +147,7 @@ graalvmNative {
         named("main") {
             imageName.set("cookbook")
             resources.autodetect()
+            buildArgs.add("--initialize-at-build-time=org.slf4j")
         }
     }
 }
