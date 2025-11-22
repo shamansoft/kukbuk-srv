@@ -54,17 +54,7 @@ dependencies {
     // Google Cloud Services
     implementation(libs.bundles.google.cloud) {
         exclude(group = "commons-logging", module = "commons-logging")
-        // Exclude gRPC from firebase-admin to avoid version conflicts with Firestore
-        exclude(group = "io.grpc")
     }
-    // Add gRPC back with consistent version from Firestore
-    implementation("io.grpc:grpc-api:1.59.1")
-    implementation("io.grpc:grpc-core:1.59.1")
-    implementation("io.grpc:grpc-context:1.59.1")
-    implementation("io.grpc:grpc-stub:1.59.1")
-    implementation("io.grpc:grpc-protobuf:1.59.1")
-    implementation("io.grpc:grpc-netty-shaded:1.59.1")
-    implementation("io.grpc:grpc-auth:1.59.1")
 
     // Bean Validation Implementation (runtime only - needed for validation to work)
     runtimeOnly(libs.hibernate.validator)
