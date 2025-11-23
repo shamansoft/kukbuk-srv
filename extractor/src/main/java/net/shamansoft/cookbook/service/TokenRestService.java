@@ -37,10 +37,19 @@ public class TokenRestService implements TokenService {
 
     @Override
     public String getAuthToken(HttpHeaders httpHeaders) throws AuthenticationException {
-        String authToken = httpHeaders.getFirst("X-S-AUTH-TOKEN");
-        if (authToken == null || authToken.isBlank() || !verifyToken(authToken)) {
-            throw new AuthenticationException("Invalid auth token");
+        // Look for Google OAuth token in X-Google-Token header
+        String authToken = httpHeaders.getFirst("X-Google-Token");
+
+        if (authToken == null || authToken.isBlank()) {
+            log.warn("No Google OAuth token found in X-Google-Token header");
+            throw new AuthenticationException("Google OAuth token required for Drive access");
         }
+
+        // Optionally verify the token is valid
+        if (!verifyToken(authToken)) {
+            throw new AuthenticationException("Invalid Google OAuth token");
+        }
+
         return authToken;
     }
 }

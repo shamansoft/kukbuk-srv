@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook;
 
+import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.model.StoredRecipe;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Map;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
+@Import(TestFirebaseConfig.class)
 class CookbookControllerStoreServiceTest {
 
     @Autowired
@@ -37,10 +40,7 @@ class CookbookControllerStoreServiceTest {
     private TokenService tokenService;
 
     @MockitoBean
-    private RawContentService rawContentService;
-
-    @MockitoBean
-    private Compressor compressor;
+    private HtmlExtractor htmlExtractor;
 
     @MockitoBean
     private DriveService googleDriveService;
@@ -66,12 +66,8 @@ class CookbookControllerStoreServiceTest {
         when(tokenService.getAuthToken(any()))
                 .thenReturn("mock-auth-token");
         
-        // Set up compressor mock
-        when(compressor.decompress(anyString()))
-                .thenReturn("<html><body>Recipe content</body></html>");
-        
-        // Set up raw content service mock  
-        when(rawContentService.fetch(anyString()))
+        // Set up HTML extractor mock
+        when(htmlExtractor.extractHtml(any(Request.class), any(String.class)))
                 .thenReturn("<html><body>Recipe content</body></html>");
         
         // Set up Google Drive service mocks

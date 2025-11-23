@@ -9,7 +9,7 @@ on:
       - '.github/deployment-setup.md'
 
 env:
-  JAVA_VERSION: '21'
+  JAVA_VERSION: '25'
 
 # Allow only one validation per PR at a time
 concurrency:
