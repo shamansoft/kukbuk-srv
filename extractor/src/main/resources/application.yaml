@@ -5,7 +5,7 @@ spring:
 # Google Cloud configuration
 google:
   cloud:
-    project-id: ${GOOGLE_CLOUD_PROJECT_ID:cookbook-extractor}
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID}
     credentials:
       path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:}
 
