@@ -28,8 +28,9 @@ cookbook:
     temperature: 0.1
     top-p: 0.8
   google:
-    oauth-id: "${COOKBOOK_GOOGLE_OAUTH_ID}"
-    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET}"
+    #TODO: remove later defaults after setting env variables in deployment
+    oauth-id: "${COOKBOOK_GOOGLE_OAUTH_ID:REMOVE_LATER}"
+    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 
 # Logging configuration for GCP
 logging:

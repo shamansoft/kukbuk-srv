@@ -9,6 +9,10 @@ resource "google_kms_key_ring" "cookbook_keyring" {
   location = var.region
   project  = var.project_id
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   depends_on = [google_project_service.cloudkms_api]
 }
 
