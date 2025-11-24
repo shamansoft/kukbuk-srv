@@ -59,7 +59,7 @@ cookbook:
     auth-url: "https://oauth2.googleapis.com"
   google:
     oauth-id: "REPLACE WITH YOUR CLIENT ID"
-    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:}"
+    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 management:
   endpoints:
     web:
