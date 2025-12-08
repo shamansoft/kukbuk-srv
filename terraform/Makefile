@@ -7,9 +7,9 @@ help:
 	@echo "Available commands:"
 	@echo "  make build          - Build the OpenTofu Docker image"
 	@echo "  make shell          - Start interactive OpenTofu shell"
-	@echo "  make deploy TAG=v1  - Deploy with specific image tag"
-	@echo "  make plan TAG=v1    - Plan deployment with specific image tag"
-	@echo "  make apply TAG=v1   - Apply deployment with specific image tag"
+	@echo "  make deploy TAG=0.1.1  - Deploy with specific image tag"
+	@echo "  make plan TAG=0.1.1   - Plan deployment with specific image tag"
+	@echo "  make apply TAG=0.1.1   - Apply deployment with specific image tag"
 	@echo "  make destroy        - Destroy infrastructure"
 	@echo "  make clean          - Clean up Docker images and volumes"
 
@@ -61,6 +61,11 @@ plan: build
 apply: build
 	@echo "Applying deployment with image tag: $(TAG)"
 	$(DOCKER_RUN) -c "tofu apply -var='image_tag=$(TAG)' -auto-approve"
+
+# Import existing resources
+import: build
+	@echo "Importing resource $(ADDR) with ID $(ID)..."
+	$(DOCKER_RUN) -c "tofu import $(ADDR) $(ID)"
 
 # Deploy (plan + apply with confirmation)
 deploy: build
