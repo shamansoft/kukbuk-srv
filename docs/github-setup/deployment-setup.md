@@ -56,6 +56,14 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:github-actions-deploy@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/datastore.owner"
 
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:github-actions-deploy@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/firebaserules.admin"
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:github-actions-deploy@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="roles/cloudkms.admin"
+
 # Create and download key
 gcloud iam service-accounts keys create github-actions-key.json \
     --iam-account=github-actions-deploy@${PROJECT_ID}.iam.gserviceaccount.com

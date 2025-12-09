@@ -5,7 +5,7 @@ spring:
 # Google Cloud configuration
 google:
   cloud:
-    project-id: ${GOOGLE_CLOUD_PROJECT_ID:cookbook-extractor}
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID}
     credentials:
       path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:}
 
@@ -59,7 +59,7 @@ cookbook:
     auth-url: "https://oauth2.googleapis.com"
   google:
     oauth-id: "REPLACE WITH YOUR CLIENT ID"
-    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:}"
+    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 management:
   endpoints:
     web:

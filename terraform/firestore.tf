@@ -86,12 +86,6 @@ resource "google_firebaserules_release" "firestore" {
   name         = "cloud.firestore"
   ruleset_name = "projects/${var.project_id}/rulesets/${google_firebaserules_ruleset.firestore.name}"
 
-  lifecycle {
-    replace_triggered_by = [
-      google_firebaserules_ruleset.firestore
-    ]
-  }
-
   depends_on = [
     google_firebaserules_ruleset.firestore,
   ]
