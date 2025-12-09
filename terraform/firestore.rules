@@ -30,15 +30,32 @@ service cloud.firestore {
                                resource.data.userId == request.auth.uid;
     }
 
-    // =========================================================================
-    // USERS COLLECTION (Backend-Only Access)
-    // =========================================================================
-    // Users collection contains OAuth tokens and sensitive data
-    // Only backend service account can access (service accounts bypass rules)
-    // Clients must use backend API endpoints for profile operations
-    match /users/{userId} {
-      allow read, write: if false;  // Deny all client access
-    }
+     // =========================================================================
+     // USERS COLLECTION (Backend and Client access)
+     // =========================================================================
+     match /users/{userId} {
+       // Read: Only authenticated user can read their own profile
+       allow read: if isOwner(userId);
+
+       // Create: Validate immutable fields are set correctly
+       allow create: if isOwner(userId)
+         && request.resource.data.uid == userId
+         && request.resource.data.createdAt is int
+         && request.resource.data.createdAt > 0
+         && request.resource.data.email is string;
+
+       // Update: Prevent modifying immutable fields
+       allow update: if isOwner(userId)
+         && request.resource.data.uid == resource.data.uid
+         && request.resource.data.createdAt == resource.data.createdAt
+         && request.resource.data.email is string;
+
+       // Delete: Allow users to delete their own profile
+       allow delete: if isOwner(userId);
+
+       // Prevent listing all users (enumeration protection)
+       allow list: if false;
+     }
 
     // =========================================================================
     // RECIPE_STORE COLLECTION (Backend Cache)
