@@ -99,42 +99,6 @@ jobs:
         ./gradlew :cookbook:intTest --no-daemon --console=plain
         echo "::endgroup::"
 
-#    - name: Check code coverage
-#      run: |
-#        echo "::group::Code Coverage"
-#        ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
-#        echo "::endgroup::"
-
-#    - name: Security vulnerability scan
-#      run: |
-#        echo "::group::OWASP Dependency Check"
-#        ./gradlew :cookbook:dependencyCheckAnalyze --no-daemon --console=plain
-#        echo "::endgroup::"
-
-    # Publish test results and coverage reports
-#    - name: Publish test results
-#      if: always()
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: test-results
-#        path: |
-#          extractor/cookbook/build/reports/tests/
-#          extractor/cookbook/build/test-results/
-
-#    - name: Publish coverage reports
-#      if: always()
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: coverage-reports
-#        path: extractor/cookbook/build/reports/jacoco/
-#
-#    - name: Publish security scan results
-#      if: always()
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: security-reports
-#        path: extractor/cookbook/build/reports/dependency-check/
-
     # Upload coverage report for finalize job
     - name: Upload coverage report
       if: always()
@@ -152,8 +116,6 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.version.outputs.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Tests**: ✅ Completed" >> $GITHUB_STEP_SUMMARY
-#        echo "- **Coverage**: ✅ Meets 40% threshold" >> $GITHUB_STEP_SUMMARY
-#        echo "- **Security**: ✅ No high severity vulnerabilities" >> $GITHUB_STEP_SUMMARY
 
   # Phase 2: Build & Push Docker Image
   build-and-push:
@@ -344,10 +306,13 @@ jobs:
     needs: [test, build-and-push, deploy]
     runs-on: ubuntu-latest
     # Allow finalize to run even if build/deploy are skipped (for testing)
-    # Only skip if explicitly requested OR if test failed
+    # Only skip if explicitly requested, test failed, build/deploy failed, or not on main branch
     if: |
       always() &&
       needs.test.result == 'success' &&
+      (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
+      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped') &&
+      github.ref == 'refs/heads/main' &&
       !inputs.skip_finalize
     permissions:
       contents: write  # Required to push tags, commits, and create releases
