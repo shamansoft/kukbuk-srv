@@ -3,14 +3,16 @@ package net.shamansoft.cookbook;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.dto.OAuthTokenRequest;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RecipeStoreService;
+import net.shamansoft.cookbook.service.StorageService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.UserProfileService;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.naming.AuthenticationException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -48,6 +51,7 @@ public class CookbookController {
     private final ContentHashService contentHashService;
     private final RecipeStoreService recipeStoreService;
     private final UserProfileService userProfileService;
+    private final StorageService storageService;
 
     @GetMapping("/")
     public String gcpHealth() {
@@ -60,55 +64,36 @@ public class CookbookController {
     }
 
     /**
-     * Get current user's profile (basic info from Firebase token)
+     * Get current user's profile (basic info from Firebase token plus storage status)
      */
     @GetMapping("/api/user/profile")
-    public ResponseEntity<Map<String, String>> getUserProfile(
+    public ResponseEntity<Map<String, Object>> getUserProfile(
             @RequestAttribute("userId") String userId,
             @RequestAttribute("userEmail") String userEmail) {
 
         log.info("Getting profile for user: {}", userId);
 
-        return ResponseEntity.ok(Map.of(
-                "userId", userId,
-                "email", userEmail
-        ));
-    }
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("userId", userId);
+        profile.put("email", userEmail);
 
-    /**
-     * Store OAuth tokens after user sign-in
-     * <p>
-     * Clients call this endpoint after authentication to send OAuth tokens
-     * for secure storage on the backend. Backend will then manage token
-     * refresh automatically.
-     */
-    @PostMapping("/api/user/oauth-tokens")
-    public ResponseEntity<Map<String, String>> storeOAuthTokens(
-            @RequestAttribute("userId") String userId,
-            @RequestBody @Valid OAuthTokenRequest tokenRequest) {
-
-        log.info("Storing OAuth tokens for user: {}", userId);
-
+        // Add storage status (without exposing sensitive tokens)
         try {
-            userProfileService.storeOAuthTokens(
-                    userId,
-                    tokenRequest.getAccessToken(),
-                    tokenRequest.getRefreshToken(),
-                    tokenRequest.getExpiresIn()
-            );
+            boolean hasStorage = storageService.isStorageConnected(userId);
+            profile.put("hasStorageConfigured", hasStorage);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "message", "OAuth tokens stored successfully"
-            ));
-
+            if (hasStorage) {
+                StorageInfo storage = storageService.getStorageInfo(userId);
+                profile.put("storageType", storage.getType().getFirestoreValue());
+                profile.put("storageConnectedAt", storage.getConnectedAt());
+                // Intentionally NOT including access/refresh tokens for security
+            }
         } catch (Exception e) {
-            log.error("Failed to store OAuth tokens: {}", e.getMessage());
-            return ResponseEntity.status(500).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to store OAuth tokens: " + e.getMessage()
-            ));
+            log.debug("No storage configured for user {}: {}", userId, e.getMessage());
+            profile.put("hasStorageConfigured", false);
         }
+
+        return ResponseEntity.ok(profile);
     }
 
     RecipeResponse createRecipe(Request request,
@@ -118,6 +103,16 @@ public class CookbookController {
         return createRecipe(request, compression, "test-user", "test@example.com", new HttpHeaders(HttpHeaders.readOnlyHttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers)))));
     }
 
+    /**
+     * Save recipe endpoint
+     * <p>
+     * Authentication flow:
+     * 1. Firebase ID token required in Authorization header (validates user)
+     * 2. Backend retrieves storage OAuth tokens from Firestore (encrypted)
+     * 3. Backend uses storage provider to save recipe
+     * <p>
+     * No OAuth tokens in headers - all managed server-side!
+     */
     @PostMapping(
             path = "/recipe",
             consumes = "application/json",
@@ -137,22 +132,20 @@ public class CookbookController {
                 request.title(),
                 request.html() != null && !request.html().isEmpty(),
                 compression != null ? compression : "default");
-        log.debug("Headers: {}", httpHeaders);
 
-        // Get OAuth token from user profile (with auto-refresh)
-        // Fall back to X-Google-Token header for backward compatibility
+        // Get OAuth token from StorageService (NEW flow)
         String googleOAuthToken;
         try {
-            googleOAuthToken = userProfileService.getValidOAuthToken(userId);
-            log.debug("Using OAuth token from user profile");
+            StorageInfo storage = storageService.getStorageInfo(userId);
+            googleOAuthToken = storage.getAccessToken();
+            log.debug("Using OAuth token from StorageService");
+        } catch (StorageNotConnectedException e) {
+            log.warn("No storage configured for user: {}", userEmail);
+            // Exception handler will return HTTP 428 with proper error message
+            throw e;
         } catch (Exception e) {
-            // Fallback: Try X-Google-Token header (for clients not yet updated)
-            log.warn("Failed to get OAuth token from profile ({}), trying X-Google-Token header",
-                    e.getMessage());
-
-            // This will throw AuthenticationException if token is missing/invalid
-            googleOAuthToken = tokenService.getAuthToken(httpHeaders);
-            log.debug("Using OAuth token from X-Google-Token header (fallback)");
+            log.error("Failed to get storage info for user {}: {}", userEmail, e.getMessage());
+            throw new IOException("Failed to retrieve storage credentials: " + e.getMessage(), e);
         }
         // get hash
         String contentHash = contentHashService.generateContentHash(request.url());

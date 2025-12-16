@@ -3,6 +3,9 @@ package net.shamansoft.cookbook;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.service.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,10 +16,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -48,8 +53,27 @@ class CookbookControllerStoreServiceTest {
     @MockitoBean
     private ContentHashService contentHashService;
 
+    @MockitoBean
+    private StorageService storageService;
+
     @BeforeEach
     void setUp() throws Exception {
+        // Set up storage service mock - default to having storage configured
+        StorageInfo mockStorageInfo = StorageInfo.builder()
+                .type(StorageType.GOOGLE_DRIVE)
+                .connected(true)
+                .accessToken("mock-access-token")
+                .refreshToken("mock-refresh-token")
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .connectedAt(Instant.now())
+                .defaultFolderId("mock-folder-id")
+                .build();
+
+        when(storageService.getStorageInfo(anyString()))
+                .thenReturn(mockStorageInfo);
+        when(storageService.isStorageConnected(anyString()))
+                .thenReturn(true);
+
         // Set up default mock behavior for store service
         when(storeService.findStoredRecipeByHash(anyString()))
                 .thenReturn(Optional.empty());
@@ -139,6 +163,74 @@ class CookbookControllerStoreServiceTest {
         // Store methods are void now, so we verify they weren't called
         verify(storeService, never()).storeValidRecipe(anyString(), anyString(), anyString());
         verify(storeService, never()).storeInvalidRecipe(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should throw StorageNotConnectedException when no storage configured")
+    void shouldThrowStorageNotConnectedExceptionWhenNoStorage() throws Exception {
+        // Given
+        Request request = new Request(
+                "<html><body>Recipe content</body></html>",
+                "Test Recipe",
+                "https://example.com/recipe"
+        );
+
+        // Override the default mock to simulate no storage configured
+        when(storageService.getStorageInfo(anyString()))
+                .thenThrow(new StorageNotConnectedException("No storage configured"));
+        when(storageService.isStorageConnected(anyString()))
+                .thenReturn(false);
+
+        // When/Then
+        assertThatThrownBy(() -> controller.createRecipe(
+                request,
+                "none",
+                false,
+                Map.of()
+        ))
+        .isInstanceOf(StorageNotConnectedException.class)
+        .hasMessageContaining("No storage configured");
+
+        // Verify storage service was called
+        verify(storageService).getStorageInfo("test-user");
+    }
+
+    @Test
+    @DisplayName("Should successfully create recipe when storage is configured")
+    void shouldSuccessfullyCreateRecipeWithStorageConfigured() throws Exception {
+        // Given
+        Request request = new Request(
+                "<html><body>Recipe content</body></html>",
+                "Test Recipe",
+                "https://example.com/recipe"
+        );
+
+        // Storage service is already mocked in setUp() to return valid storage info
+
+        // When
+        RecipeResponse response = controller.createRecipe(
+                request,
+                "none",
+                false,
+                Map.of()
+        );
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.driveFileUrl()).isNotNull();
+        assertThat(response.driveFileUrl()).isEqualTo("https://drive.google.com/file/mock-file-id");
+
+        // Verify storage service was used to get access token
+        verify(storageService).getStorageInfo("test-user");
+
+        // Verify recipe was uploaded to Google Drive with the token from storage
+        verify(googleDriveService).uploadRecipeYaml(
+                anyString(),  // accessToken from storage
+                anyString(),  // folderId
+                anyString(),  // fileName
+                anyString()   // yaml content
+        );
     }
 
 }

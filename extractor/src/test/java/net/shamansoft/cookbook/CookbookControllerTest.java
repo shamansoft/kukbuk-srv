@@ -2,31 +2,41 @@ package net.shamansoft.cookbook;
 
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RecipeStoreService;
+import net.shamansoft.cookbook.service.StorageService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.UserProfileService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import javax.naming.AuthenticationException;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CookbookControllerTest {
 
     private static final String TITLE = "Recipe Title";
@@ -53,15 +63,33 @@ class CookbookControllerTest {
     private RecipeStoreService recipeStoreService;
     @Mock
     private UserProfileService userProfileService;
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private CookbookController controller;
+
+    @BeforeEach
+    void setUp() {
+        // Set up storage service mock - default to having storage configured
+        StorageInfo mockStorageInfo = StorageInfo.builder()
+                .type(StorageType.GOOGLE_DRIVE)
+                .connected(true)
+                .accessToken(PROFILE_TOKEN)
+                .refreshToken("mock-refresh-token")
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .connectedAt(Instant.now())
+                .defaultFolderId("mock-folder-id")
+                .build();
+
+        when(storageService.getStorageInfo(anyString())).thenReturn(mockStorageInfo);
+        when(storageService.isStorageConnected(anyString())).thenReturn(true);
+    }
 
     @Test
     void createRecipeStoresToDriveWhenHtmlTransformsIntoRecipe() throws Exception {
         Request request = new Request("compressed", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenReturn(PROFILE_TOKEN);
         when(htmlExtractor.extractHtml(request, null)).thenReturn(HTML);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
@@ -82,36 +110,23 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeFallsBackToHeaderTokenWhenProfileLookupFails() throws Exception {
+    void createRecipeThrowsWhenStorageNotConfigured() throws Exception {
         Request request = new Request("payload", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenThrow(new IllegalStateException("missing"));
-        when(tokenService.getAuthToken(any())).thenReturn(FALLBACK_TOKEN);
-        when(htmlExtractor.extractHtml(request, null)).thenReturn(HTML);
-        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
-        when(transformer.transform(HTML)).thenReturn(new Transformer.Response(true, YAML));
-        when(driveService.getOrCreateFolder(FALLBACK_TOKEN)).thenReturn(FOLDER_ID);
-        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(FALLBACK_TOKEN, FOLDER_ID, FILE_NAME, YAML))
-                .thenReturn(new DriveService.UploadResult("file-id", "drive-url"));
+        when(storageService.getStorageInfo(anyString()))
+                .thenThrow(new StorageNotConnectedException("No storage configured"));
 
-        RecipeResponse response = controller.createRecipe(
-                request,
-                null,
-                false,
-                Map.of("X-Google-Token", FALLBACK_TOKEN)
-        );
+        assertThatThrownBy(() -> controller.createRecipe(request, null, false, Map.of()))
+                .isInstanceOf(StorageNotConnectedException.class)
+                .hasMessageContaining("No storage configured");
 
-        assertThat(response.driveFileId()).isEqualTo("file-id");
-        verify(tokenService).getAuthToken(any());
+        verify(htmlExtractor, never()).extractHtml(any(), any());
     }
 
     @Test
     void createRecipeSkipsDriveWhenNotARecipe() throws Exception {
         Request request = new Request("payload", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenReturn(PROFILE_TOKEN);
         when(htmlExtractor.extractHtml(request, null)).thenReturn(HTML);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
@@ -129,7 +144,6 @@ class CookbookControllerTest {
         Request request = new Request("payload", TITLE, URL);
         StoredRecipe storedRecipe = mock(StoredRecipe.class);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenReturn(PROFILE_TOKEN);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.of(storedRecipe));
         when(storedRecipe.isValid()).thenReturn(true);
@@ -150,7 +164,6 @@ class CookbookControllerTest {
     void createRecipePropagatesExtractorFailures() throws Exception {
         Request request = new Request("payload", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenReturn(PROFILE_TOKEN);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(request, null)).thenThrow(new IOException("boom"));
@@ -164,7 +177,6 @@ class CookbookControllerTest {
     void createRecipeRespectsCompressionFlag() throws Exception {
         Request request = new Request("inline", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenReturn(PROFILE_TOKEN);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(request, "none")).thenReturn(HTML);
@@ -181,14 +193,15 @@ class CookbookControllerTest {
     }
 
     @Test
-    void createRecipeThrowsWhenTokenLookupFailsTwice() throws Exception {
+    void createRecipeThrowsWhenStorageServiceFails() throws Exception {
         Request request = new Request("payload", TITLE, URL);
 
-        when(userProfileService.getValidOAuthToken("test-user")).thenThrow(new IllegalStateException("missing"));
-        when(tokenService.getAuthToken(any())).thenThrow(new AuthenticationException("bad header token") {});
+        when(storageService.getStorageInfo(anyString()))
+                .thenThrow(new RuntimeException("Storage service error"));
 
         assertThatThrownBy(() -> controller.createRecipe(request, null, false, Map.of()))
-                .isInstanceOf(AuthenticationException.class);
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Failed to retrieve storage credentials");
         verify(htmlExtractor, never()).extractHtml(any(), any());
     }
 }
