@@ -4,6 +4,9 @@ package net.shamansoft.cookbook;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
+import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -76,5 +79,75 @@ public class CookbookExceptionHandler {
                 request.getRequestURI()
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * Handle StorageNotConnectedException - user must connect storage first.
+     * HTTP 428 Precondition Required: The server requires the user to connect storage
+     * before they can save recipes.
+     */
+    @ResponseStatus(HttpStatus.PRECONDITION_REQUIRED)
+    @ExceptionHandler(StorageNotConnectedException.class)
+    public ResponseEntity<Object> handleStorageNotConnected(
+            StorageNotConnectedException e,
+            HttpServletRequest request) {
+
+        log.warn("Storage not connected: {}", e.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                428,  // HTTP 428 Precondition Required
+                "Storage Not Connected",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.PRECONDITION_REQUIRED);
+    }
+
+    /**
+     * Handle UserNotFoundException - user profile doesn't exist in Firestore.
+     * This typically indicates a user authenticated with Firebase but hasn't
+     * been properly initialized in the database.
+     *
+     * HTTP 404 Not Found is appropriate here - the user resource doesn't exist.
+     */
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Object> handleUserNotFound(
+            UserNotFoundException e,
+            HttpServletRequest request) {
+
+        log.error("User not found: {}", e.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                "User Not Found",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handle DatabaseUnavailableException - Firestore connectivity issues.
+     * HTTP 503 Service Unavailable: The database is temporarily unavailable.
+     */
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    @ExceptionHandler(DatabaseUnavailableException.class)
+    public ResponseEntity<Object> handleDatabaseUnavailable(
+            DatabaseUnavailableException e,
+            HttpServletRequest request) {
+
+        log.error("Database unavailable: {}", e.getMessage(), e);
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Service Unavailable",
+                "Database temporarily unavailable. Please try again later.",
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
     }
 }
