@@ -13,9 +13,7 @@ import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.StorageService;
-import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
-import net.shamansoft.cookbook.service.UserProfileService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -47,10 +45,8 @@ public class CookbookController {
     private final HtmlExtractor htmlExtractor;
     private final Transformer transformer;
     private final DriveService googleDriveService;
-    private final TokenService tokenService;
     private final ContentHashService contentHashService;
     private final RecipeStoreService recipeStoreService;
-    private final UserProfileService userProfileService;
     private final StorageService storageService;
 
     @GetMapping("/")

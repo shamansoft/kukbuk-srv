@@ -11,9 +11,7 @@ import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.StorageService;
-import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
-import net.shamansoft.cookbook.service.UserProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
@@ -33,7 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -45,7 +45,6 @@ class CookbookControllerAdditionalTest {
     private static final String YAML = "recipe: true";
     private static final String HASH = "hash-abc";
     private static final String PROFILE_TOKEN = "profile-token";
-    private static final String HEADER_TOKEN = "header-token";
 
     @Mock
     private HtmlExtractor htmlExtractor;
@@ -54,13 +53,9 @@ class CookbookControllerAdditionalTest {
     @Mock
     private DriveService driveService;
     @Mock
-    private TokenService tokenService;
-    @Mock
     private RecipeStoreService recipeStoreService;
     @Mock
     private ContentHashService contentHashService;
-    @Mock
-    private UserProfileService userProfileService;
     @Mock
     private StorageService storageService;
 

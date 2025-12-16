@@ -323,8 +323,8 @@ class CookbookControllerSBTest {
         // Given
         HtmlExtractor htmlExtractor = new HtmlExtractor(compressor, rawContentService);
         CookbookController controller = new CookbookController(
-                htmlExtractor, transformer, googleDriveService, tokenService,
-                contentHashService, recipeStoreService, userProfileService, storageService
+                htmlExtractor, transformer, googleDriveService,
+                contentHashService, recipeStoreService, storageService
         );
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
