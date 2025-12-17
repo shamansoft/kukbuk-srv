@@ -198,8 +198,8 @@ class StorageServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("User profile not found");
+                .isInstanceOf(StorageNotConnectedException.class)
+                .hasMessageContaining("No user profile found");
     }
 
     @Test

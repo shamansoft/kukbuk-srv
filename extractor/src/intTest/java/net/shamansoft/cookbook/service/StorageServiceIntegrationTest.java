@@ -6,6 +6,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.exception.UserNotFoundException;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -105,7 +106,7 @@ class StorageServiceIntegrationTest {
 
         // Then - Verify decrypted data
         assertThat(info).isNotNull();
-        assertThat(info.getType()).isEqualTo("googleDrive");
+        assertThat(info.getType().getFirestoreValue()).isEqualTo("googleDrive");
         assertThat(info.isConnected()).isTrue();
         assertThat(info.getAccessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(info.getRefreshToken()).isEqualTo(REFRESH_TOKEN);
@@ -177,7 +178,7 @@ class StorageServiceIntegrationTest {
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo("non-existent-user"))
                 .isInstanceOf(StorageNotConnectedException.class)
-                .hasMessageContaining("User profile not found");
+                .hasMessageContaining("No user profile found");
     }
 
     @Test
@@ -186,7 +187,7 @@ class StorageServiceIntegrationTest {
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo(TEST_USER_ID))
                 .isInstanceOf(StorageNotConnectedException.class)
-                .hasMessageContaining("No storage connected");
+                .hasMessageContaining("No storage configuration found for user");
     }
 
     @Test

@@ -78,8 +78,7 @@ public class StorageService {
      *
      * @param userId Firebase user ID
      * @return StorageInfo domain object with decrypted tokens
-     * @throws UserNotFoundException if user profile doesn't exist
-     * @throws StorageNotConnectedException if no storage connected
+     * @throws StorageNotConnectedException if no storage connected or user profile doesn't exist
      * @throws DatabaseUnavailableException if database operation fails
      */
     public StorageInfo getStorageInfo(String userId) {
@@ -92,12 +91,11 @@ public class StorageService {
                     .get()
                     .get();
 
-            // 2. Validate user exists
+            // 2. Validate user exists - if not, treat as "no storage configured"
             if (!doc.exists()) {
-                throw new UserNotFoundException("User profile not found: " + userId);
+                throw new StorageNotConnectedException("No user profile found. Please connect storage first.");
             }
 
-            // 3. Safe POJO mapping (replaces unsafe casting)
             UserProfile userProfile = doc.toObject(UserProfile.class);
 
             if (userProfile == null || userProfile.getStorage() == null) {
@@ -127,8 +125,8 @@ public class StorageService {
             throw new DatabaseUnavailableException("Failed to fetch user profile: operation interrupted", e);
         } catch (ExecutionException e) {
             throw new DatabaseUnavailableException("Failed to fetch user profile", e);
-        } catch (UserNotFoundException | StorageNotConnectedException e) {
-            // Re-throw domain exceptions as-is
+        } catch (StorageNotConnectedException e) {
+            // Re-throw domain exception as-is
             throw e;
         } catch (Exception e) {
             throw new DatabaseUnavailableException("Unexpected error while retrieving storage info", e);
@@ -145,7 +143,7 @@ public class StorageService {
         try {
             getStorageInfo(userId);
             return true;
-        } catch (StorageNotConnectedException | UserNotFoundException e) {
+        } catch (StorageNotConnectedException e) {
             return false;
         }
     }
