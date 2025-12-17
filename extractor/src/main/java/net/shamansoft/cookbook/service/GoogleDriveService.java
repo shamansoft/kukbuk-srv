@@ -74,22 +74,22 @@ public class GoogleDriveService implements DriveService {
         // Get storage info (throws StorageNotConnectedException if not connected)
         StorageInfo storage = storageService.getStorageInfo(userId);
 
-        if (storage.getType() != StorageType.GOOGLE_DRIVE) {
-            throw new IllegalStateException("Expected Google Drive storage, got: " + storage.getType());
+        if (storage.type() != StorageType.GOOGLE_DRIVE) {
+            throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
         }
 
         // Get or create folder (use custom folder if configured, otherwise default)
         String folderId;
-        if (storage.getDefaultFolderId() != null) {
-            log.debug("Using custom folder ID: {}", storage.getDefaultFolderId());
-            folderId = storage.getDefaultFolderId();
+        if (storage.defaultFolderId() != null) {
+            log.debug("Using custom folder ID: {}", storage.defaultFolderId());
+            folderId = storage.defaultFolderId();
         } else {
-            folderId = getOrCreateFolder(storage.getAccessToken());
+            folderId = getOrCreateFolder(storage.accessToken());
         }
 
         // Generate filename and upload
         String fileName = generateFileName(title);
-        UploadResult result = uploadRecipeYaml(storage.getAccessToken(), folderId, fileName, content);
+        UploadResult result = uploadRecipeYaml(storage.accessToken(), folderId, fileName, content);
 
         log.info("Recipe saved to Google Drive: {}", result.fileUrl());
         return result;

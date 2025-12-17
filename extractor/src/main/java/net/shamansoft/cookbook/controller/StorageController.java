@@ -11,11 +11,18 @@ import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.service.StorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for Google Drive storage management.
- *
+ * <p>
  * All endpoints require Firebase authentication - userId and userEmail
  * are injected by FirebaseAuthFilter.
  */
@@ -36,7 +43,7 @@ public class StorageController {
     /**
      * Connect Google Drive storage for the authenticated user.
      *
-     * @param userId Injected by FirebaseAuthFilter
+     * @param userId  Injected by FirebaseAuthFilter
      * @param request OAuth tokens and configuration
      * @return Connection response with success/failure status
      */

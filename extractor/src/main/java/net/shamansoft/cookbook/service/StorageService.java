@@ -9,7 +9,6 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.exception.UserNotFoundException;
 import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
@@ -34,10 +33,10 @@ public class StorageService {
     /**
      * Store Google Drive connection information
      *
-     * @param userId Firebase user ID
-     * @param accessToken OAuth access token (will be encrypted)
-     * @param refreshToken OAuth refresh token (will be encrypted, may be null)
-     * @param expiresIn Token expiration in seconds
+     * @param userId          Firebase user ID
+     * @param accessToken     OAuth access token (will be encrypted)
+     * @param refreshToken    OAuth refresh token (will be encrypted, may be null)
+     * @param expiresIn       Token expiration in seconds
      * @param defaultFolderId Google Drive folder ID (optional)
      */
     public void connectGoogleDrive(String userId, String accessToken, String refreshToken,
@@ -52,7 +51,7 @@ public class StorageService {
                     .accessToken(tokenEncryptionService.encrypt(accessToken))
                     .refreshToken(refreshToken != null ? tokenEncryptionService.encrypt(refreshToken) : null)
                     .expiresAt(Timestamp.ofTimeSecondsAndNanos(
-                        System.currentTimeMillis() / 1000 + expiresIn, 0))
+                            System.currentTimeMillis() / 1000 + expiresIn, 0))
                     .connectedAt(Timestamp.now())
                     .defaultFolderId(defaultFolderId)
                     .build();
@@ -98,22 +97,22 @@ public class StorageService {
 
             UserProfile userProfile = doc.toObject(UserProfile.class);
 
-            if (userProfile == null || userProfile.getStorage() == null) {
+            if (userProfile == null || userProfile.storage() == null) {
                 throw new StorageNotConnectedException("No storage configuration found for user: " + userId);
             }
 
-            StorageEntity storageEntity = userProfile.getStorage();
+            StorageEntity storageEntity = userProfile.storage();
 
             // 4. Domain logic validation
-            if (!storageEntity.isConnected()) {
+            if (!storageEntity.connected()) {
                 throw new StorageNotConnectedException(
-                    "Storage not connected. Please connect Google Drive first."
+                        "Storage not connected. Please connect Google Drive first."
                 );
             }
 
-            if (storageEntity.getAccessToken() == null) {
+            if (storageEntity.accessToken() == null) {
                 throw new StorageNotConnectedException(
-                    "Storage connected but no access token found for user: " + userId
+                        "Storage connected but no access token found for user: " + userId
                 );
             }
 
@@ -174,7 +173,7 @@ public class StorageService {
     /**
      * Update default folder ID for Google Drive
      *
-     * @param userId Firebase user ID
+     * @param userId   Firebase user ID
      * @param folderId Google Drive folder ID
      */
     public void updateDefaultFolder(String userId, String folderId) {

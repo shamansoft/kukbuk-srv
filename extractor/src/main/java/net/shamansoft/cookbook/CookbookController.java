@@ -80,8 +80,8 @@ public class CookbookController {
 
             if (hasStorage) {
                 StorageInfo storage = storageService.getStorageInfo(userId);
-                profile.put("storageType", storage.getType().getFirestoreValue());
-                profile.put("storageConnectedAt", storage.getConnectedAt());
+                profile.put("storageType", storage.type().getFirestoreValue());
+                profile.put("storageConnectedAt", storage.connectedAt());
                 // Intentionally NOT including access/refresh tokens for security
             }
         } catch (Exception e) {
@@ -133,7 +133,7 @@ public class CookbookController {
         String googleOAuthToken;
         try {
             StorageInfo storage = storageService.getStorageInfo(userId);
-            googleOAuthToken = storage.getAccessToken();
+            googleOAuthToken = storage.accessToken();
             log.debug("Using OAuth token from StorageService");
         } catch (StorageNotConnectedException e) {
             log.warn("No storage configured for user: {}", userEmail);

@@ -6,7 +6,6 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.exception.UserNotFoundException;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +19,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -106,13 +104,13 @@ class StorageServiceIntegrationTest {
 
         // Then - Verify decrypted data
         assertThat(info).isNotNull();
-        assertThat(info.getType().getFirestoreValue()).isEqualTo("googleDrive");
-        assertThat(info.isConnected()).isTrue();
-        assertThat(info.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(info.getRefreshToken()).isEqualTo(REFRESH_TOKEN);
-        assertThat(info.getDefaultFolderId()).isEqualTo(FOLDER_ID);
-        assertThat(info.getExpiresAt()).isNotNull();
-        assertThat(info.getConnectedAt()).isNotNull();
+        assertThat(info.type().getFirestoreValue()).isEqualTo("googleDrive");
+        assertThat(info.connected()).isTrue();
+        assertThat(info.accessToken()).isEqualTo(ACCESS_TOKEN);
+        assertThat(info.refreshToken()).isEqualTo(REFRESH_TOKEN);
+        assertThat(info.defaultFolderId()).isEqualTo(FOLDER_ID);
+        assertThat(info.expiresAt()).isNotNull();
+        assertThat(info.connectedAt()).isNotNull();
     }
 
     @Test
@@ -212,8 +210,8 @@ class StorageServiceIntegrationTest {
         StorageInfo info = storageService.getStorageInfo(TEST_USER_ID);
 
         // Then - Verify null refresh token
-        assertThat(info.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(info.getRefreshToken()).isNull();
-        assertThat(info.getDefaultFolderId()).isNull();
+        assertThat(info.accessToken()).isEqualTo(ACCESS_TOKEN);
+        assertThat(info.refreshToken()).isNull();
+        assertThat(info.defaultFolderId()).isNull();
     }
 }

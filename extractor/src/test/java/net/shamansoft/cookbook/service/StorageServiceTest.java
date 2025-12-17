@@ -148,13 +148,13 @@ class StorageServiceTest {
         StorageInfo result = storageService.getStorageInfo(USER_ID);
 
         // Assert
-        assertThat(result.getType()).isEqualTo(StorageType.GOOGLE_DRIVE);
-        assertThat(result.isConnected()).isTrue();
-        assertThat(result.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(result.getRefreshToken()).isEqualTo(REFRESH_TOKEN);
-        assertThat(result.getDefaultFolderId()).isEqualTo(FOLDER_ID);
-        assertThat(result.getExpiresAt()).isNotNull();
-        assertThat(result.getConnectedAt()).isNotNull();
+        assertThat(result.type()).isEqualTo(StorageType.GOOGLE_DRIVE);
+        assertThat(result.connected()).isTrue();
+        assertThat(result.accessToken()).isEqualTo(ACCESS_TOKEN);
+        assertThat(result.refreshToken()).isEqualTo(REFRESH_TOKEN);
+        assertThat(result.defaultFolderId()).isEqualTo(FOLDER_ID);
+        assertThat(result.expiresAt()).isNotNull();
+        assertThat(result.connectedAt()).isNotNull();
     }
 
     @Test
@@ -184,9 +184,9 @@ class StorageServiceTest {
         StorageInfo result = storageService.getStorageInfo(USER_ID);
 
         // Assert
-        assertThat(result.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(result.getRefreshToken()).isNull();
-        assertThat(result.getDefaultFolderId()).isNull();
+        assertThat(result.accessToken()).isEqualTo(ACCESS_TOKEN);
+        assertThat(result.refreshToken()).isNull();
+        assertThat(result.defaultFolderId()).isNull();
     }
 
     @Test

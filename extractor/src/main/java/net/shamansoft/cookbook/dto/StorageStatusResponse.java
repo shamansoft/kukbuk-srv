@@ -47,11 +47,11 @@ public class StorageStatusResponse {
      */
     public static StorageStatusResponse fromStorageInfo(StorageInfo info) {
         return StorageStatusResponse.builder()
-                .connected(info.isConnected())
-                .storageType(info.getType().getFirestoreValue())
-                .connectedAt(info.getConnectedAt())
-                .expiresAt(info.getExpiresAt())
-                .defaultFolderId(info.getDefaultFolderId())
+                .connected(info.connected())
+                .storageType(info.type().getFirestoreValue())
+                .connectedAt(info.connectedAt())
+                .expiresAt(info.expiresAt())
+                .defaultFolderId(info.defaultFolderId())
                 .build();
     }
 }
