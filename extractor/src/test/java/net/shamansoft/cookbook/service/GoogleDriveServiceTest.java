@@ -1,6 +1,9 @@
 package net.shamansoft.cookbook.service;
 
 import net.shamansoft.cookbook.client.GoogleDrive;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -9,8 +12,10 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -22,6 +27,8 @@ class GoogleDriveServiceTest {
     private GoogleDrive googleDrive;
     @Mock
     private Transliterator transliterator;
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private GoogleDriveService googleDriveService;
@@ -174,5 +181,115 @@ class GoogleDriveServiceTest {
         assertThat(result.fileId()).isEqualTo(newFileId);
         verify(googleDrive, times(1)).getFile(eq(fileName), eq(folderId), eq(authToken));
         verify(googleDrive, times(1)).createFile(eq(fileName), eq(folderId), eq(content), eq(authToken));
+    }
+
+    @Test
+    void saveRecipeForUser_withDefaultFolder_createsFolder() throws Exception {
+        // Arrange
+        String userId = "user-123";
+        String content = "recipe: test";
+        String title = "Test Recipe";
+        String accessToken = "access-token";
+        String folderId = "folder-456";
+        String fileName = "test-recipe.yaml";
+        String fileId = "file-789";
+
+        StorageInfo storage = StorageInfo.builder()
+                .type(StorageType.GOOGLE_DRIVE)
+                .connected(true)
+                .accessToken(accessToken)
+                .build();
+
+        when(storageService.getStorageInfo(userId)).thenReturn(storage);
+        when(transliterator.toAsciiKebab(title)).thenReturn("test-recipe");
+        when(googleDrive.getFolder(eq("test-folder"), eq(accessToken)))
+                .thenReturn(java.util.Optional.of(new GoogleDrive.Item(folderId, "test-folder")));
+        when(googleDrive.getFile(eq(fileName), eq(folderId), eq(accessToken)))
+                .thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFile(eq(fileName), eq(folderId), eq(content), eq(accessToken)))
+                .thenReturn(new GoogleDrive.Item(fileId, fileName));
+
+        // Act
+        DriveService.UploadResult result = googleDriveService.saveRecipeForUser(userId, content, title);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.fileId()).isEqualTo(fileId);
+        assertThat(result.fileUrl()).isEqualTo("https://drive.google.com/file/d/" + fileId + "/view");
+        verify(storageService).getStorageInfo(userId);
+        verify(googleDrive).getFolder(eq("test-folder"), eq(accessToken));
+    }
+
+    @Test
+    void saveRecipeForUser_withCustomFolder_usesCustomFolder() throws Exception {
+        // Arrange
+        String userId = "user-123";
+        String content = "recipe: test";
+        String title = "Test Recipe";
+        String accessToken = "access-token";
+        String customFolderId = "custom-folder-999";
+        String fileName = "test-recipe.yaml";
+        String fileId = "file-789";
+
+        StorageInfo storage = StorageInfo.builder()
+                .type(StorageType.GOOGLE_DRIVE)
+                .connected(true)
+                .accessToken(accessToken)
+                .defaultFolderId(customFolderId)
+                .build();
+
+        when(storageService.getStorageInfo(userId)).thenReturn(storage);
+        when(transliterator.toAsciiKebab(title)).thenReturn("test-recipe");
+        when(googleDrive.getFile(eq(fileName), eq(customFolderId), eq(accessToken)))
+                .thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFile(eq(fileName), eq(customFolderId), eq(content), eq(accessToken)))
+                .thenReturn(new GoogleDrive.Item(fileId, fileName));
+
+        // Act
+        DriveService.UploadResult result = googleDriveService.saveRecipeForUser(userId, content, title);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.fileId()).isEqualTo(fileId);
+        assertThat(result.fileUrl()).isEqualTo("https://drive.google.com/file/d/" + fileId + "/view");
+        verify(storageService).getStorageInfo(userId);
+        verify(googleDrive, never()).getFolder(any(), any());
+    }
+
+    @Test
+    void saveRecipeForUser_whenStorageNotConnected_throwsException() throws Exception {
+        // Arrange
+        String userId = "user-123";
+        String content = "recipe: test";
+        String title = "Test Recipe";
+
+        when(storageService.getStorageInfo(userId))
+                .thenThrow(new StorageNotConnectedException("No storage connected"));
+
+        // Act & Assert
+        assertThatThrownBy(() -> googleDriveService.saveRecipeForUser(userId, content, title))
+                .isInstanceOf(StorageNotConnectedException.class)
+                .hasMessageContaining("No storage connected");
+    }
+
+    @Test
+    void saveRecipeForUser_whenWrongStorageType_throwsException() throws Exception {
+        // Arrange
+        String userId = "user-123";
+        String content = "recipe: test";
+        String title = "Test Recipe";
+
+        StorageInfo storage = StorageInfo.builder()
+                .type(StorageType.DROPBOX)
+                .connected(true)
+                .accessToken("token")
+                .build();
+
+        when(storageService.getStorageInfo(userId)).thenReturn(storage);
+
+        // Act & Assert
+        assertThatThrownBy(() -> googleDriveService.saveRecipeForUser(userId, content, title))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Expected Google Drive storage");
     }
 }

@@ -4,12 +4,15 @@ import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.RecipeStoreService;
+import net.shamansoft.cookbook.service.StorageService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.UserProfileService;
@@ -26,9 +29,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import javax.naming.AuthenticationException;
-import java.util.Map;
 import java.io.IOException;
-
+import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +68,9 @@ class CookbookControllerSBTest {
     private UserProfileService userProfileService;
 
     @MockitoBean
+    private StorageService storageService;
+
+    @MockitoBean
     private Compressor compressor;
 
     @MockitoBean
@@ -72,6 +78,22 @@ class CookbookControllerSBTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        // Set up storage service mock - default to having storage configured
+        StorageInfo mockStorageInfo = StorageInfo.builder()
+                .type(StorageType.GOOGLE_DRIVE)
+                .connected(true)
+                .accessToken("mock-access-token")
+                .refreshToken("mock-refresh-token")
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .connectedAt(Instant.now())
+                .defaultFolderId("mock-folder-id")
+                .build();
+
+        when(storageService.getStorageInfo(anyString()))
+                .thenReturn(mockStorageInfo);
+        when(storageService.isStorageConnected(anyString()))
+                .thenReturn(true);
+
         // Set up default mock behavior for store services
         when(recipeStoreService.findStoredRecipeByHash(anyString()))
                 .thenReturn(Optional.empty());
@@ -258,12 +280,11 @@ class CookbookControllerSBTest {
     }
 
     @Test
-    void createRecipe_withAuthenticationFailure_shouldReturnUnauthorized() throws IOException, AuthenticationException {
+    void createRecipe_whenStorageServiceFailsWithGenericException_shouldReturnBadRequest() throws Exception {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenThrow(new AuthenticationException("Invalid token"));
+        when(storageService.getStorageInfo(anyString()))
+                .thenThrow(new RuntimeException("Storage service error"));
 
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -274,8 +295,8 @@ class CookbookControllerSBTest {
         );
 
         // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getBody().get("error")).isEqualTo("Authentication Error");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("error")).isEqualTo("IO Error");
     }
 
     @Test
@@ -302,8 +323,8 @@ class CookbookControllerSBTest {
         // Given
         HtmlExtractor htmlExtractor = new HtmlExtractor(compressor, rawContentService);
         CookbookController controller = new CookbookController(
-                htmlExtractor, transformer, googleDriveService, tokenService,
-                contentHashService, recipeStoreService, userProfileService
+                htmlExtractor, transformer, googleDriveService,
+                contentHashService, recipeStoreService, storageService
         );
         Request request = new Request("raw html", "Title", "http://example.com");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));

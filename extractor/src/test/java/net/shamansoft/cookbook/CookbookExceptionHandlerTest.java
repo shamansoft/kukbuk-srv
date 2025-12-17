@@ -2,6 +2,9 @@ package net.shamansoft.cookbook;
 
 import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.ErrorResponse;
+import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -162,5 +165,72 @@ public class CookbookExceptionHandlerTest {
         assertThat(errorResponse.getPath()).isEqualTo("/recipe");
         // Error message should not expose internal details
         assertThat(errorResponse.getMessage()).doesNotContain("Something unexpected happened");
+    }
+
+    @Test
+    void handleStorageNotConnectedReturnsPreconditionRequired() {
+        // Mock HTTP request
+        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/status");
+
+        // Create test exception
+        StorageNotConnectedException testException =
+                new StorageNotConnectedException("No storage configured");
+
+        // Call exception handler
+        var response = controller.handleStorageNotConnected(testException, httpServletRequest);
+
+        // Verify response
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_REQUIRED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 428);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Storage Not Connected");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "No storage configured");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/status");
+    }
+
+    @Test
+    void handleUserNotFoundReturnsNotFound() {
+        // Mock HTTP request
+        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/connect");
+
+        // Create test exception
+        UserNotFoundException testException =
+                new UserNotFoundException("User profile not found: test-user-123");
+
+        // Call exception handler
+        var response = controller.handleUserNotFound(testException, httpServletRequest);
+
+        // Verify response
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 404);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "User Not Found");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "User profile not found: test-user-123");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/connect");
+    }
+
+    @Test
+    void handleDatabaseUnavailableReturnsServiceUnavailable() {
+        // Mock HTTP request
+        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/connect");
+
+        // Create test exception
+        DatabaseUnavailableException testException =
+                new DatabaseUnavailableException("Firestore connection timeout");
+
+        // Call exception handler
+        var response = controller.handleDatabaseUnavailable(testException, httpServletRequest);
+
+        // Verify response
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 503);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Service Unavailable");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/connect");
+        // Error message should be generic to not expose internal details
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue(
+                "message",
+                "Database temporarily unavailable. Please try again later."
+        );
     }
 }

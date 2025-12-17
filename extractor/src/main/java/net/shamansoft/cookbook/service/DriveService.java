@@ -31,6 +31,18 @@ public interface DriveService {
      */
     UploadResult uploadRecipeYaml(String authToken, String folderId, String fileName, String content);
 
+    /**
+     * Save recipe to Google Drive for a user
+     * Gets credentials from StorageService and uploads the recipe
+     *
+     * @param userId Firebase user ID
+     * @param content Recipe content (YAML)
+     * @param title Recipe title (for filename)
+     * @return UploadResult with file ID and URL
+     * @throws Exception if storage not connected or upload fails
+     */
+    UploadResult saveRecipeForUser(String userId, String content, String title) throws Exception;
+
     record UploadResult(String fileId, String fileUrl) {
     }
 }

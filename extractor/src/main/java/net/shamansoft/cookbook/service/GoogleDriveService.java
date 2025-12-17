@@ -2,6 +2,8 @@ package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.GoogleDrive;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.dto.StorageType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,13 +17,17 @@ public class GoogleDriveService implements DriveService {
     private final String folderName;
     private final GoogleDrive drive;
     private final Transliterator transliterator;
+    private final StorageService storageService;
 
     @Autowired
     public GoogleDriveService(@Value("${cookbook.drive.folder-name:kukbuk}") String folderName,
-                              GoogleDrive drive, Transliterator transliterator) {
+                              GoogleDrive drive,
+                              Transliterator transliterator,
+                              StorageService storageService) {
         this.folderName = folderName;
         this.drive = drive;
         this.transliterator = transliterator;
+        this.storageService = storageService;
     }
 
     @Override
@@ -59,5 +65,33 @@ public class GoogleDriveService implements DriveService {
                 .map(existingFile -> drive.updateFile(existingFile, content, authToken))
                 .orElseGet(() -> drive.createFile(fileName, folderId, content, authToken));
         return new UploadResult(file.id(), file.url());
+    }
+
+    @Override
+    public UploadResult saveRecipeForUser(String userId, String content, String title) throws Exception {
+        log.info("Saving recipe to Google Drive for user: {}", userId);
+
+        // Get storage info (throws StorageNotConnectedException if not connected)
+        StorageInfo storage = storageService.getStorageInfo(userId);
+
+        if (storage.type() != StorageType.GOOGLE_DRIVE) {
+            throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
+        }
+
+        // Get or create folder (use custom folder if configured, otherwise default)
+        String folderId;
+        if (storage.defaultFolderId() != null) {
+            log.debug("Using custom folder ID: {}", storage.defaultFolderId());
+            folderId = storage.defaultFolderId();
+        } else {
+            folderId = getOrCreateFolder(storage.accessToken());
+        }
+
+        // Generate filename and upload
+        String fileName = generateFileName(title);
+        UploadResult result = uploadRecipeYaml(storage.accessToken(), folderId, fileName, content);
+
+        log.info("Recipe saved to Google Drive: {}", result.fileUrl());
+        return result;
     }
 }
