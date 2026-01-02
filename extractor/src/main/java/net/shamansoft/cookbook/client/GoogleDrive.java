@@ -27,7 +27,13 @@ public class GoogleDrive {
                 + name.replace("'", "\\'")
                 + "' and 'root' in parents and trashed=false";
 
-        log.info("Searching for folder '{}' with query: {}", name, query);
+        // Log token info for debugging (masked)
+        String tokenInfo = authToken == null ? "null" :
+                String.format("length=%d, starts=%s..., ends=...%s",
+                        authToken.length(),
+                        authToken.length() > 10 ? authToken.substring(0, 10) : authToken,
+                        authToken.length() > 10 ? authToken.substring(authToken.length() - 10) : "");
+        log.info("Searching for folder '{}' with query: {}, token: {}", name, query, tokenInfo);
 
         Map<String, Object> listResponse = driveClient.get()
                 .uri(uri -> uri.path("/files")
@@ -204,9 +210,167 @@ public class GoogleDrive {
         }
     }
 
+    /**
+     * List files in folder with pagination
+     *
+     * @param authToken User's OAuth access token
+     * @param folderId  Google Drive folder ID
+     * @param pageSize  Number of items per page (max 100)
+     * @param pageToken Pagination token from previous response (null for first page)
+     * @return DriveFileListResult with files and nextPageToken
+     */
+    @SuppressWarnings("unchecked")
+    public DriveFileListResult listFiles(String authToken, String folderId,
+                                         int pageSize, String pageToken) {
+        log.debug("Listing files in folder: {}, pageSize: {}, pageToken: {}",
+                folderId, pageSize, pageToken);
+
+        String query = String.format("'%s' in parents and trashed=false and mimeType='application/x-yaml'",
+                folderId);
+
+        Map<String, Object> response = driveClient.get()
+                .uri(uri -> {
+                    var uriBuilder = uri.path("/files")
+                            .queryParam("q", query)
+                            .queryParam("pageSize", String.valueOf(Math.min(pageSize, 100)))
+                            .queryParam("orderBy", "modifiedTime desc")
+                            .queryParam("fields", "files(id,name,modifiedTime),nextPageToken");
+
+                    if (pageToken != null) {
+                        uriBuilder.queryParam("pageToken", pageToken);
+                    }
+
+                    return uriBuilder.build();
+                })
+                .header("Authorization", "Bearer " + authToken)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+        if (response == null) {
+            throw new ClientException("Failed to list files from Drive");
+        }
+
+        var filesData = (java.util.List<Map<String, Object>>) response.get("files");
+        String nextPageToken = (String) response.get("nextPageToken");
+
+        java.util.List<DriveFileInfo> files = filesData != null
+                ? filesData.stream()
+                .map(fileMap -> new DriveFileInfo(
+                        (String) fileMap.get("id"),
+                        (String) fileMap.get("name"),
+                        (String) fileMap.get("modifiedTime")
+                ))
+                .toList()
+                : java.util.Collections.emptyList();
+
+        log.debug("Listed {} files from folder: {}", files.size(), folderId);
+
+        return new DriveFileListResult(files, nextPageToken);
+    }
+
+    /**
+     * Download file content as string (for YAML files)
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    Google Drive file ID
+     * @return File content as string
+     */
+    public String downloadFileAsString(String authToken, String fileId) {
+        log.debug("Downloading file as string: {}", fileId);
+
+        String content = driveClient.get()
+                .uri(uri -> uri.path("/files/" + fileId)
+                        .queryParam("alt", "media")
+                        .build())
+                .header("Authorization", "Bearer " + authToken)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        if (content == null) {
+            throw new ClientException("Failed to download file from Drive: " + fileId);
+        }
+
+        log.debug("Downloaded file: {} ({} bytes)", fileId, content.length());
+        return content;
+    }
+
+    /**
+     * Download file content as bytes (for media files)
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    Google Drive file ID
+     * @return File content as byte array
+     */
+    public byte[] downloadFileAsBytes(String authToken, String fileId) {
+        log.debug("Downloading file as bytes: {}", fileId);
+
+        byte[] content = driveClient.get()
+                .uri(uri -> uri.path("/files/" + fileId)
+                        .queryParam("alt", "media")
+                        .build())
+                .header("Authorization", "Bearer " + authToken)
+                .retrieve()
+                .bodyToMono(byte[].class)
+                .block();
+
+        if (content == null) {
+            throw new ClientException("Failed to download file from Drive: " + fileId);
+        }
+
+        log.debug("Downloaded file: {} ({} bytes)", fileId, content.length);
+        return content;
+    }
+
+    /**
+     * Get file metadata
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    Google Drive file ID
+     * @return DriveFileMetadata with file details
+     */
+    @SuppressWarnings("unchecked")
+    public DriveFileMetadata getFileMetadata(String authToken, String fileId) {
+        log.debug("Getting file metadata: {}", fileId);
+
+        Map<String, Object> metadata = driveClient.get()
+                .uri(uri -> uri.path("/files/" + fileId)
+                        .queryParam("fields", "id,name,mimeType,modifiedTime")
+                        .build())
+                .header("Authorization", "Bearer " + authToken)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+        if (metadata == null) {
+            throw new ClientException("Failed to get file metadata from Drive: " + fileId);
+        }
+
+        return new DriveFileMetadata(
+                (String) metadata.get("id"),
+                (String) metadata.get("name"),
+                (String) metadata.get("mimeType"),
+                (String) metadata.get("modifiedTime")
+        );
+    }
+
     public record Item(String id, String name) {
         public String url() {
             return "https://drive.google.com/file/d/" + id + "/view";
         }
     }
+
+    public record DriveFileListResult(java.util.List<DriveFileInfo> files, String nextPageToken) {
+    }
+
+    public record DriveFileInfo(String id, String name, String modifiedTime) {
+    }
+
+    public record DriveFileMetadata(
+            String id,
+            String name,
+            String mimeType,
+            String modifiedTime
+    ) {}
 }

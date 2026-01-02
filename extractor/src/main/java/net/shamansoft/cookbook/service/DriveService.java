@@ -1,5 +1,7 @@
 package net.shamansoft.cookbook.service;
 
+import net.shamansoft.cookbook.client.GoogleDrive;
+
 public interface DriveService {
 
     /**
@@ -42,6 +44,54 @@ public interface DriveService {
      * @throws Exception if storage not connected or upload fails
      */
     UploadResult saveRecipeForUser(String userId, String content, String title) throws Exception;
+
+    /**
+     * List recipe files from a Google Drive folder with pagination.
+     *
+     * @param authToken OAuth2 access token
+     * @param folderId  Google Drive folder ID
+     * @param pageSize  Number of items per page (max 100)
+     * @param pageToken Pagination token from previous response (null for first page)
+     * @return DriveFileListResult with files and nextPageToken
+     */
+    GoogleDrive.DriveFileListResult listRecipeFiles(String authToken, String folderId,
+                                                    int pageSize, String pageToken);
+
+    /**
+     * Download file content as string (for YAML files).
+     *
+     * @param authToken OAuth2 access token
+     * @param fileId    Google Drive file ID
+     * @return File content as string
+     */
+    String getFileContent(String authToken, String fileId);
+
+    /**
+     * Download file content as bytes (for media files).
+     *
+     * @param authToken OAuth2 access token
+     * @param fileId    Google Drive file ID
+     * @return File content as bytes
+     */
+    byte[] downloadFile(String authToken, String fileId);
+
+    /**
+     * Get file MIME type.
+     *
+     * @param authToken OAuth2 access token
+     * @param fileId    Google Drive file ID
+     * @return MIME type string
+     */
+    String getFileMimeType(String authToken, String fileId);
+
+    /**
+     * Get file metadata including ID, name, MIME type, and modified time.
+     *
+     * @param authToken OAuth2 access token
+     * @param fileId    Google Drive file ID
+     * @return DriveFileMetadata with file details
+     */
+    GoogleDrive.DriveFileMetadata getFileMetadata(String authToken, String fileId);
 
     record UploadResult(String fileId, String fileUrl) {
     }
