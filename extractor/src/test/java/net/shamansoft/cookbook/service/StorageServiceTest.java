@@ -39,6 +39,12 @@ class StorageServiceTest {
     private TokenEncryptionService tokenEncryptionService;
 
     @Mock
+    private org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder;
+
+    @Mock
+    private org.springframework.web.reactive.function.client.WebClient webClient;
+
+    @Mock
     private CollectionReference usersCollection;
 
     @Mock
@@ -66,7 +72,11 @@ class StorageServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        storageService = new StorageService(firestore, tokenEncryptionService);
+
+        // Mock WebClient.Builder to return WebClient
+        when(webClientBuilder.build()).thenReturn(webClient);
+
+        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder);
 
         // Default Firestore mock setup
         when(firestore.collection("users")).thenReturn(usersCollection);
@@ -121,13 +131,15 @@ class StorageServiceTest {
     @Test
     void getStorageInfo_returnsDecryptedTokens() throws Exception {
         // Arrange
+        // Set expiration to 1 hour in the future (token is valid)
+        long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
         StorageEntity storageEntity =
                 StorageEntity.builder()
                         .type("googleDrive")
                         .connected(true)
                         .accessToken(ENCRYPTED_ACCESS)
                         .refreshToken(ENCRYPTED_REFRESH)
-                        .expiresAt(Timestamp.now())
+                        .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
                         .connectedAt(Timestamp.now())
                         .defaultFolderId(FOLDER_ID)
                         .build();
@@ -160,12 +172,14 @@ class StorageServiceTest {
     @Test
     void getStorageInfo_withNullRefreshToken_returnsNullRefreshToken() throws Exception {
         // Arrange
+        // Set expiration to 1 hour in the future (token is valid)
+        long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
         StorageEntity storageEntity =
                 StorageEntity.builder()
                         .type("googleDrive")
                         .connected(true)
                         .accessToken(ENCRYPTED_ACCESS)
-                        .expiresAt(Timestamp.now())
+                        .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
                         .connectedAt(Timestamp.now())
                         .build();
 
@@ -273,11 +287,14 @@ class StorageServiceTest {
     @Test
     void isStorageConnected_returnsTrueWhenConnected() throws Exception {
         // Arrange
+        // Set expiration to 1 hour in the future (token is valid)
+        long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
         StorageEntity storageEntity =
                 StorageEntity.builder()
                         .type("googleDrive")
                         .connected(true)
                         .accessToken(ENCRYPTED_ACCESS)
+                        .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
                         .build();
 
         UserProfile userProfile = UserProfile.builder()
