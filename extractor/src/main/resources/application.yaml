@@ -1,69 +1,236 @@
+# ==============================================================================
+# COOKBOOK APPLICATION CONFIGURATION
+# ==============================================================================
+# This file contains all configuration properties for the Cookbook recipe
+# extraction service. Each property includes comments showing where and how
+# it's used in the codebase.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# SPRING FRAMEWORK CONFIGURATION
+# ------------------------------------------------------------------------------
 spring:
   application:
+    # Application name shown in logs and monitoring
+    # Used by: Referenced in cookbook.drive.application-name via interpolation
+    # Default: kukbuk-srv
     name: kukbuk-srv
 
-# Google Cloud configuration
+# ------------------------------------------------------------------------------
+# GOOGLE CLOUD PLATFORM (GCP) CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# Google Cloud SDK configuration (used by Firestore client)
 google:
   cloud:
+    # GCP project ID for Firestore and other Google Cloud services
+    # Used by: FirestoreConfig.java:31 (@Value("${google.cloud.project-id:cookbook-extractor}"))
+    # Required: Yes (environment variable)
+    # Example: kukbuk-tf
     project-id: ${GOOGLE_CLOUD_PROJECT_ID}
+
     credentials:
+      # Path to GCP service account credentials JSON file
+      # Used by: FirestoreConfig.java:33 (@Value("${google.cloud.credentials.path:}"))
+      # Required: No (falls back to Application Default Credentials if empty)
+      # Example: /path/to/service-account-key.json
       path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:}
 
-# GCP configuration
+# GCP-specific configuration (separate from google.cloud for KMS and other services)
 gcp:
+  # GCP project ID for KMS encryption (can be different from Firestore project)
+  # Used by: TokenEncryptionService.java:32 (@Value("${gcp.project-id:kukbuk-tf}"))
+  # Default: kukbuk-tf
   project-id: ${GCP_PROJECT_ID:kukbuk-tf}
+
   kms:
+    # Google Cloud Key Management Service (KMS) location/region
+    # Used by: TokenEncryptionService.java:35 (@Value("${gcp.kms.location:us-west1}"))
+    # Default: us-west1
     location: ${GCP_KMS_LOCATION:us-west1}
+
+    # KMS keyring name containing the encryption key
+    # Used by: TokenEncryptionService.java:38 (@Value("${gcp.kms.keyring:cookbook-keyring}"))
+    # Default: cookbook-keyring
     keyring: ${GCP_KMS_KEYRING:cookbook-keyring}
+
+    # KMS cryptographic key name for OAuth token encryption/decryption
+    # Used by: TokenEncryptionService.java:41 (@Value("${gcp.kms.key:oauth-token-key}"))
+    # Default: oauth-token-key
     key: ${GCP_KMS_KEY:oauth-token-key}
 
-# Firestore configuration
+    # NOTE: gcp.kms.enabled is checked in TokenEncryptionService.java:29 but not defined here
+    # It defaults to true in production, set to false in tests to skip KMS initialization
+
+# ------------------------------------------------------------------------------
+# FIRESTORE DATABASE CONFIGURATION
+# ------------------------------------------------------------------------------
 firestore:
+  # Enable/disable Firestore database connectivity
+  # Used by: FirestoreConfig.java:26 (@ConditionalOnProperty)
+  # Default: true
+  # Set to false in tests to use mock Firestore
   enabled: ${FIRESTORE_ENABLED:true}
 
-# Recipe cache configuration
+# ------------------------------------------------------------------------------
+# RECIPE PROCESSING CONFIGURATION
+# ------------------------------------------------------------------------------
 recipe:
   llm:
-    # Number of retry attempts for LLM transformation when validation fails
+    # Number of retry attempts when LLM validation fails
+    # Used by: ValidatingTransformerService.java:39 (@Value("${recipe.llm.retry:1}"))
     # 0 = no validation, save raw YAML as-is
     # 1 = validate once, retry 1 time if validation fails
-    # 2 = validate once, retry 2 times if validation fails, etc.
+    # 2 = validate once, retry 2 times if validation fails
+    # Default: 1
     retry: ${RECIPE_LLM_RETRY:1}
+
   store:
+    # Enable/disable recipe caching in Firestore
+    # Used by: RecipeStoreService.java:41 (@Value("${recipe.store.enabled:false}"))
+    # Default: true (stores recipes for faster repeated lookups)
     enabled: ${RECIPE_CACHE_ENABLED:true}
+
     timeout:
+      # Timeout in milliseconds for recipe cache lookup operations
+      # Used by: RecipeStoreService.java:44 (@Value("${recipe.store.timeout.lookup-ms:200}"))
+      # Default: 200ms
       lookup-ms: ${RECIPE_STORE_LOOKUP_TIMEOUT_MS:200}
+
+      # Timeout in milliseconds for recipe cache save operations
+      # Used by: RecipeStoreService.java:47 (@Value("${recipe.store.timeout.save-ms:5000}"))
+      # Default: 5000ms (5 seconds)
       save-ms: ${RECIPE_STORE_SAVE_TIMEOUT_MS:5000}
+
+      # Timeout in milliseconds for recipe count operations
+      # Used by: RecipeStoreService.java:50 (@Value("${recipe.store.timeout.count-ms:1000}"))
+      # Default: 1000ms (1 second)
       count-ms: ${RECIPE_STORE_COUNT_TIMEOUT_MS:1000}
 
+# ------------------------------------------------------------------------------
+# LOGGING CONFIGURATION
+# ------------------------------------------------------------------------------
 logging:
   level:
     net.shamansoft: DEBUG
     net.shamansoft.cookbook: DEBUG
     com.google.cloud: INFO
     org.springframework.web.reactive.function.client.WebClient: DEBUG
+
+# ------------------------------------------------------------------------------
+# COOKBOOK APPLICATION-SPECIFIC CONFIGURATION
+# ------------------------------------------------------------------------------
 cookbook:
+  # ---------------------------------------------------------------------------
+  # GOOGLE GEMINI AI CONFIGURATION
+  # ---------------------------------------------------------------------------
   gemini:
+    # Gemini API key for recipe extraction
+    # Used by: GeminiRestTransformer.java:42 (@Value("${cookbook.gemini.api-key}"))
+    # Required: Yes (must be provided via environment variable or secure vault)
+    # Get from: https://aistudio.google.com/app/apikey
     api-key: "SHOULD BE GENERATED AND STORED IN A SECURE PLACE, AT LEAST AS AN ENVIRONMENT VARIABLE"
+
+    # Base URL for Gemini API endpoints
+    # Used by: ServiceConfig.java:45 (geminiWebClient bean, @Value("${cookbook.gemini.base-url}"))
+    # Default: https://generativelanguage.googleapis.com/v1beta
     base-url: "https://generativelanguage.googleapis.com/v1beta"
+
+    # Gemini model to use for recipe extraction
+    # Used by: GeminiRestTransformer.java:45 (@Value("${cookbook.gemini.model}"))
+    # Default: gemini-2.5-flash
+    # Options: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-pro
     model: "gemini-2.5-flash"
+
+    # Gemini prompt template for recipe extraction
+    # DEPRECATED/UNUSED: Prompt is loaded from classpath:prompt.md file instead
+    # See: RequestBuilder.java:35 (resourceLoader.loadYaml("classpath:prompt.md"))
+    # This property exists for documentation but is not used by the application
     prompt: "Convert the above recipe to YAML format, using the above YAML example as a guide. Provide only the valid YAML output. Markdown formatting is allowed within YAML string values, but do not include any markdown code blocks or any other text outside of the yaml structure. Requirements: schema_version: \"1.0.0\". Generate unique recipe_version. Use current date for date_created if not specified. Format times as \"1d 2h 30m\". Use Markdown for text formatting. Use full path for medias"
+
+    # Temperature parameter for Gemini model (0.0 to 1.0)
+    # Used by: RequestBuilder.java:31 (@Value("${cookbook.gemini.temperature}"))
+    # Lower = more deterministic, Higher = more creative
+    # Default: 0.1 (very deterministic for consistent recipe extraction)
     temperature: 0.1
+
+    # Top-p (nucleus sampling) parameter for Gemini model (0.0 to 1.0)
+    # Used by: RequestBuilder.java:34 (@Value("${cookbook.gemini.top-p}"))
+    # Default: 0.8
     top-p: 0.8
+
+  # ---------------------------------------------------------------------------
+  # GOOGLE DRIVE CONFIGURATION
+  # ---------------------------------------------------------------------------
   drive:
+    # Google Drive folder name where recipes are saved
+    # Used by: GoogleDriveService.java:45 (@Value("${cookbook.drive.folder-name:kukbuk}"))
+    # Default: kukbuk
     folder-name: "kukbuk"
-    # Application name to use when constructing the Drive client
+
+    # Application name for Google Drive API client
+    # UNUSED: Defined but not referenced in code
+    # Referenced value: ${spring.application.name} (kukbuk-srv)
     application-name: "${spring.application.name}"
+
+    # Google Drive API upload endpoint URL
+    # Used by: ServiceConfig.java:56 (uploadWebClient bean, @Value("${cookbook.drive.upload-url}"))
+    # Default: https://www.googleapis.com/upload/drive/v3
     upload-url: "https://www.googleapis.com/upload/drive/v3"
+
+    # Google Drive API base endpoint URL
+    # Used by: ServiceConfig.java:52 (driveWebClient bean, @Value("${cookbook.drive.base-url}"))
+    # Default: https://www.googleapis.com/drive/v3
     base-url: "https://www.googleapis.com/drive/v3"
+
+    # Google OAuth 2.0 token endpoint URL
+    # Used by: ServiceConfig.java:48 (authWebClient bean, @Value("${cookbook.drive.auth-url}"))
+    # Default: https://oauth2.googleapis.com
     auth-url: "https://oauth2.googleapis.com"
+
+    # Google OAuth 2.0 Client ID for StorageService
+    # Used by: StorageService.java:37 (@Value("${cookbook.drive.oauth-id}"))
+    # Required: Yes (from Google Cloud Console)
+    # Note: Different property name from cookbook.google.oauth-id below
     oauth-id: "124893666852-0qqknfuqtd2ers4ghoiapobd0ieaven3.apps.googleusercontent.com"
+
+    # Google OAuth 2.0 Client Secret for StorageService
+    # Used by: StorageService.java:40 (@Value("${cookbook.drive.oauth-secret}"))
+    # Required: Yes (from Google Cloud Console, should be in environment variable)
     oauth-secret: "${SAR_SRV_GOOGLE_OAUTH_SECRET:REPLACE_WITH_YOUR_OAUTH_SECRET}"
+
+  # ---------------------------------------------------------------------------
+  # LEGACY GOOGLE OAUTH CONFIGURATION (UserProfileService)
+  # ---------------------------------------------------------------------------
   google:
+    # Google OAuth 2.0 Client ID for UserProfileService
+    # Used by: UserProfileService.java:31 (@Value("${cookbook.google.oauth-id}"))
+    # Required: Yes
+    # Note: This is separate from cookbook.drive.oauth-id (duplicate/legacy configuration)
+    # TODO: Consolidate with cookbook.drive.oauth-id to use single OAuth config
     oauth-id: "REPLACE WITH YOUR CLIENT ID"
+
+    # Google OAuth 2.0 Client Secret for UserProfileService
+    # Used by: UserProfileService.java:34 (@Value("${cookbook.google.oauth-secret}"))
+    # Required: Yes (should be in environment variable)
+    # Note: This is separate from cookbook.drive.oauth-secret (duplicate/legacy configuration)
+    # TODO: Consolidate with cookbook.drive.oauth-secret to use single OAuth config
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
+
+# ------------------------------------------------------------------------------
+# SPRING BOOT ACTUATOR ENDPOINTS
+# ------------------------------------------------------------------------------
 management:
   endpoints:
     web:
       exposure:
+        # Exposed actuator endpoints for monitoring and management
+        # Used by: Spring Boot Actuator framework (no explicit @Value usage)
+        # Available at: /actuator/{endpoint-name}
+        # - health: Application health status
+        # - httpexchanges: Recent HTTP request/response exchanges
+        # - env: Environment properties
+        # - info: Application information
+        # - firestore: Custom Firestore metrics endpoint
+        # - store-metrics: Custom recipe store metrics endpoint
         include: health,httpexchanges,env,info,firestore,store-metrics
