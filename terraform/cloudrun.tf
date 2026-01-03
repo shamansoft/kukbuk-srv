@@ -18,7 +18,7 @@ resource "google_secret_manager_secret" "google_oauth_id" {
 }
 
 resource "google_secret_manager_secret" "sar-srv-google-oauth-secret" {
-    secret_id = "sar-srv-google-oauth-secret"}
+    secret_id = "sar-srv-google-oauth-secret"
 
   replication {
     auto {}
