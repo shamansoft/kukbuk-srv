@@ -19,6 +19,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.annotation.PostConstruct;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -33,7 +34,7 @@ public class StorageService {
     private final TokenEncryptionService tokenEncryptionService;
     private final WebClient webClient;
 
-    @Value("${cookbook.google.oauth-id}")
+    @Value("${cookbook.google.oauth-client-id}")
     private String googleClientId;
 
     @Value("${cookbook.google.oauth-secret}")
@@ -53,17 +54,123 @@ public class StorageService {
         this.webClient = webClientBuilder.build();
     }
 
+    @PostConstruct
+    public void init() {
+        log.info("StorageService initialized with Google OAuth client_id: {} / {}", googleClientId, googleClientSecret.substring(googleClientSecret.length() - 4));
+    }
+
     /**
-     * Store Google Drive connection information
+     * Exchange authorization code for OAuth tokens.
+     * Calls Google's OAuth token endpoint with the authorization code.
+     *
+     * @param authorizationCode Authorization code from OAuth flow
+     * @param redirectUri       Redirect URI that was used in the OAuth flow
+     * @return TokenExchangeResult with access token, refresh token, and expiration
+     * @throws IllegalArgumentException     if authorization code is invalid
+     * @throws DatabaseUnavailableException if OAuth service is unavailable
+     */
+    private TokenExchangeResult exchangeAuthorizationCodeForTokens(String authorizationCode, String redirectUri) {
+        log.info("Exchanging authorization code for OAuth tokens");
+        log.info("OAuth exchange - client_id: {}, redirect_uri: {}", googleClientId, redirectUri);
+
+        try {
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("code", authorizationCode);
+            params.add("client_id", googleClientId);
+            params.add("client_secret", googleClientSecret);
+            params.add("redirect_uri", redirectUri);
+            params.add("grant_type", "authorization_code");
+
+            Map<String, Object> response = webClient.post()
+                    .uri("https://oauth2.googleapis.com/token")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(params))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (response == null || !response.containsKey("access_token")) {
+                throw new IllegalArgumentException("Invalid response from Google OAuth: " + response);
+            }
+
+            String accessToken = (String) response.get("access_token");
+            String refreshToken = (String) response.get("refresh_token");
+            Integer expiresIn = (Integer) response.get("expires_in");
+
+            if (refreshToken == null) {
+                throw new IllegalStateException(
+                        "No refresh token received. Ensure OAuth consent screen requests offline access."
+                );
+            }
+
+            if (expiresIn == null) {
+                expiresIn = 3600; // Default to 1 hour
+            }
+
+            log.info("Successfully exchanged authorization code for tokens, expires in {}s", expiresIn);
+
+            return new TokenExchangeResult(accessToken, refreshToken, expiresIn.longValue());
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw e;
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            String errorBody = e.getResponseBodyAsString();
+            log.error("OAuth token exchange failed with status {}: {}", e.getStatusCode(), errorBody);
+
+            // Try to extract error from Google's JSON response
+            String errorMessage = "Invalid authorization code";
+            try {
+                if (errorBody.contains("error")) {
+                    // Google returns {"error": "invalid_grant", "error_description": "..."}
+                    errorMessage = errorBody;
+                }
+            } catch (Exception parseEx) {
+                // Ignore parsing errors, use default message
+            }
+
+            throw new IllegalArgumentException(
+                    "OAuth token exchange failed: " + errorMessage +
+                            ". Check that client_id, client_secret, and redirect_uri match your OAuth configuration."
+            );
+        } catch (Exception e) {
+            log.error("Failed to exchange authorization code: {}", e.getMessage(), e);
+            throw new DatabaseUnavailableException("OAuth token exchange failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Store Google Drive connection information.
+     * Exchanges authorization code for tokens before storing.
+     *
+     * @param userId            Firebase user ID
+     * @param authorizationCode OAuth authorization code from mobile app
+     * @param redirectUri       Redirect URI used in OAuth flow
+     * @param defaultFolderId   Google Drive folder ID (optional)
+     */
+    public void connectGoogleDrive(String userId, String authorizationCode, String redirectUri,
+                                   String defaultFolderId) {
+        log.info("Connecting Google Drive storage for user: {}", userId);
+
+        // Exchange authorization code for tokens
+        TokenExchangeResult tokens = exchangeAuthorizationCodeForTokens(authorizationCode, redirectUri);
+
+        // Store tokens (encrypted)
+        connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
+                tokens.expiresIn(), defaultFolderId);
+    }
+
+    /**
+     * Internal method to store OAuth tokens.
+     * Separated for backwards compatibility and testing.
      *
      * @param userId          Firebase user ID
      * @param accessToken     OAuth access token (will be encrypted)
-     * @param refreshToken    OAuth refresh token (will be encrypted, may be null)
+     * @param refreshToken    OAuth refresh token (will be encrypted)
      * @param expiresIn       Token expiration in seconds
      * @param defaultFolderId Google Drive folder ID (optional)
      */
-    public void connectGoogleDrive(String userId, String accessToken, String refreshToken,
-                                   long expiresIn, String defaultFolderId) {
+    private void connectGoogleDriveWithTokens(String userId, String accessToken, String refreshToken,
+                                              long expiresIn, String defaultFolderId) {
         log.info("Connecting Google Drive storage for user: {}", userId);
 
         try {
@@ -322,5 +429,15 @@ public class StorageService {
         } catch (ExecutionException e) {
             throw new DatabaseUnavailableException("Failed to update default folder", e);
         }
+    }
+
+    /**
+     * Result of exchanging authorization code for OAuth tokens.
+     *
+     * @param accessToken  OAuth access token
+     * @param refreshToken OAuth refresh token
+     * @param expiresIn    Token expiration in seconds
+     */
+    private record TokenExchangeResult(String accessToken, String refreshToken, long expiresIn) {
     }
 }

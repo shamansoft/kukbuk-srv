@@ -28,7 +28,7 @@ cookbook:
     base-url: "https://www.googleapis.com/drive/v3"
     auth-url: "https://oauth2.googleapis.com"
   google:
-    oauth-id: "test-oauth-id"
+    oauth-client-id: "test-oauth-id"
     oauth-secret: "test-oauth-secret"
 
 logging:

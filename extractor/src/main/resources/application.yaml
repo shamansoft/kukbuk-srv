@@ -58,8 +58,8 @@ cookbook:
     base-url: "https://www.googleapis.com/drive/v3"
     auth-url: "https://oauth2.googleapis.com"
   google:
-    oauth-id: "REPLACE WITH YOUR CLIENT ID"
-    oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
+    oauth-client-id: "124893666852-0qqknfuqtd2ers4ghoiapobd0ieaven3.apps.googleusercontent.com"
+    oauth-secret: "${SAR_SRV_GOOGLE_OAUTH_SECRET:REPLACE_WITH_YOUR_OAUTH_SECRET}"
 management:
   endpoints:
     web:

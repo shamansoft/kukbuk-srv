@@ -24,8 +24,15 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Import(TestFirebaseConfig.class)
@@ -38,9 +45,9 @@ class StorageControllerTest {
     private StorageService storageService;
 
     private static final String TEST_USER_ID = "test-user-123";
-    private static final String TEST_ACCESS_TOKEN = "ya29.test_access_token";
-    private static final String TEST_REFRESH_TOKEN = "1//test_refresh_token";
-    private static final long TEST_EXPIRES_IN = 3600L;
+    private static final String TEST_AUTH_CODE = "auth-code-123";
+    private static final String TEST_REDIRECT_URI = "https://example.com/callback";
+    private static final String TEST_FOLDER_ID = "folder-123";
 
     @BeforeEach
     void setUp() {
@@ -55,19 +62,17 @@ class StorageControllerTest {
     void connectGoogleDrive_Success_AllFields() {
         // Given
         StorageConnectionRequest request = StorageConnectionRequest.builder()
-                .accessToken(TEST_ACCESS_TOKEN)
-                .refreshToken(TEST_REFRESH_TOKEN)
-                .expiresIn(TEST_EXPIRES_IN)
-                .defaultFolderId("folder-123")
+                .authorizationCode(TEST_AUTH_CODE)
+                .redirectUri(TEST_REDIRECT_URI)
+                .defaultFolderId(TEST_FOLDER_ID)
                 .build();
 
         // storageService.connectGoogleDrive is void, so no need to stub return value
         doNothing().when(storageService).connectGoogleDrive(
                 eq(TEST_USER_ID),
-                eq(TEST_ACCESS_TOKEN),
-                eq(TEST_REFRESH_TOKEN),
-                eq(TEST_EXPIRES_IN),
-                eq("folder-123")
+                eq(TEST_AUTH_CODE),
+                eq(TEST_REDIRECT_URI),
+                eq(TEST_FOLDER_ID)
         );
 
         // When
@@ -85,26 +90,24 @@ class StorageControllerTest {
         // Verify service was called with correct parameters
         verify(storageService).connectGoogleDrive(
                 TEST_USER_ID,
-                TEST_ACCESS_TOKEN,
-                TEST_REFRESH_TOKEN,
-                TEST_EXPIRES_IN,
-                "folder-123"
+                TEST_AUTH_CODE,
+                TEST_REDIRECT_URI,
+                TEST_FOLDER_ID
         );
     }
 
     @Test
     @DisplayName("POST /connect - Success without optional fields")
     void connectGoogleDrive_Success_MissingOptionalFields() {
-        // Given - no refresh token or folder ID
+        // Given - no folder ID
         StorageConnectionRequest request = StorageConnectionRequest.builder()
-                .accessToken(TEST_ACCESS_TOKEN)
-                .refreshToken(null)
-                .expiresIn(TEST_EXPIRES_IN)
+                .authorizationCode(TEST_AUTH_CODE)
+                .redirectUri(TEST_REDIRECT_URI)
                 .defaultFolderId(null)
                 .build();
 
         doNothing().when(storageService).connectGoogleDrive(
-                anyString(), anyString(), isNull(), anyLong(), isNull()
+                anyString(), anyString(), anyString(), isNull()
         );
 
         // When
@@ -118,51 +121,60 @@ class StorageControllerTest {
 
         verify(storageService).connectGoogleDrive(
                 TEST_USER_ID,
-                TEST_ACCESS_TOKEN,
-                null,  // refresh token
-                TEST_EXPIRES_IN,
+                TEST_AUTH_CODE,
+                TEST_REDIRECT_URI,
                 null   // folder ID
         );
     }
 
     @Test
-    @DisplayName("POST /connect - UserNotFoundException throws 404")
-    void connectGoogleDrive_UserNotFound_Throws404() {
+    @DisplayName("POST /connect - Invalid authorization code returns 400")
+    void connectGoogleDrive_InvalidAuthCode_Returns400() {
         // Given
         StorageConnectionRequest request = StorageConnectionRequest.builder()
-                .accessToken(TEST_ACCESS_TOKEN)
-                .expiresIn(TEST_EXPIRES_IN)
+                .authorizationCode("invalid-code")
+                .redirectUri(TEST_REDIRECT_URI)
                 .build();
 
-        doThrow(new UserNotFoundException("User profile not found"))
+        doThrow(new IllegalArgumentException("Invalid authorization code"))
                 .when(storageService).connectGoogleDrive(
-                        anyString(), anyString(), any(), anyLong(), any()
+                        anyString(), anyString(), anyString(), any()
                 );
 
-        // When/Then - exception should propagate to handler
-        assertThatThrownBy(() ->
-                controller.connectGoogleDrive(TEST_USER_ID, request)
-        ).isInstanceOf(UserNotFoundException.class);
+        // When
+        ResponseEntity<StorageConnectionResponse> response =
+                controller.connectGoogleDrive(TEST_USER_ID, request);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo("error");
+        assertThat(response.getBody().getMessage()).contains("Invalid authorization code");
     }
 
     @Test
-    @DisplayName("POST /connect - DatabaseUnavailableException throws 503")
-    void connectGoogleDrive_DatabaseUnavailable_Throws503() {
+    @DisplayName("POST /connect - Missing refresh token returns 400")
+    void connectGoogleDrive_MissingRefreshToken_Returns400() {
         // Given
         StorageConnectionRequest request = StorageConnectionRequest.builder()
-                .accessToken(TEST_ACCESS_TOKEN)
-                .expiresIn(TEST_EXPIRES_IN)
+                .authorizationCode(TEST_AUTH_CODE)
+                .redirectUri(TEST_REDIRECT_URI)
                 .build();
 
-        doThrow(new DatabaseUnavailableException("Firestore timeout"))
+        doThrow(new IllegalStateException("No refresh token received"))
                 .when(storageService).connectGoogleDrive(
-                        anyString(), anyString(), any(), anyLong(), any()
+                        anyString(), anyString(), anyString(), any()
                 );
 
-        // When/Then
-        assertThatThrownBy(() ->
-                controller.connectGoogleDrive(TEST_USER_ID, request)
-        ).isInstanceOf(DatabaseUnavailableException.class);
+        // When
+        ResponseEntity<StorageConnectionResponse> response =
+                controller.connectGoogleDrive(TEST_USER_ID, request);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo("error");
+        assertThat(response.getBody().getMessage()).contains("OAuth error");
     }
 
     // ========== DISCONNECT TESTS ==========
@@ -227,11 +239,11 @@ class StorageControllerTest {
         StorageInfo storageInfo = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
-                .accessToken(TEST_ACCESS_TOKEN)  // Won't be in response
-                .refreshToken(TEST_REFRESH_TOKEN) // Won't be in response
+                .accessToken("ya29.test_token")  // Won't be in response
+                .refreshToken("1//test_refresh") // Won't be in response
                 .expiresAt(expiresAt)
                 .connectedAt(now)
-                .defaultFolderId("folder-123")
+                .defaultFolderId(TEST_FOLDER_ID)
                 .build();
 
         when(storageService.getStorageInfo(TEST_USER_ID))
@@ -248,7 +260,7 @@ class StorageControllerTest {
         assertThat(response.getBody().getStorageType()).isEqualTo("googleDrive");
         assertThat(response.getBody().getConnectedAt()).isEqualTo(now);
         assertThat(response.getBody().getExpiresAt()).isEqualTo(expiresAt);
-        assertThat(response.getBody().getDefaultFolderId()).isEqualTo("folder-123");
+        assertThat(response.getBody().getDefaultFolderId()).isEqualTo(TEST_FOLDER_ID);
 
         verify(storageService).getStorageInfo(TEST_USER_ID);
     }

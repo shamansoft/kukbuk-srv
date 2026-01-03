@@ -170,7 +170,7 @@ public class CookbookExceptionHandlerTest {
     @Test
     void handleStorageNotConnectedReturnsPreconditionRequired() {
         // Mock HTTP request
-        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/status");
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/status");
 
         // Create test exception
         StorageNotConnectedException testException =
@@ -185,13 +185,13 @@ public class CookbookExceptionHandlerTest {
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 428);
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Storage Not Connected");
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "No storage configured");
-        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/status");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/storage/google-drive/status");
     }
 
     @Test
     void handleUserNotFoundReturnsNotFound() {
         // Mock HTTP request
-        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/connect");
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/connect");
 
         // Create test exception
         UserNotFoundException testException =
@@ -206,13 +206,13 @@ public class CookbookExceptionHandlerTest {
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 404);
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "User Not Found");
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "User profile not found: test-user-123");
-        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/connect");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/storage/google-drive/connect");
     }
 
     @Test
     void handleDatabaseUnavailableReturnsServiceUnavailable() {
         // Mock HTTP request
-        when(httpServletRequest.getRequestURI()).thenReturn("/api/storage/google-drive/connect");
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/connect");
 
         // Create test exception
         DatabaseUnavailableException testException =
@@ -226,7 +226,7 @@ public class CookbookExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 503);
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Service Unavailable");
-        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/api/storage/google-drive/connect");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/storage/google-drive/connect");
         // Error message should be generic to not expose internal details
         assertThat(response.getBody()).hasFieldOrPropertyWithValue(
                 "message",
