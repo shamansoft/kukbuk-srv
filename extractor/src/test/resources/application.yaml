@@ -9,6 +9,11 @@ recipe:
   cache:
     enabled: false
 
+# Disable KMS encryption in tests (use mock instead)
+gcp:
+  kms:
+    enabled: false
+
 spring:
   application:
     name: cookbook-test

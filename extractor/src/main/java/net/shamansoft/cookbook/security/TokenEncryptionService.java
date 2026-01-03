@@ -25,6 +25,9 @@ import java.util.Base64;
 @Slf4j
 public class TokenEncryptionService {
 
+    @Value("${gcp.kms.enabled:true}")
+    private boolean kmsEnabled;
+
     @Value("${gcp.project-id:kukbuk-tf}")
     private String projectId;
 
@@ -42,9 +45,16 @@ public class TokenEncryptionService {
     /**
      * Initialize KMS client during bean creation with explicit quota project.
      * This ensures API calls are billed to the correct project.
+     *
+     * Can be disabled via gcp.kms.enabled=false (useful for tests).
      */
     @PostConstruct
     public void initKmsClient() {
+        if (!kmsEnabled) {
+            log.info("KMS client initialization skipped (gcp.kms.enabled=false)");
+            return;
+        }
+
         try {
             GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
 
