@@ -10,15 +10,19 @@ import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.containers.FirestoreEmulatorContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import reactor.core.publisher.Mono;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,13 +37,16 @@ class StorageServiceIntegrationTest {
     private StorageService storageService;
     private Firestore firestore;
     private TokenEncryptionService tokenEncryptionService;
+    private WebClient.Builder webClientBuilder;
+    private WebClient webClient;
 
     private static final String TEST_USER_ID = "integration-test-user";
+    private static final String AUTH_CODE = "test-auth-code";
+    private static final String REDIRECT_URI = "https://example.com/callback";
     private static final String ACCESS_TOKEN = "test-access-token";
     private static final String REFRESH_TOKEN = "test-refresh-token";
     private static final String ENCRYPTED_ACCESS = "encrypted-access-token";
     private static final String ENCRYPTED_REFRESH = "encrypted-refresh-token";
-    private static final long EXPIRES_IN = 3600L;
     private static final String FOLDER_ID = "test-folder-123";
 
     @BeforeEach
@@ -59,7 +66,12 @@ class StorageServiceIntegrationTest {
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
-        storageService = new StorageService(firestore, tokenEncryptionService);
+        // Mock WebClient for OAuth token exchange
+        webClient = mockWebClientForOAuthExchange();
+        webClientBuilder = mock(WebClient.Builder.class);
+        when(webClientBuilder.build()).thenReturn(webClient);
+
+        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder);
 
         // Create user profile
         firestore.collection("users")
@@ -68,11 +80,35 @@ class StorageServiceIntegrationTest {
                 .get();
     }
 
+    @SuppressWarnings("unchecked")
+    private WebClient mockWebClientForOAuthExchange() {
+        WebClient webClient = mock(WebClient.class);
+        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
+        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+
+        // Mock OAuth token exchange response
+        Map<String, Object> oauthResponse = new HashMap<>();
+        oauthResponse.put("access_token", ACCESS_TOKEN);
+        oauthResponse.put("refresh_token", REFRESH_TOKEN);
+        oauthResponse.put("expires_in", 3600);
+
+        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
+
+        return webClient;
+    }
+
     @Test
     @DisplayName("Should connect Google Drive and store encrypted tokens")
     void shouldConnectGoogleDriveAndStoreEncryptedTokens() throws Exception {
         // When - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
 
         // Then - Verify stored data
         DocumentSnapshot doc = firestore.collection("users")
@@ -97,7 +133,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should retrieve and decrypt storage info")
     void shouldRetrieveAndDecryptStorageInfo() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
 
         // When - Get storage info
         StorageInfo info = storageService.getStorageInfo(TEST_USER_ID);
@@ -117,7 +153,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should update default folder")
     void shouldUpdateDefaultFolder() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
 
         // When - Update default folder
         String newFolderId = "new-folder-456";
@@ -137,7 +173,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should disconnect storage and remove data")
     void shouldDisconnectStorageAndRemoveData() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
 
         // When - Disconnect storage
         storageService.disconnectStorage(TEST_USER_ID);
@@ -158,7 +194,7 @@ class StorageServiceIntegrationTest {
         assertThat(storageService.isStorageConnected(TEST_USER_ID)).isFalse();
 
         // When - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
 
         // Then - Storage is connected
         assertThat(storageService.isStorageConnected(TEST_USER_ID)).isTrue();
@@ -191,27 +227,28 @@ class StorageServiceIntegrationTest {
     @Test
     @DisplayName("Should handle null refresh token")
     void shouldHandleNullRefreshToken() throws Exception {
-        // When - Connect with null refresh token
-        storageService.connectGoogleDrive(TEST_USER_ID, ACCESS_TOKEN, null, EXPIRES_IN, null);
+        // Mock WebClient to return response without refresh token
+        Map<String, Object> oauthResponseWithoutRefresh = new HashMap<>();
+        oauthResponseWithoutRefresh.put("access_token", ACCESS_TOKEN);
+        oauthResponseWithoutRefresh.put("expires_in", 3600);
+        // No refresh_token in response
 
-        // Then - Verify storage without refresh token
-        DocumentSnapshot doc = firestore.collection("users")
-                .document(TEST_USER_ID)
-                .get()
-                .get();
+        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
+        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
+        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
+        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
 
-        Map<String, Object> storage = (Map<String, Object>) doc.get("storage");
-        assertThat(storage).isNotNull();
-        assertThat(storage.get("accessToken")).isEqualTo(ENCRYPTED_ACCESS);
-        assertThat(storage).doesNotContainKey("refreshToken");
-        assertThat(storage).doesNotContainKey("defaultFolderId");
+        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponseWithoutRefresh));
 
-        // When - Get storage info
-        StorageInfo info = storageService.getStorageInfo(TEST_USER_ID);
-
-        // Then - Verify null refresh token
-        assertThat(info.accessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(info.refreshToken()).isNull();
-        assertThat(info.defaultFolderId()).isNull();
+        // When & Then - Connect without refresh token should fail
+        // The service expects a refresh token and will throw IllegalStateException if missing
+        assertThatThrownBy(() -> storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No refresh token received");
     }
 }
