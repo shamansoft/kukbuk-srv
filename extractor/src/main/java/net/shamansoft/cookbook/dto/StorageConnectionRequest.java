@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Request DTO for connecting Google Drive storage.
+ * Mobile app sends authorization code which backend exchanges for tokens.
  */
 @Data
 @Builder
@@ -16,14 +17,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class StorageConnectionRequest {
 
-    @NotBlank(message = "Access token is required")
-    private String accessToken;
+    @NotBlank(message = "Authorization code is required")
+    private String authorizationCode;
 
-    // Refresh token is optional - some OAuth flows may not provide it
-    private String refreshToken;
-
-    @Min(value = 0, message = "Expires in must be non-negative")
-    private long expiresIn;
+    @NotNull(message = "Redirect URI is required")
+    private String redirectUri;
 
     // Optional - can be set later via separate endpoint if needed
     private String defaultFolderId;

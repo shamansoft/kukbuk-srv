@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
  * are injected by FirebaseAuthFilter.
  */
 @RestController
-@RequestMapping("/api/storage")
+@RequestMapping("/v1/storage")
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(
@@ -42,9 +42,10 @@ public class StorageController {
 
     /**
      * Connect Google Drive storage for the authenticated user.
+     * Exchanges authorization code for OAuth tokens server-side.
      *
      * @param userId  Injected by FirebaseAuthFilter
-     * @param request OAuth tokens and configuration
+     * @param request Authorization code and configuration from mobile app
      * @return Connection response with success/failure status
      */
     @PostMapping("/google-drive/connect")
@@ -54,22 +55,39 @@ public class StorageController {
 
         log.info("Connecting Google Drive storage for user: {}", userId);
 
-        storageService.connectGoogleDrive(
-                userId,
-                request.getAccessToken(),
-                request.getRefreshToken(),
-                request.getExpiresIn(),
-                request.getDefaultFolderId()
-        );
+        try {
+            storageService.connectGoogleDrive(
+                    userId,
+                    request.getAuthorizationCode(),
+                    request.getRedirectUri(),
+                    request.getDefaultFolderId()
+            );
 
-        log.info("Google Drive connected successfully for user: {}", userId);
+            log.info("Google Drive connected successfully for user: {}", userId);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(StorageConnectionResponse.success(
-                        "Google Drive connected successfully",
-                        true
-                ));
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(StorageConnectionResponse.success(
+                            "Google Drive connected successfully",
+                            true
+                    ));
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid authorization code for user {}: {}", userId, e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(StorageConnectionResponse.error(
+                            "Invalid authorization code: " + e.getMessage()
+                    ));
+
+        } catch (IllegalStateException e) {
+            log.error("OAuth configuration error for user {}: {}", userId, e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(StorageConnectionResponse.error(
+                            "OAuth error: " + e.getMessage()
+                    ));
+        }
     }
 
     /**

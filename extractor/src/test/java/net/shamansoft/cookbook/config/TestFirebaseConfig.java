@@ -4,6 +4,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
+import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -13,7 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test configuration that provides mock Firebase/Firestore beans for integration tests.
+ * Test configuration that provides mock Firebase/Firestore/KMS beans for unit tests.
  *
  * This replaces the production beans during tests, allowing tests to run
  * without needing real GCP credentials.
@@ -47,5 +48,32 @@ public class TestFirebaseConfig {
     @Primary
     public Firestore mockFirestore() {
         return mock(Firestore.class);
+    }
+
+    /**
+     * Mock TokenEncryptionService that doesn't require GCP KMS credentials.
+     * Uses simple string prefixing to simulate encryption/decryption.
+     */
+    @Bean
+    @Primary
+    public TokenEncryptionService mockTokenEncryptionService() throws Exception {
+        TokenEncryptionService mockService = mock(TokenEncryptionService.class);
+
+        // Mock encrypt to add "encrypted-" prefix
+        when(mockService.encrypt(anyString())).thenAnswer(invocation -> {
+            String plaintext = invocation.getArgument(0);
+            return "encrypted-" + plaintext;
+        });
+
+        // Mock decrypt to remove "encrypted-" prefix
+        when(mockService.decrypt(anyString())).thenAnswer(invocation -> {
+            String ciphertext = invocation.getArgument(0);
+            if (ciphertext != null && ciphertext.startsWith("encrypted-")) {
+                return ciphertext.substring("encrypted-".length());
+            }
+            return ciphertext;
+        });
+
+        return mockService;
     }
 }

@@ -9,6 +9,11 @@ recipe:
   cache:
     enabled: false
 
+# Disable KMS encryption in tests (use mock instead)
+gcp:
+  kms:
+    enabled: false
+
 spring:
   application:
     name: cookbook-test
@@ -27,8 +32,10 @@ cookbook:
     upload-url: "https://www.googleapis.com/upload/drive/v3"
     base-url: "https://www.googleapis.com/drive/v3"
     auth-url: "https://oauth2.googleapis.com"
+    oauth-id: "test-oauth-id"  # Used by StorageService
+    oauth-secret: "test-oauth-secret"  # Used by StorageService
   google:
-    oauth-id: "test-oauth-id"
+    oauth-id: "test-oauth-id"  # Used by UserProfileService
     oauth-secret: "test-oauth-secret"
 
 logging:

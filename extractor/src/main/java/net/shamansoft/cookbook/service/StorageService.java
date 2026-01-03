@@ -3,7 +3,6 @@ package net.shamansoft.cookbook.service;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
@@ -12,35 +11,166 @@ import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.annotation.PostConstruct;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /**
  * Service for managing storage provider configuration in Firestore
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class StorageService {
 
     private final Firestore firestore;
     private final TokenEncryptionService tokenEncryptionService;
+    private final WebClient webClient;
+
+    @Value("${cookbook.drive.oauth-id}")
+    private String googleClientId;
+
+    @Value("${cookbook.drive.oauth-secret}")
+    private String googleClientSecret;
 
     private static final String USERS_COLLECTION = "users";
     private static final String STORAGE_FIELD = "storage";
 
+    // Refresh token if it expires within this window (5 minutes)
+    private static final long TOKEN_BUFFER_SECONDS = 300;
+
+    public StorageService(Firestore firestore,
+                         TokenEncryptionService tokenEncryptionService,
+                         WebClient.Builder webClientBuilder) {
+        this.firestore = firestore;
+        this.tokenEncryptionService = tokenEncryptionService;
+        this.webClient = webClientBuilder.build();
+    }
+
+    @PostConstruct
+    public void init() {
+        log.info("StorageService initialized with Google OAuth client_id: {} / {}", googleClientId, googleClientSecret.substring(googleClientSecret.length() - 4));
+    }
+
     /**
-     * Store Google Drive connection information
+     * Exchange authorization code for OAuth tokens.
+     * Calls Google's OAuth token endpoint with the authorization code.
+     *
+     * @param authorizationCode Authorization code from OAuth flow
+     * @param redirectUri       Redirect URI that was used in the OAuth flow
+     * @return TokenExchangeResult with access token, refresh token, and expiration
+     * @throws IllegalArgumentException     if authorization code is invalid
+     * @throws DatabaseUnavailableException if OAuth service is unavailable
+     */
+    private TokenExchangeResult exchangeAuthorizationCodeForTokens(String authorizationCode, String redirectUri) {
+        log.info("Exchanging authorization code for OAuth tokens");
+        log.info("OAuth exchange - client_id: {}, redirect_uri: {}", googleClientId, redirectUri);
+
+        try {
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("code", authorizationCode);
+            params.add("client_id", googleClientId);
+            params.add("client_secret", googleClientSecret);
+            params.add("redirect_uri", redirectUri);
+            params.add("grant_type", "authorization_code");
+
+            Map<String, Object> response = webClient.post()
+                    .uri("https://oauth2.googleapis.com/token")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(params))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (response == null || !response.containsKey("access_token")) {
+                throw new IllegalArgumentException("Invalid response from Google OAuth: " + response);
+            }
+
+            String accessToken = (String) response.get("access_token");
+            String refreshToken = (String) response.get("refresh_token");
+            Integer expiresIn = (Integer) response.get("expires_in");
+
+            if (refreshToken == null) {
+                throw new IllegalStateException(
+                        "No refresh token received. Ensure OAuth consent screen requests offline access."
+                );
+            }
+
+            if (expiresIn == null) {
+                expiresIn = 3600; // Default to 1 hour
+            }
+
+            log.info("Successfully exchanged authorization code for tokens, expires in {}s", expiresIn);
+
+            return new TokenExchangeResult(accessToken, refreshToken, expiresIn.longValue());
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw e;
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            String errorBody = e.getResponseBodyAsString();
+            log.error("OAuth token exchange failed with status {}: {}", e.getStatusCode(), errorBody);
+
+            // Try to extract error from Google's JSON response
+            String errorMessage = "Invalid authorization code";
+            try {
+                if (errorBody.contains("error")) {
+                    // Google returns {"error": "invalid_grant", "error_description": "..."}
+                    errorMessage = errorBody;
+                }
+            } catch (Exception parseEx) {
+                // Ignore parsing errors, use default message
+            }
+
+            throw new IllegalArgumentException(
+                    "OAuth token exchange failed: " + errorMessage +
+                            ". Check that client_id, client_secret, and redirect_uri match your OAuth configuration."
+            );
+        } catch (Exception e) {
+            log.error("Failed to exchange authorization code: {}", e.getMessage(), e);
+            throw new DatabaseUnavailableException("OAuth token exchange failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Store Google Drive connection information.
+     * Exchanges authorization code for tokens before storing.
+     *
+     * @param userId            Firebase user ID
+     * @param authorizationCode OAuth authorization code from mobile app
+     * @param redirectUri       Redirect URI used in OAuth flow
+     * @param defaultFolderId   Google Drive folder ID (optional)
+     */
+    public void connectGoogleDrive(String userId, String authorizationCode, String redirectUri,
+                                   String defaultFolderId) {
+        log.info("Connecting Google Drive storage for user: {}", userId);
+
+        // Exchange authorization code for tokens
+        TokenExchangeResult tokens = exchangeAuthorizationCodeForTokens(authorizationCode, redirectUri);
+
+        // Store tokens (encrypted)
+        connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
+                tokens.expiresIn(), defaultFolderId);
+    }
+
+    /**
+     * Internal method to store OAuth tokens.
+     * Separated for backwards compatibility and testing.
      *
      * @param userId          Firebase user ID
      * @param accessToken     OAuth access token (will be encrypted)
-     * @param refreshToken    OAuth refresh token (will be encrypted, may be null)
+     * @param refreshToken    OAuth refresh token (will be encrypted)
      * @param expiresIn       Token expiration in seconds
      * @param defaultFolderId Google Drive folder ID (optional)
      */
-    public void connectGoogleDrive(String userId, String accessToken, String refreshToken,
-                                   long expiresIn, String defaultFolderId) {
+    private void connectGoogleDriveWithTokens(String userId, String accessToken, String refreshToken,
+                                              long expiresIn, String defaultFolderId) {
         log.info("Connecting Google Drive storage for user: {}", userId);
 
         try {
@@ -73,10 +203,10 @@ public class StorageService {
     }
 
     /**
-     * Get storage information for a user
+     * Get storage information for a user with automatic token refresh
      *
      * @param userId Firebase user ID
-     * @return StorageInfo domain object with decrypted tokens
+     * @return StorageInfo domain object with valid (possibly refreshed) tokens
      * @throws StorageNotConnectedException if no storage connected or user profile doesn't exist
      * @throws DatabaseUnavailableException if database operation fails
      */
@@ -103,7 +233,7 @@ public class StorageService {
 
             StorageEntity storageEntity = userProfile.storage();
 
-            // 4. Domain logic validation
+            // 3. Domain logic validation
             if (!storageEntity.connected()) {
                 throw new StorageNotConnectedException(
                         "Storage not connected. Please connect Google Drive first."
@@ -116,7 +246,14 @@ public class StorageService {
                 );
             }
 
-            // 5. Decrypt and map to domain object
+            // 4. Check if token needs refresh
+            if (isTokenExpired(storageEntity)) {
+                log.info("OAuth token expired or expiring soon for user: {}, refreshing...", userId);
+                return refreshAccessToken(userId, storageEntity);
+            }
+
+            // 5. Token is valid, decrypt and return
+            log.debug("Using cached OAuth token for user: {}", userId);
             return storageEntity.toDto(tokenEncryptionService);
 
         } catch (InterruptedException e) {
@@ -129,6 +266,106 @@ public class StorageService {
             throw e;
         } catch (Exception e) {
             throw new DatabaseUnavailableException("Unexpected error while retrieving storage info", e);
+        }
+    }
+
+    /**
+     * Check if access token is expired or expiring soon
+     */
+    private boolean isTokenExpired(StorageEntity storage) {
+        if (storage.expiresAt() == null) {
+            log.warn("No expiration time found for token, assuming expired");
+            return true;
+        }
+
+        long now = System.currentTimeMillis() / 1000;
+        long expiresAt = storage.expiresAt().getSeconds();
+
+        boolean isExpired = (expiresAt - now) <= TOKEN_BUFFER_SECONDS;
+
+        if (isExpired) {
+            log.debug("Token expires at {}, now is {}, buffer is {}s - needs refresh",
+                     expiresAt, now, TOKEN_BUFFER_SECONDS);
+        }
+
+        return isExpired;
+    }
+
+    /**
+     * Refresh access token using refresh token
+     */
+    private StorageInfo refreshAccessToken(String userId, StorageEntity storage) {
+        if (storage.refreshToken() == null) {
+            throw new StorageNotConnectedException(
+                "Access token expired and no refresh token available. Please reconnect storage."
+            );
+        }
+
+        try {
+            String refreshToken = tokenEncryptionService.decrypt(storage.refreshToken());
+
+            log.info("Calling Google OAuth token endpoint to refresh access token for user: {}", userId);
+
+            // Call Google's token endpoint
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("client_id", googleClientId);
+            params.add("client_secret", googleClientSecret);
+            params.add("refresh_token", refreshToken);
+            params.add("grant_type", "refresh_token");
+
+            Map<String, Object> response = webClient.post()
+                .uri("https://oauth2.googleapis.com/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData(params))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+            if (response == null || !response.containsKey("access_token")) {
+                throw new RuntimeException("Invalid response from Google OAuth: " + response);
+            }
+
+            String newAccessToken = (String) response.get("access_token");
+            Integer expiresIn = (Integer) response.get("expires_in");
+
+            if (expiresIn == null) {
+                expiresIn = 3600; // Default to 1 hour
+            }
+
+            log.info("Successfully refreshed OAuth token for user: {}, expires in {}s", userId, expiresIn);
+
+            // Update Firestore with new token
+            String encryptedAccessToken = tokenEncryptionService.encrypt(newAccessToken);
+            Timestamp newExpiresAt = Timestamp.ofTimeSecondsAndNanos(
+                System.currentTimeMillis() / 1000 + expiresIn, 0
+            );
+
+            firestore.collection(USERS_COLLECTION)
+                .document(userId)
+                .update(
+                    STORAGE_FIELD + ".accessToken", encryptedAccessToken,
+                    STORAGE_FIELD + ".expiresAt", newExpiresAt
+                )
+                .get();
+
+            log.info("Updated Firestore with refreshed token for user: {}", userId);
+
+            // Return StorageInfo with new token
+            return StorageInfo.builder()
+                .type(StorageType.fromFirestoreValue(storage.type()))
+                .connected(true)
+                .accessToken(newAccessToken)  // Decrypted new token
+                .refreshToken(refreshToken)   // Keep same refresh token
+                .expiresAt(newExpiresAt.toDate().toInstant())
+                .connectedAt(storage.connectedAt() != null
+                    ? storage.connectedAt().toDate().toInstant()
+                    : null)
+                .defaultFolderId(storage.defaultFolderId())
+                .build();
+
+        } catch (Exception e) {
+            log.error("Failed to refresh OAuth token for user {}: {}", userId, e.getMessage(), e);
+            throw new DatabaseUnavailableException("Failed to refresh OAuth token: " + e.getMessage(), e);
         }
     }
 
@@ -192,5 +429,15 @@ public class StorageService {
         } catch (ExecutionException e) {
             throw new DatabaseUnavailableException("Failed to update default folder", e);
         }
+    }
+
+    /**
+     * Result of exchanging authorization code for OAuth tokens.
+     *
+     * @param accessToken  OAuth access token
+     * @param refreshToken OAuth refresh token
+     * @param expiresIn    Token expiration in seconds
+     */
+    private record TokenExchangeResult(String accessToken, String refreshToken, long expiresIn) {
     }
 }

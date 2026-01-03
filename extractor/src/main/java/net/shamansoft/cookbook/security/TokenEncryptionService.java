@@ -1,12 +1,18 @@
 package net.shamansoft.cookbook.security;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.cloud.kms.v1.KeyManagementServiceSettings;
 import com.google.protobuf.ByteString;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -18,6 +24,9 @@ import java.util.Base64;
 @Service
 @Slf4j
 public class TokenEncryptionService {
+
+    @Value("${gcp.kms.enabled:true}")
+    private boolean kmsEnabled;
 
     @Value("${gcp.project-id:kukbuk-tf}")
     private String projectId;
@@ -31,6 +40,55 @@ public class TokenEncryptionService {
     @Value("${gcp.kms.key:oauth-token-key}")
     private String keyName;
 
+    private KeyManagementServiceClient kmsClient;
+
+    /**
+     * Initialize KMS client during bean creation with explicit quota project.
+     * This ensures API calls are billed to the correct project.
+     *
+     * Can be disabled via gcp.kms.enabled=false (useful for tests).
+     */
+    @PostConstruct
+    public void initKmsClient() {
+        if (!kmsEnabled) {
+            log.info("KMS client initialization skipped (gcp.kms.enabled=false)");
+            return;
+        }
+
+        try {
+            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+
+            // Set quota project to ensure KMS API calls use the correct project
+            GoogleCredentials credentialsWithQuotaProject = credentials.createWithQuotaProject(projectId);
+
+            log.debug("Initializing KMS client with quota project: {}, location: {}, keyring: {}, key: {}",
+                     projectId, location, keyring, keyName);
+
+            KeyManagementServiceSettings settings = KeyManagementServiceSettings.newBuilder()
+                .setCredentialsProvider(FixedCredentialsProvider.create(credentialsWithQuotaProject))
+                .build();
+
+            this.kmsClient = KeyManagementServiceClient.create(settings);
+
+            log.info("KMS client initialized successfully for project: {}", projectId);
+
+        } catch (IOException e) {
+            log.error("Failed to initialize KMS client: {}", e.getMessage(), e);
+            throw new RuntimeException("KMS client initialization failed", e);
+        }
+    }
+
+    /**
+     * Clean up KMS client on bean destruction
+     */
+    @PreDestroy
+    public void closeKmsClient() {
+        if (kmsClient != null) {
+            log.info("Closing KMS client for project: {}", projectId);
+            kmsClient.close();
+        }
+    }
+
     /**
      * Encrypt plaintext using Cloud KMS
      *
@@ -42,7 +100,7 @@ public class TokenEncryptionService {
             throw new IllegalArgumentException("Plaintext cannot be null or blank");
         }
 
-        try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
+        try {
             CryptoKeyName cryptoKeyName = CryptoKeyName.of(
                 projectId, location, keyring, keyName
             );
@@ -51,7 +109,7 @@ public class TokenEncryptionService {
                 plaintext.getBytes(StandardCharsets.UTF_8)
             );
 
-            var response = client.encrypt(cryptoKeyName, plaintextBytes);
+            var response = kmsClient.encrypt(cryptoKeyName, plaintextBytes);
             byte[] ciphertext = response.getCiphertext().toByteArray();
 
             String encrypted = Base64.getEncoder().encodeToString(ciphertext);
@@ -75,7 +133,7 @@ public class TokenEncryptionService {
             throw new IllegalArgumentException("Encrypted token cannot be null or blank");
         }
 
-        try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
+        try {
             CryptoKeyName cryptoKeyName = CryptoKeyName.of(
                 projectId, location, keyring, keyName
             );
@@ -83,7 +141,7 @@ public class TokenEncryptionService {
             byte[] ciphertext = Base64.getDecoder().decode(encryptedToken);
             ByteString ciphertextBytes = ByteString.copyFrom(ciphertext);
 
-            var response = client.decrypt(cryptoKeyName, ciphertextBytes);
+            var response = kmsClient.decrypt(cryptoKeyName, ciphertextBytes);
             String decrypted = response.getPlaintext().toString(StandardCharsets.UTF_8);
 
             log.debug("Successfully decrypted token");

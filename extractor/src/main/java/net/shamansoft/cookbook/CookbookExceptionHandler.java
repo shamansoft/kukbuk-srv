@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
+import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -149,5 +151,51 @@ public class CookbookExceptionHandler {
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    /**
+     * Handle RecipeNotFoundException - recipe file not found in Google Drive.
+     * This may indicate the file was deleted or the user lacks permission.
+     * HTTP 404 Not Found is appropriate here.
+     */
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(RecipeNotFoundException.class)
+    public ResponseEntity<Object> handleRecipeNotFound(
+            RecipeNotFoundException e,
+            HttpServletRequest request) {
+
+        log.warn("Recipe not found: {}", e.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                "Recipe Not Found",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handle InvalidRecipeFormatException - recipe YAML file is malformed.
+     * HTTP 422 Unprocessable Entity: The server understands the content type
+     * but was unable to process the contained instructions (invalid YAML).
+     */
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    @ExceptionHandler(InvalidRecipeFormatException.class)
+    public ResponseEntity<Object> handleInvalidRecipeFormat(
+            InvalidRecipeFormatException e,
+            HttpServletRequest request) {
+
+        log.error("Invalid recipe format: {}", e.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                "Invalid Recipe Format",
+                "Recipe YAML is malformed: " + e.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 }

@@ -1,0 +1,5 @@
+logging:
+  level:
+    net.shamansoft: DEBUG
+    com.google.cloud: WARN
+    root: INFO

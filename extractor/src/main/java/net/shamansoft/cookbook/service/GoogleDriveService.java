@@ -94,4 +94,67 @@ public class GoogleDriveService implements DriveService {
         log.info("Recipe saved to Google Drive: {}", result.fileUrl());
         return result;
     }
+
+    /**
+     * List recipe files from folder with pagination
+     *
+     * @param authToken User's OAuth access token
+     * @param folderId  Folder ID to list from
+     * @param pageSize  Number of items per page
+     * @param pageToken Pagination token (null for first page)
+     * @return DriveFileListResult with files and nextPageToken
+     */
+    public GoogleDrive.DriveFileListResult listRecipeFiles(String authToken, String folderId,
+                                                           int pageSize, String pageToken) {
+        log.info("Listing recipe files from folder: {}, pageSize: {}", folderId, pageSize);
+        return drive.listFiles(authToken, folderId, pageSize, pageToken);
+    }
+
+    /**
+     * Get file content as string (for YAML files)
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    File ID
+     * @return File content as string
+     */
+    public String getFileContent(String authToken, String fileId) {
+        log.info("Getting file content: {}", fileId);
+        return drive.downloadFileAsString(authToken, fileId);
+    }
+
+    /**
+     * Download file as bytes (for media files)
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    File ID
+     * @return File content as bytes
+     */
+    public byte[] downloadFile(String authToken, String fileId) {
+        log.info("Downloading file: {}", fileId);
+        return drive.downloadFileAsBytes(authToken, fileId);
+    }
+
+    /**
+     * Get file MIME type
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    File ID
+     * @return MIME type string
+     */
+    public String getFileMimeType(String authToken, String fileId) {
+        GoogleDrive.DriveFileMetadata metadata = drive.getFileMetadata(authToken, fileId);
+        return metadata.mimeType();
+    }
+
+    /**
+     * Get file metadata
+     *
+     * @param authToken User's OAuth access token
+     * @param fileId    File ID
+     * @return DriveFileMetadata
+     */
+    public GoogleDrive.DriveFileMetadata getFileMetadata(String authToken, String fileId) {
+        log.info("Getting file metadata: {}", fileId);
+        return drive.getFileMetadata(authToken, fileId);
+    }
 }

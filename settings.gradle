@@ -1,4 +1,4 @@
-rootProject.name = 'save-a-recipe'
+rootProject.name = 'sar-srv'
 
 include 'recipe-sdk'
 include 'extractor'
