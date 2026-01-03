@@ -34,10 +34,10 @@ public class StorageService {
     private final TokenEncryptionService tokenEncryptionService;
     private final WebClient webClient;
 
-    @Value("${cookbook.google.oauth-client-id}")
+    @Value("${cookbook.drive.oauth-id}")
     private String googleClientId;
 
-    @Value("${cookbook.google.oauth-secret}")
+    @Value("${cookbook.drive.oauth-secret}")
     private String googleClientSecret;
 
     private static final String USERS_COLLECTION = "users";
