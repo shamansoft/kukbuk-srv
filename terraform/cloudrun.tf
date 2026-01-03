@@ -9,8 +9,8 @@ resource "google_secret_manager_secret" "gemini_api_key" {
   }
 }
 
-resource "google_secret_manager_secret" "google_oauth_id" {
-  secret_id = "google-oauth-id"
+resource "google_secret_manager_secret" "sar-srv-google-oauth-secret" {
+    secret_id = "sar-srv-google-oauth-secret"}
 
   replication {
     auto {}
@@ -67,10 +67,10 @@ resource "google_cloud_run_service" "cookbook" {
         }
 
         env {
-          name = "COOKBOOK_GOOGLE_OAUTH_ID"
+          name = "SAR_SRV_GOOGLE_OAUTH_SECRET"}
           value_from {
             secret_key_ref {
-              name = google_secret_manager_secret.google_oauth_id.secret_id
+              name = google_secret_manager_secret.sar-srv-google-oauth-secret.secret_id
               key  = "latest"
             }
           }
