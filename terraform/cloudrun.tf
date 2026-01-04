@@ -85,7 +85,7 @@ resource "google_cloud_run_service" "cookbook" {
         }
 
         env {
-          name = "COOKBOOK_GOOGLE_OAUTH_SECRET"}
+          name = "COOKBOOK_GOOGLE_OAUTH_SECRET"
           value_from {
             secret_key_ref {
               name = google_secret_manager_secret.sar-srv-google-oauth-secret.secret_id
