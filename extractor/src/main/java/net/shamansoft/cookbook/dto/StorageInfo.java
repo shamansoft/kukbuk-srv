@@ -15,6 +15,6 @@ public record StorageInfo(StorageType type,
                           String refreshToken,
                           Instant expiresAt,
                           Instant connectedAt,
-                          String defaultFolderId,
-                          String defaultFolderName) {
+                          String folderId,
+                          String folderName) {
 }

@@ -235,7 +235,7 @@ class GoogleDriveServiceTest {
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
                 .accessToken(accessToken)
-                .defaultFolderId(customFolderId)
+                .folderId(customFolderId)
                 .build();
 
         when(storageService.getStorageInfo(userId)).thenReturn(storage);

@@ -7,8 +7,8 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.FirestoreRecipeRepository;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import net.shamansoft.cookbook.service.ContentHashService;
 import org.junit.jupiter.api.BeforeEach;
@@ -261,7 +261,7 @@ class AddRecipeIT {
                                 "refreshToken", "encrypted-refresh-token-123",
                                 "expiresAt", futureTime,
                                 "connectedAt", nowTime,
-                                "defaultFolderId", "folder-123"
+                                "folderId", "folder-123"
                         )
                 )
         ).get();
@@ -335,8 +335,9 @@ class AddRecipeIT {
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
 
         // Verify Google Drive operations
+        // The flow now uses the cached folderId from storage, so it searches for the file directly
         verify(getRequestedFor(urlPathEqualTo("/files"))
-                .withQueryParam("q", containing("name='kukbuk'")));
+                .withQueryParam("q", containing("chocolate-chip-cookies.yaml")));
         verify(postRequestedFor(urlPathEqualTo("/files")));
         verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
     }

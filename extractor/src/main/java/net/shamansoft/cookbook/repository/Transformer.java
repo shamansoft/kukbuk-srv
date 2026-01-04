@@ -2,7 +2,7 @@ package net.shamansoft.cookbook.repository;
 
 import com.google.cloud.firestore.DocumentSnapshot;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.StoredRecipe;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;

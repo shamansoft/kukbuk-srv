@@ -20,7 +20,7 @@ public class GoogleDriveService implements DriveService {
     private final StorageService storageService;
 
     @Autowired
-    public GoogleDriveService(@Value("${cookbook.drive.folder-name:kukbuk}") String folderName,
+    public GoogleDriveService(@Value("${cookbook.drive.folder-name}") String folderName,
                               GoogleDrive drive,
                               Transliterator transliterator,
                               StorageService storageService) {
@@ -80,9 +80,9 @@ public class GoogleDriveService implements DriveService {
 
         // Get or create folder (use custom folder if configured, otherwise default)
         String folderId;
-        if (storage.defaultFolderId() != null) {
-            log.debug("Using custom folder ID: {}", storage.defaultFolderId());
-            folderId = storage.defaultFolderId();
+        if (storage.folderId() != null) {
+            log.debug("Using custom folder ID: {}", storage.folderId());
+            folderId = storage.folderId();
         } else {
             folderId = getOrCreateFolder(storage.accessToken());
         }

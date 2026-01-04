@@ -20,28 +20,24 @@ public class HtmlExtractor {
     }
 
     public String extractHtml(Request request, String compression) throws IOException {
-        String html = "";
-        if (request.html() != null && !request.html().isEmpty()) {
+        return extractHtml(request.url(), request.html(), compression);
+    }
+
+    public String extractHtml(String url, String source, String compression) throws IOException {
+        if (source != null && !source.isBlank()) {
             try {
                 if (NONE.equals(compression)) {
-                    html = request.html();
                     log.debug("Skipping decompression, using HTML from request");
+                    return source;
                 } else {
-                    html = compressor.decompress(request.html());
                     log.debug("Successfully decompressed HTML from request");
+                    return compressor.decompress(source);
                 }
             } catch (IOException e) {
-                log.warn("Failed to decompress HTML from request: {}", e.getMessage(), e);
-                if (request.url() == null || request.url().isEmpty()) {
-                    log.error("Cannot fall back to URL as it's not provided or empty");
-                    throw new IOException("Failed to decompress HTML and no valid URL provided as fallback", e);
-                }
-                throw e;
+                log.warn("Failed to decompress HTML from request: {}, try to fetch from source url", e.getMessage(), e);
             }
-        } else {
-            log.debug("No HTML in request, fetching from URL: {}", request.url());
-            html = rawContentService.fetch(request.url());
         }
-        return html;
+        log.debug("No HTML in request, fetching from URL: {}", url);
+        return rawContentService.fetch(url);
     }
 }

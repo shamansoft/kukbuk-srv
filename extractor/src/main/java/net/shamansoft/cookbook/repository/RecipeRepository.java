@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.repository;
 
-import net.shamansoft.cookbook.model.StoredRecipe;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

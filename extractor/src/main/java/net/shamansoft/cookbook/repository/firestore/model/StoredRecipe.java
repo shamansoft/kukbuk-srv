@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook.model;
+package net.shamansoft.cookbook.repository.firestore.model;
 
 import lombok.Builder;
 import lombok.Data;

@@ -12,7 +12,9 @@ import java.io.IOException;
 import static net.shamansoft.cookbook.service.HtmlExtractor.NONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HtmlExtractorTest {
@@ -77,30 +79,31 @@ class HtmlExtractorTest {
     }
 
     @Test
-    void rethrowsOriginalExceptionWhenDecompressionFailsButUrlProvided() throws IOException {
+    void fallsBackToUrlFetchWhenDecompressionFailsButUrlProvided() throws IOException {
         Request request = new Request("broken", "Title", "https://example.com");
         IOException original = new IOException("boom");
         when(compressor.decompress("broken")).thenThrow(original);
+        when(rawContentService.fetch("https://example.com")).thenReturn("fetched-html");
 
-        assertThatThrownBy(() -> htmlExtractor.extractHtml(request, "gzip"))
-                .isSameAs(original);
+        String result = htmlExtractor.extractHtml(request, "gzip");
 
+        assertThat(result).isEqualTo("fetched-html");
         verify(compressor).decompress("broken");
-        verifyNoInteractions(rawContentService);
+        verify(rawContentService).fetch("https://example.com");
     }
 
     @Test
-    void throwsMeaningfulExceptionWhenDecompressionFailsAndUrlMissing() throws IOException {
+    void fallsBackToUrlFetchWhenDecompressionFailsEvenIfUrlEmpty() throws IOException {
         Request request = new Request("broken", "Title", "");
-        IOException original = new IOException("boom");
-        when(compressor.decompress("broken")).thenThrow(original);
+        IOException decompressionError = new IOException("boom");
+        IOException fetchError = new IOException("URL fetch failed");
+        when(compressor.decompress("broken")).thenThrow(decompressionError);
+        when(rawContentService.fetch("")).thenThrow(fetchError);
 
         assertThatThrownBy(() -> htmlExtractor.extractHtml(request, "gzip"))
-                .isInstanceOf(IOException.class)
-                .hasMessage("Failed to decompress HTML and no valid URL provided as fallback")
-                .hasCause(original);
+                .isSameAs(fetchError);
 
         verify(compressor).decompress("broken");
-        verifyNoInteractions(rawContentService);
+        verify(rawContentService).fetch("");
     }
 }
