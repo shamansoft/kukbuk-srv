@@ -2,8 +2,8 @@ package net.shamansoft.cookbook.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.RecipeRepository;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +31,11 @@ public class RecipeStoreService {
     private final RecipeRepository repository;
 
     public Optional<StoredRecipe> findStoredRecipeByHash(String contentHash) {
+        if (contentHash == null || contentHash.isEmpty()) {
+            log.debug("Content hash is null or empty, skipping cache lookup");
+            return Optional.empty();
+        }
+
         if (!enabled) {
             log.debug("Recipe store is disabled, skipping cache lookup for hash: {}", contentHash);
             return Optional.empty();

@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.service;
 
-import net.shamansoft.cookbook.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.RecipeRepository;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

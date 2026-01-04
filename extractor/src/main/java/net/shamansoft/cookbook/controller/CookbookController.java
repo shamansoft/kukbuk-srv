@@ -7,23 +7,15 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.model.StoredRecipe;
-import net.shamansoft.cookbook.service.ContentHashService;
-import net.shamansoft.cookbook.service.DriveService;
-import net.shamansoft.cookbook.service.HtmlExtractor;
-import net.shamansoft.cookbook.service.RecipeStoreService;
+import net.shamansoft.cookbook.service.RecipeService;
 import net.shamansoft.cookbook.service.StorageService;
-import net.shamansoft.cookbook.service.Transformer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,7 +23,6 @@ import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,12 +33,8 @@ import java.util.Optional;
         allowCredentials = "false")
 public class CookbookController {
 
-    private final HtmlExtractor htmlExtractor;
-    private final Transformer transformer;
-    private final DriveService googleDriveService;
-    private final ContentHashService contentHashService;
-    private final RecipeStoreService recipeStoreService;
     private final StorageService storageService;
+    private final RecipeService recipeService;
 
     @GetMapping("/")
     public String gcpHealth() {
@@ -92,13 +79,6 @@ public class CookbookController {
         return ResponseEntity.ok(profile);
     }
 
-    RecipeResponse createRecipe(Request request,
-                                String compression,
-                                boolean test,
-                                Map<String, String> headers) throws IOException, AuthenticationException {
-        return createRecipe(request, compression, "test-user", "test@example.com", new HttpHeaders(HttpHeaders.readOnlyHttpHeaders(new HttpHeaders(MultiValueMap.fromSingleValue(headers)))));
-    }
-
     /**
      * Save recipe endpoint
      * <p>
@@ -117,8 +97,7 @@ public class CookbookController {
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) String compression,
                                        @RequestAttribute("userId") String userId,
-                                       @RequestAttribute("userEmail") String userEmail,
-                                       @RequestHeader HttpHeaders httpHeaders
+                                       @RequestAttribute("userEmail") String userEmail
     )
             throws IOException, AuthenticationException {
 
@@ -128,72 +107,11 @@ public class CookbookController {
                 request.title(),
                 request.html() != null && !request.html().isEmpty(),
                 compression != null ? compression : "default");
-
-        // Get OAuth token from StorageService (NEW flow)
-        String googleOAuthToken;
         try {
-            StorageInfo storage = storageService.getStorageInfo(userId);
-            googleOAuthToken = storage.accessToken();
-            log.debug("Using OAuth token from StorageService");
+            return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());
         } catch (StorageNotConnectedException e) {
-            log.warn("No storage configured for user: {}", userEmail);
-            // Exception handler will return HTTP 428 with proper error message
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to get storage info for user {}: {}", userEmail, e.getMessage());
-            throw new IOException("Failed to retrieve storage credentials: " + e.getMessage(), e);
+            log.error("Storage not connected for user {}: {}", userId, e.getMessage());
+            throw new IOException("Storage not connected. Please connect your storage in profile settings.");
         }
-        // get hash
-        String contentHash = contentHashService.generateContentHash(request.url());
-        // retrieve from store
-        Optional<StoredRecipe> stored = Optional.empty();
-        if (contentHash != null) {
-            stored = recipeStoreService.findStoredRecipeByHash(contentHash);
-        }
-
-        Transformer.Response response;
-        if (stored.isEmpty()) {
-            String html = htmlExtractor.extractHtml(request, compression);
-            log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}",
-                    request.url(),
-                    html.length(),
-                    contentHash);
-            response = transformer.transform(html);
-            if (contentHash != null) {
-                if (response.isRecipe()) {
-                    recipeStoreService.storeValidRecipe(contentHash, request.url(), response.value());
-                } else {
-                    log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", request.url(), contentHash);
-                    recipeStoreService.storeInvalidRecipe(contentHash, request.url());
-                }
-            }
-        } else {
-            StoredRecipe storedRecipe = stored.get();
-            response = new Transformer.Response(storedRecipe.isValid(), storedRecipe.getRecipeYaml());
-        }
-
-        RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
-                .title(request.title())
-                .url(request.url())
-                .isRecipe(response.isRecipe());
-        if (response.isRecipe()) {
-            storeToDrive(request, googleOAuthToken, response.value(), responseBuilder);
-        } else {
-            log.info("Content is not a recipe. Skipping Drive storage - URL: {}", request.url());
-        }
-
-        return responseBuilder.build();
     }
-
-    private void storeToDrive(Request request, String authToken, String transformed,
-                              RecipeResponse.RecipeResponseBuilder responseBuilder) {
-        String folderId = googleDriveService.getOrCreateFolder(authToken);
-        String fileName = googleDriveService.generateFileName(request.title());
-        DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
-                authToken, folderId, fileName, transformed);
-        responseBuilder.driveFileId(uploadResult.fileId())
-                .driveFileUrl(uploadResult.fileUrl());
-    }
-
-
 }

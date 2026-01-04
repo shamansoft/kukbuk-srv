@@ -7,7 +7,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.WriteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.model.StoredRecipe;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;

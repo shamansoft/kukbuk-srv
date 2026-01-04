@@ -4,14 +4,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.RecipeDto;
+import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Core business logic for recipe operations.
@@ -21,10 +25,54 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @Slf4j
 public class RecipeService {
+
+    private final ContentHashService contentHashService;
     private final DriveService googleDriveService;
     private final StorageService storageService;
+    private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
     private final RecipeMapper recipeMapper;
+    private final HtmlExtractor htmlExtractor;
+    private final Transformer transformer;
+
+    public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
+        StorageInfo storage = storageService.getStorageInfo(userId);
+        var recipe = transformRecipe(url, sourceHtml, compression);
+        RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
+                .title(title)
+                .url(url)
+                .isRecipe(recipe.isRecipe());
+        if (recipe.isRecipe()) {
+            String fileName = googleDriveService.generateFileName(title);
+            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+                    storage.accessToken(), storage.defaultFolderId(), fileName, recipe.value());
+            responseBuilder.driveFileId(uploadResult.fileId())
+                    .driveFileUrl(uploadResult.fileUrl());
+        } else {
+            log.info("Content is not a recipe. Skipping Drive storage - URL: {}", url);
+        }
+        return responseBuilder.build();
+    }
+
+    private Transformer.Response transformRecipe(String url, String sourceHtml, String compression) throws IOException {
+        String contentHash = contentHashService.generateContentHash(url);
+        Optional<StoredRecipe> stored = recipeStoreService.findStoredRecipeByHash(contentHash);
+        if (stored.isEmpty()) {
+            String html = htmlExtractor.extractHtml(url, sourceHtml, compression);
+            log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
+            var response = transformer.transform(html);
+            if (response.isRecipe()) {
+                recipeStoreService.storeValidRecipe(contentHash, url, response.value());
+            } else {
+                log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", url, contentHash);
+                recipeStoreService.storeInvalidRecipe(contentHash, url);
+            }
+            return response;
+        } else {
+            StoredRecipe storedRecipe = stored.get();
+            return new Transformer.Response(storedRecipe.isValid(), storedRecipe.getRecipeYaml());
+        }
+    }
 
     /**
      * List all recipes from user's Drive folder with full parsing.

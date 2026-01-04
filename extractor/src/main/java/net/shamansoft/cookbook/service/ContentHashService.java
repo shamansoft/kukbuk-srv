@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -24,6 +25,7 @@ public class ContentHashService {
 
     private final ConcurrentMap<String, String> hashCache = new ConcurrentHashMap<>();
 
+    @NonNull
     public String generateContentHash(String url) {
         if (url == null || url.trim().isEmpty()) {
             throw new IllegalArgumentException("URL cannot be null or empty");

@@ -5,7 +5,7 @@ import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.model.StoredRecipe;
+import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;

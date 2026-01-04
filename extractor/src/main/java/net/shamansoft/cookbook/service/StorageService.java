@@ -43,7 +43,7 @@ public class StorageService {
     @Value("${cookbook.drive.oauth-secret}")
     private String googleClientSecret;
 
-    @Value("${cookbook.drive.folder-name:kukbuk}")
+    @Value("${cookbook.drive.folder-name}")
     private String defaultFolderName;
 
     private static final String USERS_COLLECTION = "users";
