@@ -24,6 +24,10 @@ public class StorageConnectionResponse {
     private String message;     // Human-readable message
     private boolean connected;  // Current connection state
 
+    // Folder information (populated when connecting)
+    private String defaultFolderId;      // Google Drive folder ID
+    private String defaultFolderName;    // Human-readable folder name
+
     /**
      * Factory method for successful operations
      */
@@ -33,6 +37,21 @@ public class StorageConnectionResponse {
                 .status("success")
                 .message(message)
                 .connected(connected)
+                .build();
+    }
+
+    /**
+     * Factory method for successful operations with folder information
+     */
+    public static StorageConnectionResponse success(String message, boolean connected,
+                                                    String defaultFolderId, String defaultFolderName) {
+        return StorageConnectionResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status("success")
+                .message(message)
+                .connected(connected)
+                .defaultFolderId(defaultFolderId)
+                .defaultFolderName(defaultFolderName)
                 .build();
     }
 

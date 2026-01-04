@@ -48,6 +48,7 @@ class StorageControllerTest {
     private static final String TEST_AUTH_CODE = "auth-code-123";
     private static final String TEST_REDIRECT_URI = "https://example.com/callback";
     private static final String TEST_FOLDER_ID = "folder-123";
+    private static final String TEST_FOLDER_NAME = "test-folder";
 
     @BeforeEach
     void setUp() {
@@ -64,16 +65,16 @@ class StorageControllerTest {
         StorageConnectionRequest request = StorageConnectionRequest.builder()
                 .authorizationCode(TEST_AUTH_CODE)
                 .redirectUri(TEST_REDIRECT_URI)
-                .defaultFolderId(TEST_FOLDER_ID)
+                .folderName(TEST_FOLDER_NAME)
                 .build();
 
-        // storageService.connectGoogleDrive is void, so no need to stub return value
-        doNothing().when(storageService).connectGoogleDrive(
+        // storageService.connectGoogleDrive now returns FolderInfo
+        when(storageService.connectGoogleDrive(
                 eq(TEST_USER_ID),
                 eq(TEST_AUTH_CODE),
                 eq(TEST_REDIRECT_URI),
-                eq(TEST_FOLDER_ID)
-        );
+                eq(TEST_FOLDER_NAME)
+        )).thenReturn(new StorageService.FolderInfo(TEST_FOLDER_ID, TEST_FOLDER_NAME));
 
         // When
         ResponseEntity<StorageConnectionResponse> response =
@@ -85,6 +86,8 @@ class StorageControllerTest {
         assertThat(response.getBody().getStatus()).isEqualTo("success");
         assertThat(response.getBody().getMessage()).isEqualTo("Google Drive connected successfully");
         assertThat(response.getBody().isConnected()).isTrue();
+        assertThat(response.getBody().getDefaultFolderId()).isEqualTo(TEST_FOLDER_ID);
+        assertThat(response.getBody().getDefaultFolderName()).isEqualTo(TEST_FOLDER_NAME);
         assertThat(response.getBody().getTimestamp()).isNotNull();
 
         // Verify service was called with correct parameters
@@ -92,23 +95,23 @@ class StorageControllerTest {
                 TEST_USER_ID,
                 TEST_AUTH_CODE,
                 TEST_REDIRECT_URI,
-                TEST_FOLDER_ID
+                TEST_FOLDER_NAME
         );
     }
 
     @Test
     @DisplayName("POST /connect - Success without optional fields")
     void connectGoogleDrive_Success_MissingOptionalFields() {
-        // Given - no folder ID
+        // Given - no folder name (will use default)
         StorageConnectionRequest request = StorageConnectionRequest.builder()
                 .authorizationCode(TEST_AUTH_CODE)
                 .redirectUri(TEST_REDIRECT_URI)
-                .defaultFolderId(null)
+                .folderName(null)
                 .build();
 
-        doNothing().when(storageService).connectGoogleDrive(
+        when(storageService.connectGoogleDrive(
                 anyString(), anyString(), anyString(), isNull()
-        );
+        )).thenReturn(new StorageService.FolderInfo("default-folder-id", "kukbuk"));
 
         // When
         ResponseEntity<StorageConnectionResponse> response =
@@ -118,6 +121,7 @@ class StorageControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isConnected()).isTrue();
+        assertThat(response.getBody().getDefaultFolderName()).isEqualTo("kukbuk");
 
         verify(storageService).connectGoogleDrive(
                 TEST_USER_ID,

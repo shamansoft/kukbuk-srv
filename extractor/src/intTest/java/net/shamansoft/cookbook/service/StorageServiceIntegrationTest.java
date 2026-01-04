@@ -4,12 +4,14 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
+import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.containers.FirestoreEmulatorContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -23,6 +25,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +42,7 @@ class StorageServiceIntegrationTest {
     private TokenEncryptionService tokenEncryptionService;
     private WebClient.Builder webClientBuilder;
     private WebClient webClient;
+    private static final String FOLDER_NAME = "kukbuk";
 
     private static final String TEST_USER_ID = "integration-test-user";
     private static final String AUTH_CODE = "test-auth-code";
@@ -48,6 +52,7 @@ class StorageServiceIntegrationTest {
     private static final String ENCRYPTED_ACCESS = "encrypted-access-token";
     private static final String ENCRYPTED_REFRESH = "encrypted-refresh-token";
     private static final String FOLDER_ID = "test-folder-123";
+    private GoogleDrive googleDrive;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -71,7 +76,20 @@ class StorageServiceIntegrationTest {
         webClientBuilder = mock(WebClient.Builder.class);
         when(webClientBuilder.build()).thenReturn(webClient);
 
-        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder);
+        // Mock GoogleDrive for folder operations
+        googleDrive = mock(GoogleDrive.class);
+        GoogleDrive.Item folderItem = new GoogleDrive.Item(FOLDER_ID, FOLDER_NAME);
+        when(googleDrive.getFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
+                .thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
+                .thenReturn(folderItem);
+
+        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder, googleDrive);
+
+        // Set required @Value fields using reflection
+        ReflectionTestUtils.setField(storageService, "googleClientId", "test-client-id");
+        ReflectionTestUtils.setField(storageService, "googleClientSecret", "test-client-secret");
+        ReflectionTestUtils.setField(storageService, "defaultFolderName", FOLDER_NAME);
 
         // Create user profile
         firestore.collection("users")
@@ -108,7 +126,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should connect Google Drive and store encrypted tokens")
     void shouldConnectGoogleDriveAndStoreEncryptedTokens() throws Exception {
         // When - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_NAME);
 
         // Then - Verify stored data
         DocumentSnapshot doc = firestore.collection("users")
@@ -124,7 +142,8 @@ class StorageServiceIntegrationTest {
         assertThat(storage.get("connected")).isEqualTo(true);
         assertThat(storage.get("accessToken")).isEqualTo(ENCRYPTED_ACCESS);
         assertThat(storage.get("refreshToken")).isEqualTo(ENCRYPTED_REFRESH);
-        assertThat(storage.get("defaultFolderId")).isEqualTo(FOLDER_ID);
+        assertThat(storage.get("folderId")).isEqualTo(FOLDER_ID);
+        assertThat(storage.get("folderName")).isEqualTo(FOLDER_NAME);
         assertThat(storage.get("expiresAt")).isInstanceOf(Timestamp.class);
         assertThat(storage.get("connectedAt")).isInstanceOf(Timestamp.class);
     }
@@ -133,7 +152,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should retrieve and decrypt storage info")
     void shouldRetrieveAndDecryptStorageInfo() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_NAME);
 
         // When - Get storage info
         StorageInfo info = storageService.getStorageInfo(TEST_USER_ID);
@@ -145,6 +164,7 @@ class StorageServiceIntegrationTest {
         assertThat(info.accessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(info.refreshToken()).isEqualTo(REFRESH_TOKEN);
         assertThat(info.defaultFolderId()).isEqualTo(FOLDER_ID);
+        assertThat(info.defaultFolderName()).isEqualTo(FOLDER_NAME);
         assertThat(info.expiresAt()).isNotNull();
         assertThat(info.connectedAt()).isNotNull();
     }
@@ -153,7 +173,7 @@ class StorageServiceIntegrationTest {
     @DisplayName("Should update default folder")
     void shouldUpdateDefaultFolder() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_NAME);
 
         // When - Update default folder
         String newFolderId = "new-folder-456";
@@ -166,14 +186,14 @@ class StorageServiceIntegrationTest {
                 .get();
 
         Map<String, Object> storage = (Map<String, Object>) doc.get("storage");
-        assertThat(storage.get("defaultFolderId")).isEqualTo(newFolderId);
+        assertThat(storage.get("folderId")).isEqualTo(newFolderId);
     }
 
     @Test
     @DisplayName("Should disconnect storage and remove data")
     void shouldDisconnectStorageAndRemoveData() throws Exception {
         // Given - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_NAME);
 
         // When - Disconnect storage
         storageService.disconnectStorage(TEST_USER_ID);
@@ -194,7 +214,7 @@ class StorageServiceIntegrationTest {
         assertThat(storageService.isStorageConnected(TEST_USER_ID)).isFalse();
 
         // When - Connect Google Drive
-        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_ID);
+        storageService.connectGoogleDrive(TEST_USER_ID, AUTH_CODE, REDIRECT_URI, FOLDER_NAME);
 
         // Then - Storage is connected
         assertThat(storageService.isStorageConnected(TEST_USER_ID)).isTrue();

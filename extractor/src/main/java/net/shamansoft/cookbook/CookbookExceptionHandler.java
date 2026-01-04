@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
@@ -197,5 +198,28 @@ public class CookbookExceptionHandler {
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    /**
+     * Handle GoogleDriveException - Google Drive API operation failures.
+     * HTTP 502 Bad Gateway: The upstream Google Drive service is unavailable or returned an error.
+     * This indicates an issue with the external Google Drive API, not with our application.
+     */
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    @ExceptionHandler(GoogleDriveException.class)
+    public ResponseEntity<Object> handleGoogleDriveException(
+            GoogleDriveException e,
+            HttpServletRequest request) {
+
+        log.error("Google Drive error: {}", e.getMessage(), e);
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                "Google Drive Error",
+                "Failed to access Google Drive: " + e.getMessage(),
+                request.getRequestURI()
+        );
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_GATEWAY);
     }
 }

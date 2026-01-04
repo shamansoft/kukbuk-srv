@@ -7,11 +7,19 @@ help:
 	@echo "Available commands:"
 	@echo "  make build          - Build the OpenTofu Docker image"
 	@echo "  make shell          - Start interactive OpenTofu shell"
-	@echo "  make deploy TAG=0.1.1  - Deploy with specific image tag"
-	@echo "  make plan TAG=0.1.1   - Plan deployment with specific image tag"
-	@echo "  make apply TAG=0.1.1   - Apply deployment with specific image tag"
+	@echo "  make init           - Initialize OpenTofu"
+	@echo "  make plan TAG=0.1.1 - Plan deployment with specific image tag"
+	@echo "  make apply TAG=0.1.1 - Apply deployment with specific image tag"
+	@echo "  make deploy TAG=0.1.1 - Deploy with confirmation (plan + apply)"
+	@echo "  make import ADDR=<resource> ID=<gcp-id> - Import existing GCP resource"
+	@echo "  make output         - Show current outputs"
 	@echo "  make destroy        - Destroy infrastructure"
 	@echo "  make clean          - Clean up Docker images and volumes"
+	@echo ""
+	@echo "Examples:"
+	@echo "  Import existing secret:"
+	@echo "    make import ADDR=google_secret_manager_secret.sar-srv-google-oauth-secret \\"
+	@echo "                ID=projects/124893666852/secrets/sar-srv-google-oauth-secret"
 
 # Variables
 TAG ?= current

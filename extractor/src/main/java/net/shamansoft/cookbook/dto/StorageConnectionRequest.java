@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import net.shamansoft.cookbook.validation.ValidFolderName;
 
 /**
  * Request DTO for connecting Google Drive storage.
@@ -23,6 +24,11 @@ public class StorageConnectionRequest {
     @NotNull(message = "Redirect URI is required")
     private String redirectUri;
 
-    // Optional - can be set later via separate endpoint if needed
-    private String defaultFolderId;
+    /**
+     * Google Drive folder name (not ID).
+     * If null or empty, the default folder name from cookbook.drive.folder-name config will be used.
+     * The folder will be created if it doesn't exist.
+     */
+    @ValidFolderName
+    private String folderName;
 }

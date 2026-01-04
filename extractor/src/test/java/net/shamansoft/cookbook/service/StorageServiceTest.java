@@ -21,14 +21,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
-
-import static org.mockito.Mockito.doReturn;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -37,8 +35,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +83,8 @@ class StorageServiceTest {
     @Mock
     private WebClient.ResponseSpec responseSpec;
 
+    private static final String FOLDER_NAME = "test-folder";
+
     private StorageService storageService;
 
     private static final String USER_ID = "test-user-123";
@@ -94,11 +94,16 @@ class StorageServiceTest {
     private static final String ENCRYPTED_REFRESH = "encrypted-refresh";
     private static final long EXPIRES_IN = 3600L;
     private static final String FOLDER_ID = "folder-123";
+    @Mock
+    private net.shamansoft.cookbook.client.GoogleDrive googleDrive;
 
     @BeforeEach
     void setUp() {
         when(webClientBuilder.build()).thenReturn(webClient);
-        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder);
+        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder, googleDrive);
+        ReflectionTestUtils.setField(storageService, "googleClientId", "test-client-id");
+        ReflectionTestUtils.setField(storageService, "googleClientSecret", "test-client-secret");
+        ReflectionTestUtils.setField(storageService, "defaultFolderName", "kukbuk");
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocument);
     }
@@ -117,21 +122,33 @@ class StorageServiceTest {
         setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+
+        // Mock Google Drive folder creation
+        net.shamansoft.cookbook.client.GoogleDrive.Item folderItem =
+                new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, FOLDER_NAME);
+        when(googleDrive.getFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN))).thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN))).thenReturn(folderItem);
+
         when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
         when(writeFuture.get()).thenReturn(mock(WriteResult.class));
 
         // When
-        storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", FOLDER_ID);
+        StorageService.FolderInfo result = storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", FOLDER_NAME);
 
         // Then
+        assertThat(result).isNotNull();
+        assertThat(result.folderId()).isEqualTo(FOLDER_ID);
+        assertThat(result.folderName()).isEqualTo(FOLDER_NAME);
+
         ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
         verify(userDocument).update(eq("storage"), captor.capture());
-        
+
         Map<String, Object> storage = captor.getValue();
         assertThat(storage.get("connected")).isEqualTo(true);
         assertThat(storage.get("accessToken")).isEqualTo(ENCRYPTED_ACCESS);
         assertThat(storage.get("refreshToken")).isEqualTo(ENCRYPTED_REFRESH);
-        assertThat(storage.get("defaultFolderId")).isEqualTo(FOLDER_ID);
+        assertThat(storage.get("folderId")).isEqualTo(FOLDER_ID);
+        assertThat(storage.get("folderName")).isEqualTo(FOLDER_NAME);
     }
 
     @Test
@@ -193,6 +210,13 @@ class StorageServiceTest {
         setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+
+        // Mock Google Drive folder creation (use default folder name "kukbuk")
+        net.shamansoft.cookbook.client.GoogleDrive.Item folderItem =
+                new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, "kukbuk");
+        when(googleDrive.getFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(folderItem);
+
         when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
         when(writeFuture.get()).thenReturn(mock(WriteResult.class));
 
@@ -233,6 +257,13 @@ class StorageServiceTest {
         setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+
+        // Mock Google Drive folder creation
+        net.shamansoft.cookbook.client.GoogleDrive.Item folderItem =
+                new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, "kukbuk");
+        when(googleDrive.getFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(folderItem);
+
         when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
         when(writeFuture.get()).thenThrow(new InterruptedException());
 
@@ -254,6 +285,13 @@ class StorageServiceTest {
         setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+
+        // Mock Google Drive folder creation
+        net.shamansoft.cookbook.client.GoogleDrive.Item folderItem =
+                new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, "kukbuk");
+        when(googleDrive.getFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(java.util.Optional.empty());
+        when(googleDrive.createFolder(eq("kukbuk"), eq(ACCESS_TOKEN))).thenReturn(folderItem);
+
         when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
         when(writeFuture.get()).thenThrow(new ExecutionException(new RuntimeException("Database error")));
 
@@ -277,7 +315,7 @@ class StorageServiceTest {
                 .refreshToken(ENCRYPTED_REFRESH)
                 .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
                 .connectedAt(Timestamp.now())
-                .defaultFolderId(FOLDER_ID)
+                .folderId(FOLDER_ID)
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
@@ -657,14 +695,14 @@ class StorageServiceTest {
     void shouldUpdateDefaultFolderSuccessfully() throws Exception {
         // Given
         String newFolderId = "new-folder-456";
-        when(userDocument.update("storage.defaultFolderId", newFolderId)).thenReturn(writeFuture);
+        when(userDocument.update("storage.folderId", newFolderId)).thenReturn(writeFuture);
         when(writeFuture.get()).thenReturn(mock(WriteResult.class));
 
         // When
         storageService.updateDefaultFolder(USER_ID, newFolderId);
 
         // Then
-        verify(userDocument).update("storage.defaultFolderId", newFolderId);
+        verify(userDocument).update("storage.folderId", newFolderId);
     }
 
     @Test
@@ -672,7 +710,7 @@ class StorageServiceTest {
     void shouldHandleInterruptedExceptionDuringFolderUpdate() throws Exception {
         // Given
         String newFolderId = "new-folder-456";
-        when(userDocument.update("storage.defaultFolderId", newFolderId)).thenReturn(writeFuture);
+        when(userDocument.update("storage.folderId", newFolderId)).thenReturn(writeFuture);
         when(writeFuture.get()).thenThrow(new InterruptedException());
 
         // When & Then
@@ -686,7 +724,7 @@ class StorageServiceTest {
     void shouldHandleExecutionExceptionDuringFolderUpdate() throws Exception {
         // Given
         String newFolderId = "new-folder-456";
-        when(userDocument.update("storage.defaultFolderId", newFolderId)).thenReturn(writeFuture);
+        when(userDocument.update("storage.folderId", newFolderId)).thenReturn(writeFuture);
         when(writeFuture.get()).thenThrow(new ExecutionException(new RuntimeException("Database error")));
 
         // When & Then
