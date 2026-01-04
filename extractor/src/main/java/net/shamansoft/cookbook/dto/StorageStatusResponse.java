@@ -52,8 +52,8 @@ public class StorageStatusResponse {
                 .storageType(info.type().getFirestoreValue())
                 .connectedAt(info.connectedAt())
                 .expiresAt(info.expiresAt())
-                .defaultFolderId(info.defaultFolderId())
-                .defaultFolderName(info.defaultFolderName())
+                .defaultFolderId(info.folderId())
+                .defaultFolderName(info.folderName())
                 .build();
     }
 }

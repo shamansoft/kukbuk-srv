@@ -37,7 +37,7 @@ public class RecipeService {
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
-        var recipe = transformRecipe(url, sourceHtml, compression);
+        var recipe = createOrGetCached(url, sourceHtml, compression);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(title)
                 .url(url)
@@ -45,7 +45,7 @@ public class RecipeService {
         if (recipe.isRecipe()) {
             String fileName = googleDriveService.generateFileName(title);
             DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
-                    storage.accessToken(), storage.defaultFolderId(), fileName, recipe.value());
+                    storage.accessToken(), storage.folderId(), fileName, recipe.value());
             responseBuilder.driveFileId(uploadResult.fileId())
                     .driveFileUrl(uploadResult.fileUrl());
         } else {
@@ -54,7 +54,7 @@ public class RecipeService {
         return responseBuilder.build();
     }
 
-    private Transformer.Response transformRecipe(String url, String sourceHtml, String compression) throws IOException {
+    private Transformer.Response createOrGetCached(String url, String sourceHtml, String compression) throws IOException {
         String contentHash = contentHashService.generateContentHash(url);
         Optional<StoredRecipe> stored = recipeStoreService.findStoredRecipeByHash(contentHash);
         if (stored.isEmpty()) {
@@ -94,16 +94,7 @@ public class RecipeService {
         if (storage.type() != StorageType.GOOGLE_DRIVE) {
             throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
         }
-
-        // 2. Get folder ID (custom or default "kukbuk" folder)
-        String folderId;
-        if (storage.defaultFolderId() != null) {
-            log.debug("Using custom folder ID: {}", storage.defaultFolderId());
-            folderId = storage.defaultFolderId();
-        } else {
-            log.debug("Using default folder (will create if needed)");
-            folderId = googleDriveService.getOrCreateFolder(storage.accessToken());
-        }
+        var folderId = storage.folderId();
 
         // 3. List YAML files from Drive
         GoogleDrive.DriveFileListResult driveFiles = googleDriveService.listRecipeFiles(

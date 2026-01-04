@@ -66,8 +66,8 @@ public record StorageEntity(String type,
                     .connectedAt(this.connectedAt != null
                             ? this.connectedAt.toDate().toInstant()
                             : null)
-                    .defaultFolderId(this.folderId)
-                    .defaultFolderName(this.folderName)
+                    .folderId(this.folderId)
+                    .folderName(this.folderName)
                     .build();
         } catch (Exception e) {
             throw new DatabaseUnavailableException("Failed to decrypt tokens or map storage data", e);

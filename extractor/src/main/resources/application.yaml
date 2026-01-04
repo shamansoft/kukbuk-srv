@@ -166,7 +166,7 @@ cookbook:
     # Google Drive folder name where recipes are saved
     # Used by: GoogleDriveService.java:45 (@Value("${cookbook.drive.folder-name:kukbuk}"))
     # Default: kukbuk
-    folder-name: "kukbuk"
+    folder-name: "_save_a_recipe"
 
     # Application name for Google Drive API client
     # UNUSED: Defined but not referenced in code

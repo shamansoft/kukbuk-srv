@@ -86,7 +86,7 @@ class CookbookControllerSBTest {
                 .refreshToken("mock-refresh-token")
                 .expiresAt(Instant.now().plusSeconds(3600))
                 .connectedAt(Instant.now())
-                .defaultFolderId("mock-folder-id")
+                .folderId("mock-folder-id")
                 .build();
 
         when(storageService.getStorageInfo(anyString()))
@@ -133,10 +133,8 @@ class CookbookControllerSBTest {
     @Test
     void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", "compressed html", null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
-        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -157,10 +155,8 @@ class CookbookControllerSBTest {
     @Test
     void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
-        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -179,8 +175,9 @@ class CookbookControllerSBTest {
     }
 
     @Test
-    void createRecipe_returns_500_when_transform_throws_ClientException() {
+    void createRecipe_returns_500_when_transform_throws_ClientException() throws IOException {
         Request request = new Request("raw html", "Title", "http://example.com");
+        when(htmlExtractor.extractHtml("http://example.com", "raw html", null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenThrow(new ClientException("Transformation error"));
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -216,7 +213,7 @@ class CookbookControllerSBTest {
     void createRecipe_withDecompressionFailure_shouldThrowException() throws IOException, AuthenticationException {
         // Given
         Request request = new Request("compressed html", "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenThrow(new IOException("Decompression failed"));
+        when(htmlExtractor.extractHtml("http://example.com", "compressed html", null)).thenThrow(new IOException("Decompression failed"));
 
         // When/Then
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -235,10 +232,8 @@ class CookbookControllerSBTest {
     void createRecipe_withNoneCompression_shouldSkipDecompression() throws IOException, AuthenticationException {
         // Given
         Request request = new Request("raw html", "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, "none")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", "raw html", "none")).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
-        when(googleDriveService.getOrCreateFolder("test-oauth-token")).thenReturn("folder-id");
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -260,9 +255,8 @@ class CookbookControllerSBTest {
     void createRecipe_whenContentIsNotRecipe_shouldNotStoreToDrive() throws IOException, AuthenticationException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
         when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
-        when(tokenService.getAuthToken(any())).thenReturn("test-oauth-token");
 
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -280,7 +274,7 @@ class CookbookControllerSBTest {
     }
 
     @Test
-    void createRecipe_whenStorageServiceFailsWithGenericException_shouldReturnBadRequest() throws Exception {
+    void createRecipe_whenStorageServiceFailsWithGenericException_shouldReturnInternalServerError() throws Exception {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
         when(storageService.getStorageInfo(anyString()))
@@ -295,15 +289,15 @@ class CookbookControllerSBTest {
         );
 
         // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().get("error")).isEqualTo("Internal Server Error");
     }
 
     @Test
     void createRecipe_whenUrlFetchFails_shouldReturnBadRequest() throws IOException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml(request, null)).thenThrow(new IOException("Failed to fetch URL"));
+        when(htmlExtractor.extractHtml("http://example.com", null, null)).thenThrow(new IOException("Failed to fetch URL"));
 
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -318,32 +312,4 @@ class CookbookControllerSBTest {
         assertThat(response.getBody().get("error")).isEqualTo("IO Error");
     }
 
-    @Test
-    void controllerMethod_createRecipe_worksWithParams() throws IOException, AuthenticationException {
-        // Given
-        HtmlExtractor htmlExtractor = new HtmlExtractor(compressor, rawContentService);
-        CookbookController controller = new CookbookController(
-                htmlExtractor, transformer, googleDriveService,
-                contentHashService, recipeStoreService, storageService
-        );
-        Request request = new Request("raw html", "Title", "http://example.com");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
-        when(googleDriveService.getOrCreateFolder(any())).thenReturn("folder-id");
-        when(googleDriveService.generateFileName(any())).thenReturn("Title.yaml");
-        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
-                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
-
-        // When
-        RecipeResponse response = controller.createRecipe(
-                request,
-                "none",
-                false,
-                Map.of("Authorization", "Bearer token")
-        );
-
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(response.isRecipe()).isTrue();
-        assertThat(response.title()).isEqualTo("Title");
-    }
 }

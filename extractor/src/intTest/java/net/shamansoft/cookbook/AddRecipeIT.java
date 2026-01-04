@@ -261,7 +261,7 @@ class AddRecipeIT {
                                 "refreshToken", "encrypted-refresh-token-123",
                                 "expiresAt", futureTime,
                                 "connectedAt", nowTime,
-                                "defaultFolderId", "folder-123"
+                                "folderId", "folder-123"
                         )
                 )
         ).get();
@@ -335,8 +335,9 @@ class AddRecipeIT {
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
 
         // Verify Google Drive operations
+        // The flow now uses the cached folderId from storage, so it searches for the file directly
         verify(getRequestedFor(urlPathEqualTo("/files"))
-                .withQueryParam("q", containing("name='kukbuk'")));
+                .withQueryParam("q", containing("chocolate-chip-cookies.yaml")));
         verify(postRequestedFor(urlPathEqualTo("/files")));
         verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
     }

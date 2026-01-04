@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
-import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.service.RecipeService;
 import net.shamansoft.cookbook.service.StorageService;
 import org.springframework.http.ResponseEntity;
@@ -107,11 +106,6 @@ public class CookbookController {
                 request.title(),
                 request.html() != null && !request.html().isEmpty(),
                 compression != null ? compression : "default");
-        try {
-            return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());
-        } catch (StorageNotConnectedException e) {
-            log.error("Storage not connected for user {}: {}", userId, e.getMessage());
-            throw new IOException("Storage not connected. Please connect your storage in profile settings.");
-        }
+        return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());
     }
 }

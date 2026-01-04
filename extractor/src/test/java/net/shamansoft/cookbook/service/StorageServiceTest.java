@@ -7,6 +7,7 @@ import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.WriteResult;
+import net.shamansoft.cookbook.client.GoogleAuthClient;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
@@ -22,11 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -35,7 +32,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,10 +47,7 @@ class StorageServiceTest {
     private TokenEncryptionService tokenEncryptionService;
 
     @Mock
-    private WebClient.Builder webClientBuilder;
-
-    @Mock
-    private WebClient webClient;
+    private GoogleAuthClient googleAuthClient;
 
     @Mock(lenient = true)
     private CollectionReference usersCollection;
@@ -70,18 +63,6 @@ class StorageServiceTest {
 
     @Mock(lenient = true)
     private DocumentSnapshot documentSnapshot;
-
-    @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
-
-    @Mock
-    private WebClient.RequestBodySpec requestBodySpec;
-
-    @Mock
-    private WebClient.RequestHeadersSpec<?> requestHeadersSpec;
-
-    @Mock
-    private WebClient.ResponseSpec responseSpec;
 
     private static final String FOLDER_NAME = "test-folder";
 
@@ -99,10 +80,7 @@ class StorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(webClientBuilder.build()).thenReturn(webClient);
-        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder, googleDrive);
-        ReflectionTestUtils.setField(storageService, "googleClientId", "test-client-id");
-        ReflectionTestUtils.setField(storageService, "googleClientSecret", "test-client-secret");
+        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive);
         ReflectionTestUtils.setField(storageService, "defaultFolderName", "kukbuk");
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocument);
@@ -114,12 +92,12 @@ class StorageServiceTest {
     @DisplayName("Should connect Google Drive with valid authorization code")
     void shouldConnectGoogleDriveSuccessfully() throws Exception {
         // Given
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("refresh_token", REFRESH_TOKEN);
-        oauthResponse.put("expires_in", (int) EXPIRES_IN);
+        GoogleAuthClient.TokenResponse tokenResponse = new GoogleAuthClient.TokenResponse(
+                ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN
+        );
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(tokenResponse);
 
-        setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
 
@@ -155,10 +133,8 @@ class StorageServiceTest {
     @DisplayName("Should handle invalid authorization code")
     void shouldThrowExceptionForInvalidAuthCode() {
         // Given
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("error", "invalid_grant");
-
-        setupWebClientMock(errorResponse);
+        when(googleAuthClient.exchangeAuthorizationCode("invalid-code", "https://callback"))
+                .thenThrow(new IllegalArgumentException("Invalid response from Google OAuth"));
 
         // When & Then
         assertThatThrownBy(() -> storageService.connectGoogleDrive(USER_ID, "invalid-code", "https://callback", null))
@@ -170,11 +146,8 @@ class StorageServiceTest {
     @DisplayName("Should throw exception when refresh token is missing")
     void shouldThrowExceptionWhenRefreshTokenMissing() {
         // Given
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("expires_in", 3600);
-
-        setupWebClientMock(oauthResponse);
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenThrow(new IllegalStateException("No refresh token received"));
 
         // When & Then
         assertThatThrownBy(() -> storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", null))
@@ -186,12 +159,8 @@ class StorageServiceTest {
     @DisplayName("Should return null response from OAuth")
     void shouldHandleNullOAuthResponse() {
         // Given
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.empty());
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenThrow(new IllegalArgumentException("Invalid response from Google OAuth"));
 
         // When & Then
         assertThatThrownBy(() -> storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", null))
@@ -203,11 +172,12 @@ class StorageServiceTest {
     @DisplayName("Should use default expiration when not provided")
     void shouldUseDefaultExpiration() throws Exception {
         // Given
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("refresh_token", REFRESH_TOKEN);
+        GoogleAuthClient.TokenResponse tokenResponse = new GoogleAuthClient.TokenResponse(
+                ACCESS_TOKEN, REFRESH_TOKEN, 3600L  // Default expiration
+        );
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(tokenResponse);
 
-        setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
 
@@ -231,13 +201,8 @@ class StorageServiceTest {
     @DisplayName("Should handle WebClientResponseException during OAuth exchange")
     void shouldHandleWebClientResponseException() {
         // Given
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class))
-                .thenThrow(WebClientResponseException.create(400, "Bad Request", null, "{\"error\":\"invalid_grant\"}".getBytes(), null));
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenThrow(new IllegalArgumentException("OAuth token exchange failed"));
 
         // When & Then
         assertThatThrownBy(() -> storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", null))
@@ -249,12 +214,12 @@ class StorageServiceTest {
     @DisplayName("Should handle InterruptedException during token storage")
     void shouldHandleInterruptedExceptionDuringStorage() throws Exception {
         // Given
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("refresh_token", REFRESH_TOKEN);
-        oauthResponse.put("expires_in", 3600);
+        GoogleAuthClient.TokenResponse tokenResponse = new GoogleAuthClient.TokenResponse(
+                ACCESS_TOKEN, REFRESH_TOKEN, 3600L
+        );
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(tokenResponse);
 
-        setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
 
@@ -277,12 +242,12 @@ class StorageServiceTest {
     @DisplayName("Should handle ExecutionException during token storage")
     void shouldHandleExecutionExceptionDuringStorage() throws Exception {
         // Given
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("refresh_token", REFRESH_TOKEN);
-        oauthResponse.put("expires_in", 3600);
+        GoogleAuthClient.TokenResponse tokenResponse = new GoogleAuthClient.TokenResponse(
+                ACCESS_TOKEN, REFRESH_TOKEN, 3600L
+        );
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(tokenResponse);
 
-        setupWebClientMock(oauthResponse);
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
 
@@ -308,12 +273,13 @@ class StorageServiceTest {
     void shouldReturnStorageInfoWithValidToken() throws Exception {
         // Given
         long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
+        Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0);
         StorageEntity storageEntity = StorageEntity.builder()
                 .type("googleDrive")
                 .connected(true)
                 .accessToken(ENCRYPTED_ACCESS)
                 .refreshToken(ENCRYPTED_REFRESH)
-                .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
+                .expiresAt(expiresAt)
                 .connectedAt(Timestamp.now())
                 .folderId(FOLDER_ID)
                 .build();
@@ -327,6 +293,7 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(expiresAt)).thenReturn(false);
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
@@ -339,7 +306,7 @@ class StorageServiceTest {
         assertThat(result.connected()).isTrue();
         assertThat(result.accessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(result.refreshToken()).isEqualTo(REFRESH_TOKEN);
-        assertThat(result.defaultFolderId()).isEqualTo(FOLDER_ID);
+        assertThat(result.folderId()).isEqualTo(FOLDER_ID);
     }
 
     @Test
@@ -347,12 +314,13 @@ class StorageServiceTest {
     void shouldRefreshExpiredToken() throws Exception {
         // Given - Token expired
         long pastTimestamp = System.currentTimeMillis() / 1000 - 3600;
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
         StorageEntity storageEntity = StorageEntity.builder()
                 .type("googleDrive")
                 .connected(true)
                 .accessToken(ENCRYPTED_ACCESS)
                 .refreshToken(ENCRYPTED_REFRESH)
-                .expiresAt(Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0))
+                .expiresAt(expiredAt)
                 .connectedAt(Timestamp.now())
                 .build();
 
@@ -365,14 +333,17 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
         String newAccessToken = "new-access-token";
-        Map<String, Object> refreshResponse = new HashMap<>();
-        refreshResponse.put("access_token", newAccessToken);
-        refreshResponse.put("expires_in", 3600);
+        Timestamp newExpiresAt = Timestamp.ofTimeSecondsAndNanos(
+                System.currentTimeMillis() / 1000 + 3600, 0
+        );
+        GoogleAuthClient.RefreshTokenResponse refreshResponse =
+                new GoogleAuthClient.RefreshTokenResponse(newAccessToken, newExpiresAt);
 
-        setupWebClientMock(refreshResponse);
+        when(googleAuthClient.refreshAccessToken(REFRESH_TOKEN)).thenReturn(refreshResponse);
         when(tokenEncryptionService.encrypt(newAccessToken)).thenReturn("encrypted-new-token");
         when(userDocument.update(anyString(), any(), anyString(), any())).thenReturn(writeFuture);
         when(writeFuture.get()).thenReturn(mock(WriteResult.class));
@@ -473,12 +444,13 @@ class StorageServiceTest {
     void shouldThrowExceptionWhenTokenRefreshFails() throws Exception {
         // Given - Token expired, no refresh token available
         long pastTimestamp = System.currentTimeMillis() / 1000 - 3600;
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
         StorageEntity storageEntity = StorageEntity.builder()
                 .type("googleDrive")
                 .connected(true)
                 .accessToken(ENCRYPTED_ACCESS)
                 .refreshToken(null)  // No refresh token
-                .expiresAt(Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0))
+                .expiresAt(expiredAt)
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
@@ -490,6 +462,7 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
 
         // When & Then - should fail because no refresh token is available
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
@@ -502,12 +475,13 @@ class StorageServiceTest {
     void shouldThrowExceptionWhenNoRefreshTokenDuringRefresh() throws Exception {
         // Given - Token expired, no refresh token
         long pastTimestamp = System.currentTimeMillis() / 1000 - 3600;
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
         StorageEntity storageEntity = StorageEntity.builder()
                 .type("googleDrive")
                 .connected(true)
                 .accessToken(ENCRYPTED_ACCESS)
                 .refreshToken(null)
-                .expiresAt(Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0))
+                .expiresAt(expiredAt)
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
@@ -519,6 +493,7 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
 
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
@@ -547,14 +522,17 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(null)).thenReturn(true);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
         String newAccessToken = "new-access-token";
-        Map<String, Object> refreshResponse = new HashMap<>();
-        refreshResponse.put("access_token", newAccessToken);
-        refreshResponse.put("expires_in", 3600);
+        Timestamp newExpiresAt = Timestamp.ofTimeSecondsAndNanos(
+                System.currentTimeMillis() / 1000 + 3600, 0
+        );
+        GoogleAuthClient.RefreshTokenResponse refreshResponse =
+                new GoogleAuthClient.RefreshTokenResponse(newAccessToken, newExpiresAt);
 
-        setupWebClientMock(refreshResponse);
+        when(googleAuthClient.refreshAccessToken(REFRESH_TOKEN)).thenReturn(refreshResponse);
         when(tokenEncryptionService.encrypt(newAccessToken)).thenReturn("encrypted-new-token");
         when(userDocument.update(anyString(), any(), anyString(), any())).thenReturn(writeFuture);
         when(writeFuture.get()).thenReturn(mock(WriteResult.class));
@@ -600,11 +578,12 @@ class StorageServiceTest {
     void shouldReturnTrueWhenStorageConnected() throws Exception {
         // Given
         long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
+        Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0);
         StorageEntity storageEntity = StorageEntity.builder()
                 .type("googleDrive")
                 .connected(true)
                 .accessToken(ENCRYPTED_ACCESS)
-                .expiresAt(Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0))
+                .expiresAt(expiresAt)
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
@@ -616,6 +595,7 @@ class StorageServiceTest {
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
         when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(googleAuthClient.isTokenExpired(expiresAt)).thenReturn(false);
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
 
         // When
@@ -733,14 +713,4 @@ class StorageServiceTest {
                 .hasMessageContaining("Failed to update default folder");
     }
 
-    // ====================== Helper Methods ======================
-
-    private void setupWebClientMock(Map<String, Object> response) {
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(response));
-    }
 }

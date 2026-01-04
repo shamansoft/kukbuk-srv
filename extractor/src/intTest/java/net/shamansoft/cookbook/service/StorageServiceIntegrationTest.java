@@ -4,6 +4,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
+import net.shamansoft.cookbook.client.GoogleAuthClient;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
@@ -12,19 +13,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.testcontainers.containers.FirestoreEmulatorContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
-import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -40,8 +37,7 @@ class StorageServiceIntegrationTest {
     private StorageService storageService;
     private Firestore firestore;
     private TokenEncryptionService tokenEncryptionService;
-    private WebClient.Builder webClientBuilder;
-    private WebClient webClient;
+    private GoogleAuthClient googleAuthClient;
     private static final String FOLDER_NAME = "kukbuk";
 
     private static final String TEST_USER_ID = "integration-test-user";
@@ -71,10 +67,13 @@ class StorageServiceIntegrationTest {
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
-        // Mock WebClient for OAuth token exchange
-        webClient = mockWebClientForOAuthExchange();
-        webClientBuilder = mock(WebClient.Builder.class);
-        when(webClientBuilder.build()).thenReturn(webClient);
+        // Mock GoogleAuthClient for OAuth token exchange
+        googleAuthClient = mock(GoogleAuthClient.class);
+        GoogleAuthClient.TokenResponse tokenResponse = new GoogleAuthClient.TokenResponse(
+                ACCESS_TOKEN, REFRESH_TOKEN, 3600L
+        );
+        when(googleAuthClient.exchangeAuthorizationCode(eq(AUTH_CODE), eq(REDIRECT_URI)))
+                .thenReturn(tokenResponse);
 
         // Mock GoogleDrive for folder operations
         googleDrive = mock(GoogleDrive.class);
@@ -84,11 +83,9 @@ class StorageServiceIntegrationTest {
         when(googleDrive.createFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
                 .thenReturn(folderItem);
 
-        storageService = new StorageService(firestore, tokenEncryptionService, webClientBuilder, googleDrive);
+        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive);
 
         // Set required @Value fields using reflection
-        ReflectionTestUtils.setField(storageService, "googleClientId", "test-client-id");
-        ReflectionTestUtils.setField(storageService, "googleClientSecret", "test-client-secret");
         ReflectionTestUtils.setField(storageService, "defaultFolderName", FOLDER_NAME);
 
         // Create user profile
@@ -96,30 +93,6 @@ class StorageServiceIntegrationTest {
                 .document(TEST_USER_ID)
                 .set(Map.of("email", "test@example.com"))
                 .get();
-    }
-
-    @SuppressWarnings("unchecked")
-    private WebClient mockWebClientForOAuthExchange() {
-        WebClient webClient = mock(WebClient.class);
-        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-
-        // Mock OAuth token exchange response
-        Map<String, Object> oauthResponse = new HashMap<>();
-        oauthResponse.put("access_token", ACCESS_TOKEN);
-        oauthResponse.put("refresh_token", REFRESH_TOKEN);
-        oauthResponse.put("expires_in", 3600);
-
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
-        when(requestBodySpec.body(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
-
-        return webClient;
     }
 
     @Test
@@ -163,8 +136,8 @@ class StorageServiceIntegrationTest {
         assertThat(info.connected()).isTrue();
         assertThat(info.accessToken()).isEqualTo(ACCESS_TOKEN);
         assertThat(info.refreshToken()).isEqualTo(REFRESH_TOKEN);
-        assertThat(info.defaultFolderId()).isEqualTo(FOLDER_ID);
-        assertThat(info.defaultFolderName()).isEqualTo(FOLDER_NAME);
+        assertThat(info.folderId()).isEqualTo(FOLDER_ID);
+        assertThat(info.folderName()).isEqualTo(FOLDER_NAME);
         assertThat(info.expiresAt()).isNotNull();
         assertThat(info.connectedAt()).isNotNull();
     }
@@ -247,23 +220,9 @@ class StorageServiceIntegrationTest {
     @Test
     @DisplayName("Should handle null refresh token")
     void shouldHandleNullRefreshToken() throws Exception {
-        // Mock WebClient to return response without refresh token
-        Map<String, Object> oauthResponseWithoutRefresh = new HashMap<>();
-        oauthResponseWithoutRefresh.put("access_token", ACCESS_TOKEN);
-        oauthResponseWithoutRefresh.put("expires_in", 3600);
-        // No refresh_token in response
-
-        WebClient.RequestBodyUriSpec requestBodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec requestBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec requestHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
-        when(requestBodySpec.body(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponseWithoutRefresh));
+        // Mock GoogleAuthClient to throw IllegalStateException when refresh token is missing
+        when(googleAuthClient.exchangeAuthorizationCode(eq(AUTH_CODE), eq(REDIRECT_URI)))
+                .thenThrow(new IllegalStateException("No refresh token received. Ensure OAuth consent screen requests offline access."));
 
         // When & Then - Connect without refresh token should fail
         // The service expects a refresh token and will throw IllegalStateException if missing

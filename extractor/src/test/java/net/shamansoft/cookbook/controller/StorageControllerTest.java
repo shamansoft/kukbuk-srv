@@ -247,7 +247,7 @@ class StorageControllerTest {
                 .refreshToken("1//test_refresh") // Won't be in response
                 .expiresAt(expiresAt)
                 .connectedAt(now)
-                .defaultFolderId(TEST_FOLDER_ID)
+                .folderId(TEST_FOLDER_ID)
                 .build();
 
         when(storageService.getStorageInfo(TEST_USER_ID))
