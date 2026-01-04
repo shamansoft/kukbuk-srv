@@ -28,6 +28,7 @@ public class StorageStatusResponse {
     private Instant expiresAt;
 
     private String defaultFolderId;
+    private String defaultFolderName;
 
     /**
      * Factory method for not connected state
@@ -52,6 +53,7 @@ public class StorageStatusResponse {
                 .connectedAt(info.connectedAt())
                 .expiresAt(info.expiresAt())
                 .defaultFolderId(info.defaultFolderId())
+                .defaultFolderName(info.defaultFolderName())
                 .build();
     }
 }

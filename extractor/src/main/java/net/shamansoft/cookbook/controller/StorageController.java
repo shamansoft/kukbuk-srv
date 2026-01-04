@@ -42,11 +42,11 @@ public class StorageController {
 
     /**
      * Connect Google Drive storage for the authenticated user.
-     * Exchanges authorization code for OAuth tokens server-side.
+     * Exchanges authorization code for OAuth tokens server-side, and creates/finds Google Drive folder.
      *
      * @param userId  Injected by FirebaseAuthFilter
-     * @param request Authorization code and configuration from mobile app
-     * @return Connection response with success/failure status
+     * @param request Authorization code, redirect URI, and folder name from mobile app
+     * @return Connection response with folder information
      */
     @PostMapping("/google-drive/connect")
     public ResponseEntity<StorageConnectionResponse> connectGoogleDrive(
@@ -56,20 +56,23 @@ public class StorageController {
         log.info("Connecting Google Drive storage for user: {}", userId);
 
         try {
-            storageService.connectGoogleDrive(
+            StorageService.FolderInfo folderInfo = storageService.connectGoogleDrive(
                     userId,
                     request.getAuthorizationCode(),
                     request.getRedirectUri(),
-                    request.getDefaultFolderId()
+                    request.getFolderName()
             );
 
-            log.info("Google Drive connected successfully for user: {}", userId);
+            log.info("Google Drive connected successfully for user: {} with folder: {} ({})",
+                    userId, folderInfo.folderName(), folderInfo.folderId());
 
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(StorageConnectionResponse.success(
                             "Google Drive connected successfully",
-                            true
+                            true,
+                            folderInfo.folderId(),
+                            folderInfo.folderName()
                     ));
 
         } catch (IllegalArgumentException e) {

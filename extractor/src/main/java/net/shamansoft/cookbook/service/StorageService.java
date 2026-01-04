@@ -4,9 +4,11 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.client.GoogleDrive.Item;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
@@ -33,12 +35,16 @@ public class StorageService {
     private final Firestore firestore;
     private final TokenEncryptionService tokenEncryptionService;
     private final WebClient webClient;
+    private final net.shamansoft.cookbook.client.GoogleDrive googleDrive;
 
     @Value("${cookbook.drive.oauth-id}")
     private String googleClientId;
 
     @Value("${cookbook.drive.oauth-secret}")
     private String googleClientSecret;
+
+    @Value("${cookbook.drive.folder-name:kukbuk}")
+    private String defaultFolderName;
 
     private static final String USERS_COLLECTION = "users";
     private static final String STORAGE_FIELD = "storage";
@@ -48,10 +54,56 @@ public class StorageService {
 
     public StorageService(Firestore firestore,
                          TokenEncryptionService tokenEncryptionService,
-                         WebClient.Builder webClientBuilder) {
+                          WebClient.Builder webClientBuilder,
+                          net.shamansoft.cookbook.client.GoogleDrive googleDrive) {
         this.firestore = firestore;
         this.tokenEncryptionService = tokenEncryptionService;
         this.webClient = webClientBuilder.build();
+        this.googleDrive = googleDrive;
+    }
+
+    /**
+     * Store Google Drive connection information.
+     * Exchanges authorization code for tokens, creates/finds folder, and stores everything.
+     *
+     * @param userId            Firebase user ID
+     * @param authorizationCode OAuth authorization code from mobile app
+     * @param redirectUri       Redirect URI used in OAuth flow
+     * @param folderName        Google Drive folder name (optional, uses default if blank)
+     * @return FolderInfo with folder ID and name
+     */
+    public FolderInfo connectGoogleDrive(String userId, String authorizationCode, String redirectUri,
+                                         String folderName) {
+        log.info("Connecting Google Drive storage for user: {}", userId);
+
+        try {
+            // 1. Exchange authorization code for tokens
+            TokenExchangeResult tokens = exchangeAuthorizationCodeForTokens(authorizationCode, redirectUri);
+
+            // 2. Resolve folder name (use default if blank/null)
+            String resolvedFolderName = resolveFolderName(folderName);
+            log.info("Resolved folder name: '{}'", resolvedFolderName);
+
+            // 3. Get or create folder on Google Drive
+            Item folder = getOrCreateFolder(resolvedFolderName, tokens.accessToken());
+            log.info("Using folder '{}' with ID: {}", folder.name(), folder.id());
+
+            // 4. Store tokens and folder information (encrypted)
+            connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
+                    tokens.expiresIn(), folder.id(), folder.name());
+
+            return new FolderInfo(folder.id(), folder.name());
+
+        } catch (GoogleDriveException e) {
+            // Re-throw Google Drive exceptions as-is
+            throw e;
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Re-throw OAuth exceptions as-is
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to connect Google Drive for user {}: {}", userId, e.getMessage(), e);
+            throw new DatabaseUnavailableException("Failed to connect Google Drive: " + e.getMessage(), e);
+        }
     }
 
     @PostConstruct
@@ -139,39 +191,65 @@ public class StorageService {
     }
 
     /**
-     * Store Google Drive connection information.
-     * Exchanges authorization code for tokens before storing.
-     *
-     * @param userId            Firebase user ID
-     * @param authorizationCode OAuth authorization code from mobile app
-     * @param redirectUri       Redirect URI used in OAuth flow
-     * @param defaultFolderId   Google Drive folder ID (optional)
+     * Resolve folder name: use default if null or blank.
      */
-    public void connectGoogleDrive(String userId, String authorizationCode, String redirectUri,
-                                   String defaultFolderId) {
-        log.info("Connecting Google Drive storage for user: {}", userId);
-
-        // Exchange authorization code for tokens
-        TokenExchangeResult tokens = exchangeAuthorizationCodeForTokens(authorizationCode, redirectUri);
-
-        // Store tokens (encrypted)
-        connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
-                tokens.expiresIn(), defaultFolderId);
+    private String resolveFolderName(String folderName) {
+        if (folderName == null || folderName.isBlank()) {
+            log.debug("No folder name provided, using default: '{}'", defaultFolderName);
+            return defaultFolderName;
+        }
+        return folderName.trim();
     }
 
     /**
-     * Internal method to store OAuth tokens.
+     * Get existing folder or create new one on Google Drive.
+     *
+     * @param folderName  Folder name to search for/create
+     * @param accessToken OAuth access token for Google Drive API
+     * @return Folder Item with ID and name
+     * @throws net.shamansoft.cookbook.exception.GoogleDriveException if Google Drive API fails
+     */
+    private Item getOrCreateFolder(String folderName, String accessToken) {
+        try {
+            // Search for existing folder in root directory
+            java.util.Optional<Item> existingFolder =
+                    googleDrive.getFolder(folderName, accessToken);
+
+            if (existingFolder.isPresent()) {
+                log.info("Found existing folder '{}' with ID: {}",
+                        folderName, existingFolder.get().id());
+                return existingFolder.get();
+            }
+
+            // Create new folder if not found
+            log.info("Folder '{}' not found, creating new folder", folderName);
+            Item newFolder =
+                    googleDrive.createFolder(folderName, accessToken);
+            log.info("Created folder '{}' with ID: {}", folderName, newFolder.id());
+            return newFolder;
+
+        } catch (Exception e) {
+            log.error("Failed to get or create folder '{}': {}", folderName, e.getMessage(), e);
+            throw new net.shamansoft.cookbook.exception.GoogleDriveException(
+                    "Failed to access Google Drive folder: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Internal method to store OAuth tokens and folder information.
      * Separated for backwards compatibility and testing.
      *
-     * @param userId          Firebase user ID
-     * @param accessToken     OAuth access token (will be encrypted)
-     * @param refreshToken    OAuth refresh token (will be encrypted)
-     * @param expiresIn       Token expiration in seconds
-     * @param defaultFolderId Google Drive folder ID (optional)
+     * @param userId            Firebase user ID
+     * @param accessToken       OAuth access token (will be encrypted)
+     * @param refreshToken      OAuth refresh token (will be encrypted)
+     * @param expiresIn         Token expiration in seconds
+     * @param defaultFolderId   Google Drive folder ID
+     * @param defaultFolderName Google Drive folder name
      */
     private void connectGoogleDriveWithTokens(String userId, String accessToken, String refreshToken,
-                                              long expiresIn, String defaultFolderId) {
-        log.info("Connecting Google Drive storage for user: {}", userId);
+                                              long expiresIn, String defaultFolderId, String defaultFolderName) {
+        log.info("Storing Google Drive connection for user: {} with folder '{}' ({})",
+                userId, defaultFolderName, defaultFolderId);
 
         try {
 
@@ -183,7 +261,8 @@ public class StorageService {
                     .expiresAt(Timestamp.ofTimeSecondsAndNanos(
                             System.currentTimeMillis() / 1000 + expiresIn, 0))
                     .connectedAt(Timestamp.now())
-                    .defaultFolderId(defaultFolderId)
+                    .folderId(defaultFolderId)
+                    .folderName(defaultFolderName)
                     .build();
 
             firestore.collection(USERS_COLLECTION)
@@ -199,6 +278,85 @@ public class StorageService {
             throw new DatabaseUnavailableException("Failed to connect Google Drive", e);
         } catch (Exception e) {
             throw new DatabaseUnavailableException("Failed to encrypt tokens or update Firestore", e);
+        }
+    }
+
+    /**
+     * Refresh access token using refresh token
+     */
+    private StorageInfo refreshAccessToken(String userId, StorageEntity storage) {
+        if (storage.refreshToken() == null) {
+            throw new StorageNotConnectedException(
+                "Access token expired and no refresh token available. Please reconnect storage."
+            );
+        }
+
+        try {
+            String refreshToken = tokenEncryptionService.decrypt(storage.refreshToken());
+
+            log.info("Calling Google OAuth token endpoint to refresh access token for user: {}", userId);
+
+            // Call Google's token endpoint
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("client_id", googleClientId);
+            params.add("client_secret", googleClientSecret);
+            params.add("refresh_token", refreshToken);
+            params.add("grant_type", "refresh_token");
+
+            Map<String, Object> response = webClient.post()
+                .uri("https://oauth2.googleapis.com/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData(params))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+            if (response == null || !response.containsKey("access_token")) {
+                throw new RuntimeException("Invalid response from Google OAuth: " + response);
+            }
+
+            String newAccessToken = (String) response.get("access_token");
+            Integer expiresIn = (Integer) response.get("expires_in");
+
+            if (expiresIn == null) {
+                expiresIn = 3600; // Default to 1 hour
+            }
+
+            log.info("Successfully refreshed OAuth token for user: {}, expires in {}s", userId, expiresIn);
+
+            // Update Firestore with new token
+            String encryptedAccessToken = tokenEncryptionService.encrypt(newAccessToken);
+            Timestamp newExpiresAt = Timestamp.ofTimeSecondsAndNanos(
+                System.currentTimeMillis() / 1000 + expiresIn, 0
+            );
+
+            firestore.collection(USERS_COLLECTION)
+                .document(userId)
+                .update(
+                    STORAGE_FIELD + ".accessToken", encryptedAccessToken,
+                    STORAGE_FIELD + ".expiresAt", newExpiresAt
+                )
+                .get();
+
+            log.info("Updated Firestore with refreshed token for user: {}", userId);
+
+            // Return StorageInfo with new token
+            return StorageInfo.builder()
+                .type(StorageType.fromFirestoreValue(storage.type()))
+                .connected(true)
+                .accessToken(newAccessToken)  // Decrypted new token
+                .refreshToken(refreshToken)   // Keep same refresh token
+                .expiresAt(newExpiresAt.toDate().toInstant())
+                .connectedAt(storage.connectedAt() != null
+                    ? storage.connectedAt().toDate().toInstant()
+                    : null)
+                    .defaultFolderId(storage.folderId())
+                    .defaultFolderName(storage.folderName())
+                .build();
+
+        } catch (Exception e) {
+            log.error("Failed to refresh OAuth token for user {}: {}", userId, e.getMessage(), e);
+            throw new DatabaseUnavailableException("Failed to refresh OAuth token: " + e.getMessage(), e);
         }
     }
 
@@ -292,80 +450,26 @@ public class StorageService {
     }
 
     /**
-     * Refresh access token using refresh token
+     * Update default folder ID for Google Drive
+     *
+     * @param userId   Firebase user ID
+     * @param folderId Google Drive folder ID
      */
-    private StorageInfo refreshAccessToken(String userId, StorageEntity storage) {
-        if (storage.refreshToken() == null) {
-            throw new StorageNotConnectedException(
-                "Access token expired and no refresh token available. Please reconnect storage."
-            );
-        }
+    public void updateDefaultFolder(String userId, String folderId) {
+        log.info("Updating default folder for user {}: {}", userId, folderId);
 
         try {
-            String refreshToken = tokenEncryptionService.decrypt(storage.refreshToken());
-
-            log.info("Calling Google OAuth token endpoint to refresh access token for user: {}", userId);
-
-            // Call Google's token endpoint
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("client_id", googleClientId);
-            params.add("client_secret", googleClientSecret);
-            params.add("refresh_token", refreshToken);
-            params.add("grant_type", "refresh_token");
-
-            Map<String, Object> response = webClient.post()
-                .uri("https://oauth2.googleapis.com/token")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData(params))
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-
-            if (response == null || !response.containsKey("access_token")) {
-                throw new RuntimeException("Invalid response from Google OAuth: " + response);
-            }
-
-            String newAccessToken = (String) response.get("access_token");
-            Integer expiresIn = (Integer) response.get("expires_in");
-
-            if (expiresIn == null) {
-                expiresIn = 3600; // Default to 1 hour
-            }
-
-            log.info("Successfully refreshed OAuth token for user: {}, expires in {}s", userId, expiresIn);
-
-            // Update Firestore with new token
-            String encryptedAccessToken = tokenEncryptionService.encrypt(newAccessToken);
-            Timestamp newExpiresAt = Timestamp.ofTimeSecondsAndNanos(
-                System.currentTimeMillis() / 1000 + expiresIn, 0
-            );
-
             firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .update(
-                    STORAGE_FIELD + ".accessToken", encryptedAccessToken,
-                    STORAGE_FIELD + ".expiresAt", newExpiresAt
-                )
-                .get();
+                    .document(userId)
+                    .update(STORAGE_FIELD + ".folderId", folderId)
+                    .get();
 
-            log.info("Updated Firestore with refreshed token for user: {}", userId);
-
-            // Return StorageInfo with new token
-            return StorageInfo.builder()
-                .type(StorageType.fromFirestoreValue(storage.type()))
-                .connected(true)
-                .accessToken(newAccessToken)  // Decrypted new token
-                .refreshToken(refreshToken)   // Keep same refresh token
-                .expiresAt(newExpiresAt.toDate().toInstant())
-                .connectedAt(storage.connectedAt() != null
-                    ? storage.connectedAt().toDate().toInstant()
-                    : null)
-                .defaultFolderId(storage.defaultFolderId())
-                .build();
-
-        } catch (Exception e) {
-            log.error("Failed to refresh OAuth token for user {}: {}", userId, e.getMessage(), e);
-            throw new DatabaseUnavailableException("Failed to refresh OAuth token: " + e.getMessage(), e);
+            log.info("Default folder updated successfully");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new DatabaseUnavailableException("Failed to update default folder: operation interrupted", e);
+        } catch (ExecutionException e) {
+            throw new DatabaseUnavailableException("Failed to update default folder", e);
         }
     }
 
@@ -408,27 +512,12 @@ public class StorageService {
     }
 
     /**
-     * Update default folder ID for Google Drive
+     * Result of connecting Google Drive with folder information.
      *
-     * @param userId   Firebase user ID
-     * @param folderId Google Drive folder ID
+     * @param folderId   Google Drive folder ID
+     * @param folderName Human-readable folder name
      */
-    public void updateDefaultFolder(String userId, String folderId) {
-        log.info("Updating default folder for user {}: {}", userId, folderId);
-
-        try {
-            firestore.collection(USERS_COLLECTION)
-                    .document(userId)
-                    .update(STORAGE_FIELD + ".defaultFolderId", folderId)
-                    .get();
-
-            log.info("Default folder updated successfully");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new DatabaseUnavailableException("Failed to update default folder: operation interrupted", e);
-        } catch (ExecutionException e) {
-            throw new DatabaseUnavailableException("Failed to update default folder", e);
-        }
+    public record FolderInfo(String folderId, String folderName) {
     }
 
     /**

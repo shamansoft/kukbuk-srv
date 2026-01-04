@@ -21,7 +21,8 @@ public record StorageEntity(String type,
                             String refreshToken,
                             Timestamp expiresAt,
                             Timestamp connectedAt,
-                            String defaultFolderId) {
+                            String folderId,
+                            String folderName) {
 
     public Map<String, Object> toMap() {
         Map<String, Object> storage = new HashMap<>();
@@ -33,8 +34,11 @@ public record StorageEntity(String type,
         }
         storage.put("expiresAt", expiresAt);
         storage.put("connectedAt", connectedAt);
-        if (defaultFolderId != null) {
-            storage.put("defaultFolderId", defaultFolderId);
+        if (folderId != null) {
+            storage.put("folderId", folderId);
+        }
+        if (folderName != null) {
+            storage.put("folderName", folderName);
         }
         return storage;
     }
@@ -62,7 +66,8 @@ public record StorageEntity(String type,
                     .connectedAt(this.connectedAt != null
                             ? this.connectedAt.toDate().toInstant()
                             : null)
-                    .defaultFolderId(this.defaultFolderId)
+                    .defaultFolderId(this.folderId)
+                    .defaultFolderName(this.folderName)
                     .build();
         } catch (Exception e) {
             throw new DatabaseUnavailableException("Failed to decrypt tokens or map storage data", e);
