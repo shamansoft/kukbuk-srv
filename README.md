@@ -1,6 +1,6 @@
 # Cookbook Project
 
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-0%25-red)
 A recipe extraction and management system with a Java Spring Boot backend, featuring automated CI/CD pipelines, GraalVM native image compilation, and deployment to Google Cloud Run.
 
 ## Technologies
