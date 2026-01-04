@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook;
+package net.shamansoft.cookbook.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

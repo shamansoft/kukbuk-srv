@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook;
+package net.shamansoft.cookbook.controller;
 
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;

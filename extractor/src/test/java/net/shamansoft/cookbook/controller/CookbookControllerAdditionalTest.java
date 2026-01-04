@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook;
+package net.shamansoft.cookbook.controller;
 
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
