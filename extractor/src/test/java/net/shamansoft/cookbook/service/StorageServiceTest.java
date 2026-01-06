@@ -285,6 +285,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -292,7 +293,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(expiresAt)).thenReturn(false);
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
@@ -325,6 +326,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -332,7 +334,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
@@ -375,6 +377,7 @@ class StorageServiceTest {
     void shouldThrowExceptionWhenStorageNull() throws Exception {
         // Given
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(null)
                 .build();
@@ -382,7 +385,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(null);
 
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
@@ -399,6 +402,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -406,7 +410,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
 
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
@@ -424,6 +428,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -431,7 +436,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
 
         // When & Then
         assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
@@ -454,6 +459,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -461,7 +467,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
 
         // When & Then - should fail because no refresh token is available
@@ -485,6 +491,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -492,7 +499,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
 
         // When & Then
@@ -514,6 +521,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -521,7 +529,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(null)).thenReturn(true);
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
 
@@ -587,6 +595,7 @@ class StorageServiceTest {
                 .build();
 
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(storageEntity)
                 .build();
@@ -594,7 +603,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(storageEntity.toMap());
         when(googleAuthClient.isTokenExpired(expiresAt)).thenReturn(false);
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
 
@@ -610,6 +619,7 @@ class StorageServiceTest {
     void shouldReturnFalseWhenStorageNotConnected() throws Exception {
         // Given
         UserProfile userProfile = UserProfile.builder()
+                .uid(USER_ID)
                 .userId(USER_ID)
                 .storage(null)
                 .build();
@@ -617,7 +627,7 @@ class StorageServiceTest {
         when(userDocument.get()).thenReturn(documentFuture);
         when(documentFuture.get()).thenReturn(documentSnapshot);
         when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.toObject(UserProfile.class)).thenReturn(userProfile);
+        when(documentSnapshot.get("storage")).thenReturn(null);
 
         // When
         boolean result = storageService.isStorageConnected(USER_ID);

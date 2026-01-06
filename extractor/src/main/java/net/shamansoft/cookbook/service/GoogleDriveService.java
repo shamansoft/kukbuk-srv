@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -78,14 +79,14 @@ public class GoogleDriveService implements DriveService {
             throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
         }
 
-        // Get or create folder (use custom folder if configured, otherwise default)
-        String folderId;
-        if (storage.folderId() != null) {
-            log.debug("Using custom folder ID: {}", storage.folderId());
-            folderId = storage.folderId();
-        } else {
-            folderId = getOrCreateFolder(storage.accessToken());
+        // Validate folder is configured
+        if (storage.folderId() == null) {
+            throw new StorageNotConnectedException(
+                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
         }
+
+        String folderId = storage.folderId();
+        log.debug("Using folder ID: {}", folderId);
 
         // Generate filename and upload
         String fileName = generateFileName(title);
