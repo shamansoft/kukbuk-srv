@@ -184,40 +184,30 @@ class GoogleDriveServiceTest {
     }
 
     @Test
-    void saveRecipeForUser_withDefaultFolder_createsFolder() throws Exception {
+    void saveRecipeForUser_withoutFolderId_throwsException() throws Exception {
         // Arrange
         String userId = "user-123";
         String content = "recipe: test";
         String title = "Test Recipe";
         String accessToken = "access-token";
-        String folderId = "folder-456";
-        String fileName = "test-recipe.yaml";
-        String fileId = "file-789";
 
         StorageInfo storage = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
                 .accessToken(accessToken)
+                .folderId(null)  // No folder configured
                 .build();
 
         when(storageService.getStorageInfo(userId)).thenReturn(storage);
-        when(transliterator.toAsciiKebab(title)).thenReturn("test-recipe");
-        when(googleDrive.getFolder(eq("test-folder"), eq(accessToken)))
-                .thenReturn(java.util.Optional.of(new GoogleDrive.Item(folderId, "test-folder")));
-        when(googleDrive.getFile(eq(fileName), eq(folderId), eq(accessToken)))
-                .thenReturn(java.util.Optional.empty());
-        when(googleDrive.createFile(eq(fileName), eq(folderId), eq(content), eq(accessToken)))
-                .thenReturn(new GoogleDrive.Item(fileId, fileName));
 
-        // Act
-        DriveService.UploadResult result = googleDriveService.saveRecipeForUser(userId, content, title);
+        // Act & Assert
+        assertThatThrownBy(() -> googleDriveService.saveRecipeForUser(userId, content, title))
+                .isInstanceOf(net.shamansoft.cookbook.exception.StorageNotConnectedException.class)
+                .hasMessageContaining("No folder configured");
 
-        // Assert
-        assertThat(result).isNotNull();
-        assertThat(result.fileId()).isEqualTo(fileId);
-        assertThat(result.fileUrl()).isEqualTo("https://drive.google.com/file/d/" + fileId + "/view");
         verify(storageService).getStorageInfo(userId);
-        verify(googleDrive).getFolder(eq("test-folder"), eq(accessToken));
+        verify(googleDrive, never()).getFile(any(), any(), any());
+        verify(googleDrive, never()).createFile(any(), any(), any(), any());
     }
 
     @Test

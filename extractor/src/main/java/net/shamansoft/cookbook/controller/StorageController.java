@@ -76,7 +76,7 @@ public class StorageController {
                     ));
 
         } catch (IllegalArgumentException e) {
-            log.error("Invalid authorization code for user {}: {}", userId, e.getMessage());
+            log.error("Invalid authorization code for user {}: {}", userId, e.getMessage(), e);
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(StorageConnectionResponse.error(
@@ -84,7 +84,7 @@ public class StorageController {
                     ));
 
         } catch (IllegalStateException e) {
-            log.error("OAuth configuration error for user {}: {}", userId, e.getMessage());
+            log.error("OAuth configuration error for user {}: {}", userId, e.getMessage(), e);
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(StorageConnectionResponse.error(

@@ -53,7 +53,9 @@ public class GoogleAuthClient {
             params.add("client_id", googleClientId);
             params.add("client_secret", googleClientSecret);
             params.add("redirect_uri", redirectUri);
+            params.add("access_type", "offline");
             params.add("grant_type", "authorization_code");
+            params.add("prompt", "consent");
 
             Map<String, Object> response = webClient.post()
                     .uri("https://oauth2.googleapis.com/token")

@@ -13,11 +13,11 @@ import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
 import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
-import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -259,13 +259,24 @@ public class StorageService {
                 throw new StorageNotConnectedException("No user profile found. Please connect storage first.");
             }
 
-            UserProfile userProfile = doc.toObject(UserProfile.class);
+            // Manual deserialization to handle Java record compatibility issues
+            Map<String, Object> storageMap = (Map<String, Object>) doc.get("storage");
 
-            if (userProfile == null || userProfile.storage() == null) {
+            if (storageMap == null) {
                 throw new StorageNotConnectedException("No storage configuration found for user: " + userId);
             }
 
-            StorageEntity storageEntity = userProfile.storage();
+            // Deserialize StorageEntity from map
+            StorageEntity storageEntity = StorageEntity.builder()
+                    .type((String) storageMap.get("type"))
+                    .connected(Boolean.TRUE.equals(storageMap.get("connected")))
+                    .accessToken((String) storageMap.get("accessToken"))
+                    .refreshToken((String) storageMap.get("refreshToken"))
+                    .expiresAt((com.google.cloud.Timestamp) storageMap.get("expiresAt"))
+                    .connectedAt((com.google.cloud.Timestamp) storageMap.get("connectedAt"))
+                    .folderId((String) storageMap.get("folderId"))
+                    .folderName((String) storageMap.get("folderName"))
+                    .build();
 
             // 3. Domain logic validation
             if (!storageEntity.connected()) {
@@ -299,7 +310,10 @@ public class StorageService {
             // Re-throw domain exception as-is
             throw e;
         } catch (Exception e) {
-            throw new DatabaseUnavailableException("Unexpected error while retrieving storage info", e);
+            log.error("Unexpected error while retrieving storage info for user {}: {}",
+                    userId, e.getMessage(), e);
+            throw new DatabaseUnavailableException(
+                    "Unexpected error while retrieving storage info: " + e.getMessage(), e);
         }
     }
 

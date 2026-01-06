@@ -8,6 +8,7 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
+import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,12 @@ public class RecipeService {
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
+
+        if (storage.folderId() == null) {
+            throw new StorageNotConnectedException(
+                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+        }
+
         var recipe = createOrGetCached(url, sourceHtml, compression);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(title)
@@ -94,7 +101,15 @@ public class RecipeService {
         if (storage.type() != StorageType.GOOGLE_DRIVE) {
             throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
         }
-        var folderId = storage.folderId();
+
+        // 2. Validate folder is configured
+        if (storage.folderId() == null) {
+            throw new StorageNotConnectedException(
+                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+        }
+
+        String folderId = storage.folderId();
+        log.debug("Using folder ID from user profile: {}", folderId);
 
         // 3. List YAML files from Drive
         GoogleDrive.DriveFileListResult driveFiles = googleDriveService.listRecipeFiles(
