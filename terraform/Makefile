@@ -75,6 +75,23 @@ import: build
 	@echo "Importing resource $(ADDR) with ID $(ID)..."
 	$(DOCKER_RUN) -c "tofu import $(ADDR) $(ID)"
 
+# Force unlock state (use when operations are interrupted)
+unlock: build
+	@if [ -z "$(LOCK_ID)" ]; then \
+		echo "Error: LOCK_ID is required"; \
+		echo "Usage: make unlock LOCK_ID=<lock-id>"; \
+		echo "Get the LOCK_ID from the error message (e.g., 1767759735580125)"; \
+		exit 1; \
+	fi
+	@echo "Force unlocking state with LOCK_ID: $(LOCK_ID)"
+	@echo "WARNING: Only do this if you're sure no other operation is running!"
+	@read -p "Continue? (y/N) " REPLY; \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+		$(DOCKER_RUN) -c "tofu force-unlock -force $(LOCK_ID)"; \
+	else \
+		echo "Unlock cancelled."; \
+	fi
+
 # Deploy (plan + apply with confirmation)
 deploy: build
 	@echo "Deploying with image tag: $(TAG)"
