@@ -52,6 +52,14 @@ resource "google_project_iam_member" "cookbook_run_invoker" {
   depends_on = [google_service_account.cookbook_cloudrun_service_account]
 }
 
+resource "google_project_iam_member" "cookbook_service_usage_consumer" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+
+  depends_on = [google_service_account.cookbook_cloudrun_service_account]
+}
+
 # Output service account email
 output "service_account_email" {
   description = "Service account email for Cookbook service"
