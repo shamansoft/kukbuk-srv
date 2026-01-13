@@ -41,8 +41,9 @@ import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import(TestFirebaseConfig.class)
-class CookbookControllerSBTest {
+class RecipeControllerSBTest {
 
+    public static final String RECIPE_PATH = "/v1/recipes";
     @Autowired
     private TestRestTemplate restTemplate;
 
@@ -141,7 +142,7 @@ class CookbookControllerSBTest {
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 RecipeResponse.class
         );
@@ -163,7 +164,7 @@ class CookbookControllerSBTest {
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 RecipeResponse.class
         );
@@ -182,7 +183,7 @@ class CookbookControllerSBTest {
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 Map.class
         );
@@ -198,7 +199,7 @@ class CookbookControllerSBTest {
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 Map.class
         );
@@ -218,7 +219,7 @@ class CookbookControllerSBTest {
         // When/Then
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 Map.class
         );
@@ -241,7 +242,7 @@ class CookbookControllerSBTest {
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "/recipe?compression=none",
+                RECIPE_PATH + "?compression=none",
                 requestEntity,
                 RecipeResponse.class
         );
@@ -261,7 +262,7 @@ class CookbookControllerSBTest {
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 RecipeResponse.class
         );
@@ -283,7 +284,7 @@ class CookbookControllerSBTest {
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 Map.class
         );
@@ -302,7 +303,7 @@ class CookbookControllerSBTest {
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "/recipe",
+                RECIPE_PATH,
                 requestEntity,
                 Map.class
         );

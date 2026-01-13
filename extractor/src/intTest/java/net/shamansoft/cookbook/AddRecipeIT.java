@@ -54,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 )
 class AddRecipeIT {
 
+    public static final String RECIPE_PATH = "/v1/recipes";
     @LocalServerPort
     private int port;
 
@@ -300,12 +301,12 @@ class AddRecipeIT {
                 </html>
                 """;
 
-        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/recipe");
+        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com" + RECIPE_PATH);
         HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
 
         // When: Making a request to create recipe
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
@@ -324,7 +325,7 @@ class AddRecipeIT {
                         RecipeResponse::isRecipe
                 )
                 .containsExactly(
-                        "https://example.com/recipe",
+                        "https://example.com" + RECIPE_PATH,
                         "Chocolate Chip Cookies",
                         "file-456",
                         "https://drive.google.com/file/d/file-456/view",
@@ -370,7 +371,7 @@ class AddRecipeIT {
 
         // When: Making a request to create recipe
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 Map.class
         );
@@ -434,7 +435,7 @@ class AddRecipeIT {
 
         // When: Making a request for the cached recipe
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
@@ -481,7 +482,7 @@ class AddRecipeIT {
 
         // When: Making a request
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
