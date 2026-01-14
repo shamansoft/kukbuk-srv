@@ -70,11 +70,11 @@ class UserProfileControllerTest {
                 .storage(storageEntity)
                 .build();
 
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenReturn(mockProfile);
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -111,11 +111,11 @@ class UserProfileControllerTest {
                 .storage(null)  // No storage configured
                 .build();
 
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenReturn(mockProfile);
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -147,11 +147,11 @@ class UserProfileControllerTest {
                 .createdAt(firestoreTimestamp)
                 .build();
 
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenReturn(mockProfile);
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
         // Assert
         assertThat(response.getBody()).isNotNull();
@@ -193,11 +193,11 @@ class UserProfileControllerTest {
                 .storage(storageEntity)
                 .build();
 
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenReturn(mockProfile);
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
         // Assert
         assertThat(response.getBody()).isNotNull();
@@ -253,11 +253,11 @@ class UserProfileControllerTest {
                 .storage(storageEntity)
                 .build();
 
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenReturn(mockProfile);
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.of(mockProfile));
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
         // Assert - should handle gracefully
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -268,22 +268,20 @@ class UserProfileControllerTest {
     }
 
     /**
-     * Test error case: Profile retrieval fails
+     * Test error case: Profile not found
      */
     @Test
-    void testGetUserProfile_ProfileRetrievalFails() {
+    void testGetUserProfile_ProfileNotFound() {
         // Arrange
-        when(userProfileService.getProfile(TEST_USER_ID, TEST_EMAIL))
-                .thenThrow(new RuntimeException("Firestore error"));
+        when(userProfileService.getProfile(TEST_USER_ID))
+                .thenReturn(java.util.Optional.empty());
 
         // Act
-        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID, TEST_EMAIL);
+        ResponseEntity<UserProfileResponseDto> response = controller.getUserProfile(TEST_USER_ID);
 
-        // Assert - should return minimal response with just userId
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().userId()).isEqualTo(TEST_USER_ID);
-        // Email and createdAt will be null since we caught the exception
+        // Assert - should return 404 when profile not found
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNull();
     }
 
     /**

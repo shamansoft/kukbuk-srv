@@ -346,7 +346,7 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should get existing user profile")
-    void shouldGetExistingUserProfile() throws Exception {
+    void shouldGetExistingUserProfile() {
         // Given
         UserProfile existingProfile = UserProfile.builder()
                 .userId(USER_ID)
@@ -359,39 +359,29 @@ class UserProfileServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
 
         // When
-        UserProfile result = userProfileService.getProfile(USER_ID, USER_EMAIL);
+        Optional<UserProfile> result = userProfileService.getProfile(USER_ID);
 
         // Then
-        assertThat(result).isEqualTo(existingProfile);
-        assertThat(result.userId()).isEqualTo(USER_ID);
-        assertThat(result.email()).isEqualTo(USER_EMAIL);
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualTo(existingProfile);
+        assertThat(result.get().userId()).isEqualTo(USER_ID);
+        assertThat(result.get().email()).isEqualTo(USER_EMAIL);
         verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 
     @Test
-    @DisplayName("Should create new user profile when not exists")
-    void shouldCreateNewUserProfileWhenNotExists() throws Exception {
+    @DisplayName("Should return empty when user profile does not exist")
+    void shouldReturnEmptyWhenUserProfileDoesNotExist() {
         // Given
         when(userProfileRepository.findByUserId(USER_ID))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-        when(userProfileRepository.save(any(UserProfile.class)))
-                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
 
         // When
-        UserProfile result = userProfileService.getProfile(USER_ID, USER_EMAIL);
+        Optional<UserProfile> result = userProfileService.getProfile(USER_ID);
 
         // Then
-        assertThat(result.userId()).isEqualTo(USER_ID);
-        assertThat(result.email()).isEqualTo(USER_EMAIL);
-        assertThat(result.createdAt()).isInstanceOf(Timestamp.class);
-        assertThat(result.updatedAt()).isInstanceOf(Timestamp.class);
-
-        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
-        verify(userProfileRepository).save(profileCaptor.capture());
-
-        UserProfile savedProfile = profileCaptor.getValue();
-        assertThat(savedProfile.userId()).isEqualTo(USER_ID);
-        assertThat(savedProfile.email()).isEqualTo(USER_EMAIL);
+        assertThat(result).isEmpty();
+        verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 
     @Test
@@ -410,7 +400,7 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should update existing user profile with display name")
-    void shouldUpdateExistingProfileWithDisplayName() throws Exception {
+    void shouldUpdateExistingProfileWithDisplayName() {
         // Given
         UserProfile existingProfile = UserProfile.builder()
                 .userId(USER_ID)
@@ -441,7 +431,7 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should update existing user profile with email")
-    void shouldUpdateExistingProfileWithEmail() throws Exception {
+    void shouldUpdateExistingProfileWithEmail() {
         // Given
         UserProfile existingProfile = UserProfile.builder()
                 .userId(USER_ID)
@@ -472,7 +462,7 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should create new profile when updating non-existent user")
-    void shouldCreateNewProfileWhenUpdatingNonExistentUser() throws Exception {
+    void shouldCreateNewProfileWhenUpdatingNonExistentUser() {
         // Given
         when(userProfileRepository.findByUserId(USER_ID))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
@@ -498,7 +488,7 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should preserve OAuth tokens when updating profile")
-    void shouldPreserveOAuthTokensWhenUpdating() throws Exception {
+    void shouldPreserveOAuthTokensWhenUpdating() {
         // Given
         Timestamp expiresAt = Timestamp.now();
         UserProfile existingProfile = UserProfile.builder()
