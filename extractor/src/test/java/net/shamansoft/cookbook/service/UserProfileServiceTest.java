@@ -1,12 +1,8 @@
 package net.shamansoft.cookbook.service;
 
-import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
-import com.google.cloud.firestore.CollectionReference;
-import com.google.cloud.firestore.DocumentReference;
-import com.google.cloud.firestore.DocumentSnapshot;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.WriteResult;
+import net.shamansoft.cookbook.repository.UserProfileRepository;
+import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,19 +15,17 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import static org.mockito.Mockito.doReturn;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,28 +35,13 @@ import static org.mockito.Mockito.when;
 class UserProfileServiceTest {
 
     @Mock
-    private Firestore firestore;
+    private UserProfileRepository userProfileRepository;
 
     @Mock
     private TokenEncryptionService tokenEncryptionService;
 
     @Mock
     private WebClient webClient;
-
-    @Mock
-    private CollectionReference usersCollection;
-
-    @Mock
-    private DocumentReference documentReference;
-
-    @Mock
-    private ApiFuture<DocumentSnapshot> documentFuture;
-
-    @Mock
-    private ApiFuture<WriteResult> writeFuture;
-
-    @Mock
-    private DocumentSnapshot documentSnapshot;
 
     @Mock
     private WebClient.RequestBodyUriSpec requestBodyUriSpec;
@@ -87,67 +66,68 @@ class UserProfileServiceTest {
     private static final String USER_EMAIL = "test@example.com";
 
     @BeforeEach
-    void setUp() throws Exception {
-        userProfileService = new UserProfileService(firestore, tokenEncryptionService, webClient);
-
-        // Set up common mocks
-        when(firestore.collection("users")).thenReturn(usersCollection);
-        when(usersCollection.document(USER_ID)).thenReturn(documentReference);
-        when(documentReference.get()).thenReturn(documentFuture);
+    void setUp() {
+        userProfileService = new UserProfileService(userProfileRepository, tokenEncryptionService, webClient);
     }
 
     @Test
     @DisplayName("Should store OAuth tokens for existing user profile")
     void shouldStoreOAuthTokensForExistingUser() throws Exception {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
+        UserProfile existingProfile = UserProfile.builder()
+                .userId(USER_ID)
+                .email(USER_EMAIL)
+                .createdAt(Timestamp.now())
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS_TOKEN);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH_TOKEN);
-        when(documentReference.update(any(Map.class))).thenReturn(writeFuture);
-        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         // When
         userProfileService.storeOAuthTokens(USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN);
 
         // Then
         ArgumentCaptor<Map<String, Object>> updateCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(documentReference).update(updateCaptor.capture());
+        verify(userProfileRepository).update(eq(USER_ID), updateCaptor.capture());
 
         Map<String, Object> updates = updateCaptor.getValue();
         assertThat(updates.get("googleOAuthToken")).isEqualTo(ENCRYPTED_ACCESS_TOKEN);
         assertThat(updates.get("googleRefreshToken")).isEqualTo(ENCRYPTED_REFRESH_TOKEN);
         assertThat(updates.get("tokenExpiresAt")).isInstanceOf(Timestamp.class);
         assertThat(updates.get("updatedAt")).isInstanceOf(Timestamp.class);
-        verify(documentReference, never()).set(any());
+        verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 
     @Test
     @DisplayName("Should create new user profile when storing OAuth tokens")
     void shouldCreateNewUserProfileWhenStoringOAuthTokens() throws Exception {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(false);
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS_TOKEN);
         when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH_TOKEN);
-        when(documentReference.set(any(Map.class))).thenReturn(writeFuture);
-        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
 
         // When
         userProfileService.storeOAuthTokens(USER_ID, ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN);
 
         // Then
-        ArgumentCaptor<Map<String, Object>> setCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(documentReference).set(setCaptor.capture());
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
 
-        Map<String, Object> updates = setCaptor.getValue();
-        assertThat(updates.get("userId")).isEqualTo(USER_ID);
-        assertThat(updates.get("googleOAuthToken")).isEqualTo(ENCRYPTED_ACCESS_TOKEN);
-        assertThat(updates.get("googleRefreshToken")).isEqualTo(ENCRYPTED_REFRESH_TOKEN);
-        assertThat(updates.get("tokenExpiresAt")).isInstanceOf(Timestamp.class);
-        assertThat(updates.get("createdAt")).isInstanceOf(Timestamp.class);
-        assertThat(updates.get("updatedAt")).isInstanceOf(Timestamp.class);
-        verify(documentReference, never()).update(any(Map.class));
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.userId()).isEqualTo(USER_ID);
+        assertThat(savedProfile.googleOAuthToken()).isEqualTo(ENCRYPTED_ACCESS_TOKEN);
+        assertThat(savedProfile.googleRefreshToken()).isEqualTo(ENCRYPTED_REFRESH_TOKEN);
+        assertThat(savedProfile.tokenExpiresAt()).isInstanceOf(Timestamp.class);
+        assertThat(savedProfile.createdAt()).isInstanceOf(Timestamp.class);
+        assertThat(savedProfile.updatedAt()).isInstanceOf(Timestamp.class);
+        verify(userProfileRepository, never()).update(anyString(), any(Map.class));
     }
 
     @Test
@@ -157,10 +137,14 @@ class UserProfileServiceTest {
         long futureTimestamp = System.currentTimeMillis() / 1000 + 3600;
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(futureTimestamp, 0);
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(expiresAt);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .tokenExpiresAt(expiresAt)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
         when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS_TOKEN)).thenReturn(ACCESS_TOKEN);
 
         // When
@@ -179,11 +163,15 @@ class UserProfileServiceTest {
         long nearFutureTimestamp = System.currentTimeMillis() / 1000 + 120;
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(nearFutureTimestamp, 0);
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getString("googleRefreshToken")).thenReturn(ENCRYPTED_REFRESH_TOKEN);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(expiresAt);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .googleRefreshToken(ENCRYPTED_REFRESH_TOKEN)
+                .tokenExpiresAt(expiresAt)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN);
         when(tokenEncryptionService.encrypt(anyString())).thenReturn(ENCRYPTED_ACCESS_TOKEN, ENCRYPTED_REFRESH_TOKEN);
 
@@ -199,8 +187,8 @@ class UserProfileServiceTest {
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
 
-        when(documentReference.update(any(Map.class))).thenReturn(writeFuture);
-        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         // When
         String result = userProfileService.getValidOAuthToken(USER_ID);
@@ -208,15 +196,15 @@ class UserProfileServiceTest {
         // Then
         assertThat(result).isEqualTo("new-access-token");
         verify(webClient).post();
-        verify(documentReference).update(any(Map.class));
+        verify(userProfileRepository).update(eq(USER_ID), any(Map.class));
     }
 
     @Test
     @DisplayName("Should throw exception when user profile not found")
-    void shouldThrowExceptionWhenUserProfileNotFound() throws Exception {
+    void shouldThrowExceptionWhenUserProfileNotFound() {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(false);
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -226,11 +214,15 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should throw exception when OAuth token missing")
-    void shouldThrowExceptionWhenOAuthTokenMissing() throws Exception {
+    void shouldThrowExceptionWhenOAuthTokenMissing() {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(null);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(null)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -240,12 +232,16 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should throw exception when token expiration missing")
-    void shouldThrowExceptionWhenTokenExpirationMissing() throws Exception {
+    void shouldThrowExceptionWhenTokenExpirationMissing() {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(null);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .tokenExpiresAt(null)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -255,16 +251,20 @@ class UserProfileServiceTest {
 
     @Test
     @DisplayName("Should throw exception when refresh token missing during refresh")
-    void shouldThrowExceptionWhenRefreshTokenMissingDuringRefresh() throws Exception {
+    void shouldThrowExceptionWhenRefreshTokenMissingDuringRefresh() {
         // Given - token is expired
         long pastTimestamp = System.currentTimeMillis() / 1000 - 100;
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getString("googleRefreshToken")).thenReturn(null);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(expiresAt);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .googleRefreshToken(null)
+                .tokenExpiresAt(expiresAt)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -279,11 +279,15 @@ class UserProfileServiceTest {
         long pastTimestamp = System.currentTimeMillis() / 1000 - 100;
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getString("googleRefreshToken")).thenReturn(ENCRYPTED_REFRESH_TOKEN);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(expiresAt);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .googleRefreshToken(ENCRYPTED_REFRESH_TOKEN)
+                .tokenExpiresAt(expiresAt)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN);
 
         when(webClient.post()).thenReturn(requestBodyUriSpec);
@@ -305,11 +309,15 @@ class UserProfileServiceTest {
         long pastTimestamp = System.currentTimeMillis() / 1000 - 100;
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(pastTimestamp, 0);
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getString("googleOAuthToken")).thenReturn(ENCRYPTED_ACCESS_TOKEN);
-        when(documentSnapshot.getString("googleRefreshToken")).thenReturn(ENCRYPTED_REFRESH_TOKEN);
-        when(documentSnapshot.getTimestamp("tokenExpiresAt")).thenReturn(expiresAt);
+        UserProfile profile = UserProfile.builder()
+                .userId(USER_ID)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .googleRefreshToken(ENCRYPTED_REFRESH_TOKEN)
+                .tokenExpiresAt(expiresAt)
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(profile)));
         when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH_TOKEN)).thenReturn(REFRESH_TOKEN);
         when(tokenEncryptionService.encrypt(anyString())).thenReturn(ENCRYPTED_ACCESS_TOKEN, ENCRYPTED_REFRESH_TOKEN);
 
@@ -325,86 +333,202 @@ class UserProfileServiceTest {
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
 
-        when(documentReference.update(any(Map.class))).thenReturn(writeFuture);
-        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         // When
         String result = userProfileService.getValidOAuthToken(USER_ID);
 
         // Then
         assertThat(result).isEqualTo("new-access-token");
-        verify(documentReference).update(any(Map.class));
+        verify(userProfileRepository).update(eq(USER_ID), any(Map.class));
     }
 
     @Test
     @DisplayName("Should get existing user profile")
     void shouldGetExistingUserProfile() throws Exception {
         // Given
-        Map<String, Object> profileData = new HashMap<>();
-        profileData.put("userId", USER_ID);
-        profileData.put("email", USER_EMAIL);
+        UserProfile existingProfile = UserProfile.builder()
+                .userId(USER_ID)
+                .email(USER_EMAIL)
+                .createdAt(Timestamp.now())
+                .updatedAt(Timestamp.now())
+                .build();
 
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(true);
-        when(documentSnapshot.getData()).thenReturn(profileData);
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
 
         // When
-        Map<String, Object> result = userProfileService.getOrCreateProfile(USER_ID, USER_EMAIL);
+        UserProfile result = userProfileService.getProfile(USER_ID, USER_EMAIL);
 
         // Then
-        assertThat(result).isEqualTo(profileData);
-        verify(documentReference, never()).set(any());
+        assertThat(result).isEqualTo(existingProfile);
+        assertThat(result.userId()).isEqualTo(USER_ID);
+        assertThat(result.email()).isEqualTo(USER_EMAIL);
+        verify(userProfileRepository, never()).save(any(UserProfile.class));
     }
 
     @Test
     @DisplayName("Should create new user profile when not exists")
     void shouldCreateNewUserProfileWhenNotExists() throws Exception {
         // Given
-        when(documentFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(false);
-        when(documentReference.set(any(Map.class))).thenReturn(writeFuture);
-        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
 
         // When
-        Map<String, Object> result = userProfileService.getOrCreateProfile(USER_ID, USER_EMAIL);
+        UserProfile result = userProfileService.getProfile(USER_ID, USER_EMAIL);
 
         // Then
-        assertThat(result.get("userId")).isEqualTo(USER_ID);
-        assertThat(result.get("email")).isEqualTo(USER_EMAIL);
-        assertThat(result.get("createdAt")).isInstanceOf(Timestamp.class);
-        assertThat(result.get("updatedAt")).isInstanceOf(Timestamp.class);
+        assertThat(result.userId()).isEqualTo(USER_ID);
+        assertThat(result.email()).isEqualTo(USER_EMAIL);
+        assertThat(result.createdAt()).isInstanceOf(Timestamp.class);
+        assertThat(result.updatedAt()).isInstanceOf(Timestamp.class);
 
-        ArgumentCaptor<Map<String, Object>> setCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(documentReference).set(setCaptor.capture());
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
 
-        Map<String, Object> savedProfile = setCaptor.getValue();
-        assertThat(savedProfile.get("userId")).isEqualTo(USER_ID);
-        assertThat(savedProfile.get("email")).isEqualTo(USER_EMAIL);
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.userId()).isEqualTo(USER_ID);
+        assertThat(savedProfile.email()).isEqualTo(USER_EMAIL);
     }
 
     @Test
-    @DisplayName("Should handle Firestore execution exception")
-    void shouldHandleFirestoreExecutionException() throws Exception {
+    @DisplayName("Should handle repository execution exception")
+    void shouldHandleRepositoryExecutionException() {
         // Given
-        when(documentFuture.get()).thenThrow(new ExecutionException(new RuntimeException("Firestore error")));
+        CompletableFuture<Optional<UserProfile>> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new RuntimeException("Repository error"));
+
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(failedFuture);
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
-                .isInstanceOf(ExecutionException.class);
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    @DisplayName("Should handle Firestore interrupted exception")
-    void shouldHandleFirestoreInterruptedException() throws Exception {
+    @DisplayName("Should update existing user profile with display name")
+    void shouldUpdateExistingProfileWithDisplayName() throws Exception {
         // Given
-        when(documentFuture.get()).thenThrow(new InterruptedException("Thread interrupted"));
+        UserProfile existingProfile = UserProfile.builder()
+                .userId(USER_ID)
+                .email(USER_EMAIL)
+                .createdAt(Timestamp.now())
+                .updatedAt(Timestamp.now())
+                .build();
 
-        // When & Then
-        assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
-                .isInstanceOf(InterruptedException.class);
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
+
+        // When
+        UserProfile result = userProfileService.updateProfile(USER_ID, USER_EMAIL, "John Doe", null);
+
+        // Then
+        assertThat(result.displayName()).isEqualTo("John Doe");
+        assertThat(result.email()).isEqualTo(USER_EMAIL);
+        assertThat(result.userId()).isEqualTo(USER_ID);
+
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
+
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.displayName()).isEqualTo("John Doe");
     }
 
+    @Test
+    @DisplayName("Should update existing user profile with email")
+    void shouldUpdateExistingProfileWithEmail() throws Exception {
+        // Given
+        UserProfile existingProfile = UserProfile.builder()
+                .userId(USER_ID)
+                .email(USER_EMAIL)
+                .displayName("John Doe")
+                .createdAt(Timestamp.now())
+                .updatedAt(Timestamp.now())
+                .build();
 
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
 
+        // When
+        UserProfile result = userProfileService.updateProfile(USER_ID, USER_EMAIL, null, "newemail@example.com");
 
+        // Then
+        assertThat(result.email()).isEqualTo("newemail@example.com");
+        assertThat(result.displayName()).isEqualTo("John Doe");
+
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
+
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.email()).isEqualTo("newemail@example.com");
+    }
+
+    @Test
+    @DisplayName("Should create new profile when updating non-existent user")
+    void shouldCreateNewProfileWhenUpdatingNonExistentUser() throws Exception {
+        // Given
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
+
+        // When
+        UserProfile result = userProfileService.updateProfile(USER_ID, USER_EMAIL, "New User", null);
+
+        // Then
+        assertThat(result.userId()).isEqualTo(USER_ID);
+        assertThat(result.email()).isEqualTo(USER_EMAIL);
+        assertThat(result.displayName()).isEqualTo("New User");
+        assertThat(result.createdAt()).isNotNull();
+        assertThat(result.updatedAt()).isNotNull();
+
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
+
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.displayName()).isEqualTo("New User");
+    }
+
+    @Test
+    @DisplayName("Should preserve OAuth tokens when updating profile")
+    void shouldPreserveOAuthTokensWhenUpdating() throws Exception {
+        // Given
+        Timestamp expiresAt = Timestamp.now();
+        UserProfile existingProfile = UserProfile.builder()
+                .userId(USER_ID)
+                .email(USER_EMAIL)
+                .googleOAuthToken(ENCRYPTED_ACCESS_TOKEN)
+                .googleRefreshToken(ENCRYPTED_REFRESH_TOKEN)
+                .tokenExpiresAt(expiresAt)
+                .createdAt(Timestamp.now())
+                .updatedAt(Timestamp.now())
+                .build();
+
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(existingProfile)));
+        when(userProfileRepository.save(any(UserProfile.class)))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(invocation.getArgument(0)));
+
+        // When
+        UserProfile result = userProfileService.updateProfile(USER_ID, USER_EMAIL, "Updated Name", null);
+
+        // Then
+        assertThat(result.googleOAuthToken()).isEqualTo(ENCRYPTED_ACCESS_TOKEN);
+        assertThat(result.googleRefreshToken()).isEqualTo(ENCRYPTED_REFRESH_TOKEN);
+        assertThat(result.tokenExpiresAt()).isEqualTo(expiresAt);
+        assertThat(result.displayName()).isEqualTo("Updated Name");
+
+        ArgumentCaptor<UserProfile> profileCaptor = ArgumentCaptor.forClass(UserProfile.class);
+        verify(userProfileRepository).save(profileCaptor.capture());
+
+        UserProfile savedProfile = profileCaptor.getValue();
+        assertThat(savedProfile.googleOAuthToken()).isEqualTo(ENCRYPTED_ACCESS_TOKEN);
+    }
 }

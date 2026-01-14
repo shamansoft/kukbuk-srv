@@ -1,23 +1,24 @@
 package net.shamansoft.cookbook.controller;
 
-import com.google.cloud.Timestamp;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.dto.StorageDto;
-import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.UserProfileResponseDto;
-import net.shamansoft.cookbook.service.RecipeService;
+import net.shamansoft.cookbook.dto.UserProfileUpdateRequest;
+import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.service.StorageService;
 import net.shamansoft.cookbook.service.UserProfileService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -30,7 +31,6 @@ import java.util.Map;
 public class UserProfileController {
 
     private final StorageService storageService;
-    private final RecipeService recipeService;
     private final UserProfileService userProfileService;
 
     /**
@@ -38,49 +38,48 @@ public class UserProfileController {
      */
     @GetMapping("/profile")
     public ResponseEntity<UserProfileResponseDto> getUserProfile(
+            @RequestAttribute("userId") String userId) {
+        log.info("Getting profile for user: {}", userId);
+        var optionalProfile = userProfileService.getProfile(userId);
+        return optionalProfile
+                .map(userProfile -> ResponseEntity.ok(userProfile.toDto()))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    /**
+     * Create or update current user's profile
+     *
+     * @param request   Profile update data (all fields optional)
+     * @param userId    User ID from authentication token
+     * @param userEmail User email from authentication token
+     * @return Updated profile
+     */
+    @PostMapping("/profile")
+    public ResponseEntity<UserProfileResponseDto> updateUserProfile(
+            @Valid @RequestBody UserProfileUpdateRequest request,
             @RequestAttribute("userId") String userId,
             @RequestAttribute("userEmail") String userEmail) {
 
-        log.info("Getting profile for user: {}", userId);
-
-        // Get user profile from Firestore to retrieve createdAt
-        Instant createdAt;
+        log.info("Updating profile for user: {}", userId);
         try {
-            Map<String, Object> profileData = userProfileService.getOrCreateProfile(userId, userEmail);
-            Timestamp firestoreTimestamp = (Timestamp) profileData.get("createdAt");
-            createdAt = Instant.ofEpochSecond(firestoreTimestamp.getSeconds(), firestoreTimestamp.getNanos());
+            // Update profile with provided fields
+            UserProfile updatedProfile = userProfileService.updateProfile(
+                    userId,
+                    userEmail,
+                    request.getDisplayName(),
+                    request.getEmail()
+            );
+            return ResponseEntity.status(HttpStatus.OK).body(updatedProfile.toDto());
+
         } catch (Exception e) {
-            log.error("Failed to get profile for user {}: {}", userId, e.getMessage(), e);
-            // Fallback to current time if profile retrieval fails
-            createdAt = Instant.now();
+            log.error("Failed to update profile for user {}: {}", userId, e.getMessage(), e);
+            // Return error response
+            UserProfileResponseDto errorResponse = UserProfileResponseDto.builder()
+                    .userId(userId)
+                    .email(userEmail)
+                    .createdAt(Instant.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
-
-        // Add storage status (without exposing sensitive tokens)
-        StorageDto storageDto = null;
-        try {
-            boolean hasStorage = storageService.isStorageConnected(userId);
-            if (hasStorage) {
-                StorageInfo storage = storageService.getStorageInfo(userId);
-                storageDto = StorageDto.builder()
-                        .type(storage.type().getFirestoreValue())
-                        .folderId(storage.folderId())
-                        .folderName(storage.folderName())
-                        .connectedAt(storage.connectedAt())
-                        .build();
-                // Intentionally NOT including access/refresh tokens for security
-            }
-        } catch (Exception e) {
-            log.debug("No storage configured for user {}: {}", userId, e.getMessage());
-            // storageDto remains null
-        }
-
-        UserProfileResponseDto response = UserProfileResponseDto.builder()
-                .userId(userId)
-                .email(userEmail)
-                .createdAt(createdAt)
-                .storage(storageDto)
-                .build();
-
-        return ResponseEntity.ok(response);
     }
 }

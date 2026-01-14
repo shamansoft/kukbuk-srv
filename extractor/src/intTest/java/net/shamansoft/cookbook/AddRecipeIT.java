@@ -1,6 +1,5 @@
 package net.shamansoft.cookbook;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.Firestore;
@@ -60,9 +59,6 @@ class AddRecipeIT {
 
     @Autowired
     private TestRestTemplate restTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private Firestore firestore;
@@ -301,7 +297,7 @@ class AddRecipeIT {
                 </html>
                 """;
 
-        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com" + RECIPE_PATH);
+        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/cookies");
         HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
 
         // When: Making a request to create recipe
@@ -325,7 +321,7 @@ class AddRecipeIT {
                         RecipeResponse::isRecipe
                 )
                 .containsExactly(
-                        "https://example.com" + RECIPE_PATH,
+                        "https://example.com/cookies",
                         "Chocolate Chip Cookies",
                         "file-456",
                         "https://drive.google.com/file/d/file-456/view",

@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.repository.firestore.model;
 
 import com.google.cloud.Timestamp;
 import lombok.Builder;
+import net.shamansoft.cookbook.dto.StorageDto;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
@@ -43,7 +44,18 @@ public record StorageEntity(String type,
         return storage;
     }
 
-    public StorageInfo toDto(TokenEncryptionService tokenEncryptionService) {
+    public StorageDto toDto() {
+        return StorageDto.builder()
+                .type(this.type)
+                .folderId(this.folderId)
+                .folderName(this.folderName)
+                .connectedAt(this.connectedAt != null
+                        ? this.connectedAt.toDate().toInstant()
+                        : null)
+                .build();
+    }
+
+    public StorageInfo toInfo(TokenEncryptionService tokenEncryptionService) {
         try {
             // Decrypt tokens
             String accessToken = tokenEncryptionService.decrypt(this.accessToken());

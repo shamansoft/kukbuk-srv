@@ -299,7 +299,7 @@ public class StorageService {
 
             // 5. Token is valid, decrypt and return
             log.debug("Using cached OAuth token for user: {}", userId);
-            return storageEntity.toDto(tokenEncryptionService);
+            return storageEntity.toInfo(tokenEncryptionService);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
