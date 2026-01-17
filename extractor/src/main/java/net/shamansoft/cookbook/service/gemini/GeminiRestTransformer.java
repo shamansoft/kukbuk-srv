@@ -73,11 +73,54 @@ public class GeminiRestTransformer implements Transformer {
             }
 
             if (response != null && response.has("candidates")) {
-                String yamlContent = cleanup(response.get("candidates").get(0)
-                        .get("content").get("parts").get(0)
-                        .get("text").asText());
+                JsonNode candidate = response.get("candidates").get(0);
 
-                log.info("Extracted YAML from Gemini - Length: {} chars, First 200 chars: {}",
+                // Log finish reason to detect truncation
+                if (candidate.has("finishReason")) {
+                    String finishReason = candidate.get("finishReason").asText();
+                    log.info("Gemini finishReason: {}", finishReason);
+                    if (!"STOP".equals(finishReason)) {
+                        log.warn("Gemini response may be truncated - finishReason: {}", finishReason);
+                    }
+                }
+
+                // Log safety ratings if present
+                if (candidate.has("safetyRatings")) {
+                    log.info("Gemini safetyRatings: {}", candidate.get("safetyRatings").toPrettyString());
+                }
+
+                // Check if response was blocked
+                if (response.has("promptFeedback")) {
+                    JsonNode feedback = response.get("promptFeedback");
+                    log.warn("Gemini promptFeedback: {}", feedback.toPrettyString());
+                    if (feedback.has("blockReason")) {
+                        log.error("Gemini response BLOCKED - Reason: {}", feedback.get("blockReason").asText());
+                    }
+                }
+
+                // Check how many parts are in the response
+                JsonNode parts = candidate.get("content").get("parts");
+                int partCount = parts.size();
+                log.info("Gemini response has {} part(s)", partCount);
+
+                // Concatenate all parts if there are multiple
+                StringBuilder rawTextBuilder = new StringBuilder();
+                for (int i = 0; i < partCount; i++) {
+                    if (parts.get(i).has("text")) {
+                        String partText = parts.get(i).get("text").asText();
+                        rawTextBuilder.append(partText);
+                        log.info("Part[{}] text - Length: {} chars", i, partText.length());
+                    }
+                }
+
+                String rawText = rawTextBuilder.toString();
+                log.info("Combined raw text from Gemini (before cleanup) - Total length: {} chars, Last 100 chars: {}",
+                    rawText.length(),
+                    rawText.substring(Math.max(0, rawText.length() - 100)));
+
+                String yamlContent = cleanup(rawText);
+
+                log.info("Extracted YAML from Gemini (after cleanup) - Length: {} chars, First 200 chars: {}",
                     yamlContent.length(),
                     yamlContent.substring(0, Math.min(200, yamlContent.length())));
 

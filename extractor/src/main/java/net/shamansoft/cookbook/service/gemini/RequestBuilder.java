@@ -51,12 +51,13 @@ public class RequestBuilder {
         StringBuilder feedbackPrompt = new StringBuilder(basePrompt);
         feedbackPrompt.append("\n\n---VALIDATION FEEDBACK---\n\n");
         feedbackPrompt.append("Your previous attempt produced YAML that failed validation:\n\n");
-        feedbackPrompt.append("```yaml\n");
+        feedbackPrompt.append("Previous YAML (for reference):\n");
         feedbackPrompt.append(previousYaml);
-        feedbackPrompt.append("\n```\n\n");
-        feedbackPrompt.append("Validation Error:\n");
+        feedbackPrompt.append("\n\nValidation Error:\n");
         feedbackPrompt.append(validationError);
-        feedbackPrompt.append("\n\nPlease correct these issues and provide a valid recipe YAML that conforms to the schema.");
+        feedbackPrompt.append("\n\nIMPORTANT: Please correct these issues and provide a valid recipe YAML that conforms to the schema.");
+        feedbackPrompt.append("\nREMINDER: Output ONLY the YAML content - DO NOT wrap it in markdown code fences (```yaml).");
+        feedbackPrompt.append("\nStart your response directly with 'schema_version:' and nothing else before it.");
         return feedbackPrompt.toString();
     }
 
