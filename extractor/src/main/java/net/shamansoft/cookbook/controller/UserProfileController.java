@@ -77,7 +77,6 @@ public class UserProfileController {
             UserProfileResponseDto errorResponse = UserProfileResponseDto.builder()
                     .userId(userId)
                     .email(userEmail)
-                    .createdAt(Instant.now())
                     .build();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
