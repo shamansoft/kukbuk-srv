@@ -142,12 +142,6 @@ cookbook:
     # Options: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-pro
     model: "gemini-2.5-flash-lite"
 
-    # Gemini prompt template for recipe extraction
-    # DEPRECATED/UNUSED: Prompt is loaded from classpath:prompt.md file instead
-    # See: RequestBuilder.java:35 (resourceLoader.loadYaml("classpath:prompt.md"))
-    # This property exists for documentation but is not used by the application
-    prompt: "Convert the above recipe to YAML format, using the above YAML example as a guide. Provide only the valid YAML output. Markdown formatting is allowed within YAML string values, but do not include any markdown code blocks or any other text outside of the yaml structure. Requirements: schema_version: \"1.0.0\". Generate unique recipe_version. Use current date for date_created if not specified. Format times as \"1d 2h 30m\". Use Markdown for text formatting. Use full path for medias"
-
     # Temperature parameter for Gemini model (0.0 to 1.0)
     # Used by: RequestBuilder.java:31 (@Value("${cookbook.gemini.temperature}"))
     # Lower = more deterministic, Higher = more creative
