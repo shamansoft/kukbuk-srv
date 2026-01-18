@@ -1,6 +1,5 @@
 package net.shamansoft.cookbook;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.Firestore;
@@ -54,14 +53,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 )
 class AddRecipeIT {
 
+    public static final String RECIPE_PATH = "/v1/recipes";
     @LocalServerPort
     private int port;
 
     @Autowired
     private TestRestTemplate restTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private Firestore firestore;
@@ -169,7 +166,7 @@ class AddRecipeIT {
 
     private void setupGeminiMock() {
         // Mock Gemini API response for recipe transformation
-        stubFor(post(urlPathMatching("/models/gemini-2.5-flash:generateContent.*"))
+        stubFor(post(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -300,12 +297,12 @@ class AddRecipeIT {
                 </html>
                 """;
 
-        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/recipe");
+        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/cookies");
         HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
 
         // When: Making a request to create recipe
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
@@ -324,7 +321,7 @@ class AddRecipeIT {
                         RecipeResponse::isRecipe
                 )
                 .containsExactly(
-                        "https://example.com/recipe",
+                        "https://example.com/cookies",
                         "Chocolate Chip Cookies",
                         "file-456",
                         "https://drive.google.com/file/d/file-456/view",
@@ -332,7 +329,7 @@ class AddRecipeIT {
                 );
 
         // Verify Gemini was called for transformation
-        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
         // Verify Google Drive operations
         // The flow now uses the cached folderId from storage, so it searches for the file directly
@@ -370,7 +367,7 @@ class AddRecipeIT {
 
         // When: Making a request to create recipe
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 Map.class
         );
@@ -381,7 +378,7 @@ class AddRecipeIT {
         assertThat(response.getBody().get("error")).asString().isEqualTo("Storage Not Connected");
 
         // Verify that Gemini and Drive were NOT called
-        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
+        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
         verify(0, getRequestedFor(urlPathEqualTo("/files")));
     }
 
@@ -434,7 +431,7 @@ class AddRecipeIT {
 
         // When: Making a request for the cached recipe
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
@@ -446,7 +443,7 @@ class AddRecipeIT {
         assertThat(response.getBody().url()).isEqualTo(testUrl);
 
         // Verify Gemini was NOT called (cache hit)
-        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
+        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
         // Verify Drive was still called to upload
         verify(postRequestedFor(urlPathEqualTo("/files")));
@@ -459,7 +456,7 @@ class AddRecipeIT {
         setupStorageInfoInFirestore("test-user-123", "valid-drive-token");
 
         // AND: Gemini returns isRecipe=false
-        stubFor(post(urlPathMatching("/models/gemini-2.5-flash:generateContent.*"))
+        stubFor(post(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -481,7 +478,7 @@ class AddRecipeIT {
 
         // When: Making a request
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                "http://localhost:" + port + "/recipe?compression=none",
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
                 RecipeResponse.class
         );
@@ -494,7 +491,7 @@ class AddRecipeIT {
         assertThat(response.getBody().driveFileUrl()).isNull();
 
         // Verify Gemini was called but Drive was NOT
-        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
         verify(0, postRequestedFor(urlPathEqualTo("/files")));
     }
 }

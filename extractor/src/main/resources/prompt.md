@@ -6,7 +6,9 @@ You are an AI specialized in extracting cooking recipes from HTML and converting
 3. If IS a recipe: Extract all information into valid YAML
 
 **Critical Output Rules:**
-- Output ONLY valid YAML (no markdown blocks, no extra text)
+- Output ONLY valid YAML - start directly with `schema_version:`
+- DO NOT wrap output in markdown code fences (no ```, no ```yaml)
+- DO NOT include any text before or after the YAML
 - Must strictly follow the JSON schema provided
 - Use Markdown formatting within YAML string values where appropriate
 - Detect content language and set `language` field (e.g., "en", "ru", "ka/ge")
@@ -72,10 +74,8 @@ You are an AI specialized in extracting cooking recipes from HTML and converting
 %s
 ```
 
-**Example of complete YAML output:**
-```yaml
+**Example of complete YAML output (DO NOT include the ```yaml wrapper):**
 %s
-```
 
 **HTML Content to Process:**
 ```html

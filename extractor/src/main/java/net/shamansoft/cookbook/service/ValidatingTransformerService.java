@@ -72,6 +72,7 @@ public class ValidatingTransformerService implements Transformer {
         log.warn("Initial recipe YAML failed validation - Will retry up to {} times. Error: {}",
             maxRetries,
             validationResult.getErrorMessage());
+        log.error("Full YAML content that failed initial validation:\n{}", currentYaml);
 
         // Retry with feedback
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -103,12 +104,14 @@ public class ValidatingTransformerService implements Transformer {
             }
 
             log.warn("Retry attempt {} failed validation: {}", attempt, validationResult.getErrorMessage());
+            log.error("Full YAML content that failed validation (attempt {}):\n{}", attempt, currentYaml);
         }
 
         // All retries exhausted, return the last attempt with warning
         log.error("VALIDATION FAILED after {} retry attempts. Final error: {}. Returning as NOT a recipe.",
             maxRetries,
             validationResult.getErrorMessage());
+        log.error("Full YAML content that failed all validation attempts:\n{}", currentYaml);
         // Return as non-recipe since validation failed
         return new Response(false, currentYaml);
     }

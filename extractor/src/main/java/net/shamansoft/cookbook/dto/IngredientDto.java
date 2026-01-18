@@ -10,7 +10,7 @@ import lombok.Data;
 @Data
 @Builder
 public class IngredientDto {
-    private String item;
+    private String name;
     private String amount;
     private String unit;
     private String notes;

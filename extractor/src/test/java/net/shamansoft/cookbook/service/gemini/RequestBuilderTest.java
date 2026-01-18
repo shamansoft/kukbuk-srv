@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.service.gemini;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +80,63 @@ class RequestBuilderTest {
         assertThat(requestBuilder.withHtml("HTML content")).isEqualTo(expectedPrompt.formatted(
                 LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
                 "schema", "example", "HTML content"));
+    }
+
+    @Test
+    void buildBodyStringWithFeedback_shouldIncludeFeedbackInPrompt() throws Exception {
+        String htmlContent = "<html>Recipe</html>";
+        String previousYaml = "invalid: yaml\nmissing: fields";
+        String validationError = "Missing required field: schema_version";
+
+        String result = requestBuilder.buildBodyStringWithFeedback(
+                htmlContent, previousYaml, validationError);
+
+        assertThat(result).contains("VALIDATION FEEDBACK");
+        assertThat(result).contains("invalid: yaml");
+        assertThat(result).contains("missing: fields");
+        assertThat(result).contains(validationError);
+        assertThat(result).contains("\"temperature\":");
+        assertThat(result).contains("\"maxOutputTokens\":4096");
+
+        // Verify new markdown fence reminder (lines 59-60)
+        assertThat(result).contains("DO NOT wrap it in markdown code fences (```yaml)");
+        assertThat(result).contains("Start your response directly with 'schema_version:'");
+    }
+
+    @Test
+    void withHtmlAndFeedback_shouldConstructProperFeedbackPrompt() {
+        String htmlContent = "<html>Recipe</html>";
+        String previousYaml = "schema_version: \"1.0.0\"\ninvalid: data";
+        String validationError = "Field 'metadata' is required";
+
+        String result = requestBuilder.withHtmlAndFeedback(
+                htmlContent, previousYaml, validationError);
+
+        assertThat(result).contains("---VALIDATION FEEDBACK---");
+        assertThat(result).contains("Your previous attempt produced YAML that failed validation:");
+        assertThat(result).contains("Previous YAML (for reference):");
+        assertThat(result).contains(previousYaml);
+        assertThat(result).contains("Validation Error:");
+        assertThat(result).contains(validationError);
+        assertThat(result).contains("IMPORTANT: Please correct these issues");
+        assertThat(result).contains("REMINDER: Output ONLY the YAML content");
+    }
+
+    @Test
+    void buildBodyStringWithFeedback_shouldProduceValidJson() throws Exception {
+        String htmlContent = "<html>Recipe</html>";
+        String previousYaml = "test: yaml";
+        String validationError = "Some error";
+
+        String result = requestBuilder.buildBodyStringWithFeedback(
+                htmlContent, previousYaml, validationError);
+
+        // Verify it's valid JSON
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode jsonNode = mapper.readTree(result);
+        assertThat(jsonNode.has("contents")).isTrue();
+        assertThat(jsonNode.has("generationConfig")).isTrue();
+        assertThat(jsonNode.has("safetySettings")).isTrue();
     }
 
 }

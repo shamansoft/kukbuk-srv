@@ -1,8 +1,11 @@
 package net.shamansoft.cookbook.repository;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
+import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -59,5 +62,41 @@ public class Transformer {
         }
         log.warn("Unknown timestamp type: {}, value: {}", timestamp.getClass().getName(), timestamp);
         return null;
+    }
+
+    /**
+     * Convert Firestore DocumentSnapshot to UserProfile entity
+     */
+    public UserProfile documentToUserProfile(DocumentSnapshot document) {
+        // Extract storage entity if present
+        StorageEntity storage = null;
+        Object storageData = document.get("storage");
+        if (storageData instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> storageMap = (Map<String, Object>) storageData;
+            storage = StorageEntity.builder()
+                    .type((String) storageMap.get("type"))
+                    .connected(Boolean.TRUE.equals(storageMap.get("connected")))
+                    .accessToken((String) storageMap.get("accessToken"))
+                    .refreshToken((String) storageMap.get("refreshToken"))
+                    .expiresAt((Timestamp) storageMap.get("expiresAt"))
+                    .connectedAt((Timestamp) storageMap.get("connectedAt"))
+                    .folderId((String) storageMap.get("folderId"))
+                    .folderName((String) storageMap.get("folderName"))
+                    .build();
+        }
+
+        return UserProfile.builder()
+                .uid(document.getId())
+                .userId(document.getString("userId"))
+                .email(document.getString("email"))
+                .displayName(document.getString("displayName"))
+                .createdAt(document.getTimestamp("createdAt"))
+                .updatedAt(document.getTimestamp("updatedAt"))
+                .googleOAuthToken(document.getString("googleOAuthToken"))
+                .googleRefreshToken(document.getString("googleRefreshToken"))
+                .tokenExpiresAt(document.getTimestamp("tokenExpiresAt"))
+                .storage(storage)
+                .build();
     }
 }

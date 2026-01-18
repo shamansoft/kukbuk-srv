@@ -142,7 +142,7 @@ public class RecipeMapper {
      */
     private IngredientDto mapIngredient(Ingredient ingredient) {
         return IngredientDto.builder()
-                .item(ingredient.item())
+                .name(ingredient.item())
                 .amount(ingredient.amount())
                 .unit(ingredient.unit())
                 .notes(ingredient.notes())

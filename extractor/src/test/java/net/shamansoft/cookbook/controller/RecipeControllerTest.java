@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
  * Business logic is tested in RecipeServiceTest.
  */
 @ExtendWith(MockitoExtension.class)
-class CookbookControllerTest {
+class RecipeControllerTest {
 
     private static final String USER_ID = "user-123";
     private static final String USER_EMAIL = "user@example.com";
@@ -41,7 +41,7 @@ class CookbookControllerTest {
     private RecipeService recipeService;
 
     @InjectMocks
-    private CookbookController controller;
+    private RecipeController controller;
 
     @Test
     @DisplayName("Should delegate createRecipe to RecipeService with correct parameters")
@@ -120,25 +120,5 @@ class CookbookControllerTest {
         // Then
         assertThat(response).isEqualTo(expectedResponse);
         verify(recipeService).createRecipe(USER_ID, request.url(), request.html(), null, request.title());
-    }
-
-    @Test
-    @DisplayName("Health check endpoint should return OK")
-    void healthCheckShouldReturnOK() {
-        // When
-        String response = controller.gcpHealth();
-
-        // Then
-        assertThat(response).isEqualTo("OK");
-    }
-
-    @Test
-    @DisplayName("Hello endpoint should format greeting with name")
-    void helloShouldFormatGreeting() {
-        // When
-        String response = controller.index("John");
-
-        // Then
-        assertThat(response).isEqualTo("Hello, Cookbook user John!");
     }
 }

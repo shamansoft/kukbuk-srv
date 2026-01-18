@@ -3,7 +3,6 @@ package net.shamansoft.cookbook.service;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.IngredientDto;
 import net.shamansoft.cookbook.dto.InstructionDto;
-import net.shamansoft.cookbook.dto.NutritionDto;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.recipe.model.CoverImage;
 import net.shamansoft.recipe.model.ImageMedia;
@@ -13,8 +12,6 @@ import net.shamansoft.recipe.model.Media;
 import net.shamansoft.recipe.model.Nutrition;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
-import net.shamansoft.recipe.model.Storage;
-import net.shamansoft.recipe.model.Substitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -113,14 +110,14 @@ class RecipeMapperTest {
         assertThat(dto.getIngredients()).hasSize(2);
         
         IngredientDto flour = dto.getIngredients().get(0);
-        assertThat(flour.getItem()).isEqualTo("all-purpose flour");
+        assertThat(flour.getName()).isEqualTo("all-purpose flour");
         assertThat(flour.getAmount()).isEqualTo("2.25");
         assertThat(flour.getUnit()).isEqualTo("cups");
         assertThat(flour.getOptional()).isFalse();
         assertThat(flour.getComponent()).isEqualTo("main");
 
         IngredientDto chocolate = dto.getIngredients().get(1);
-        assertThat(chocolate.getItem()).isEqualTo("chocolate chips");
+        assertThat(chocolate.getName()).isEqualTo("chocolate chips");
         assertThat(chocolate.getAmount()).isEqualTo("2");
         assertThat(chocolate.getUnit()).isEqualTo("cups");
         assertThat(chocolate.getOptional()).isFalse();
@@ -245,7 +242,7 @@ class RecipeMapperTest {
 
         // Then
         assertThat(dto.getIngredients()).hasSize(2);
-        assertThat(dto.getIngredients().get(0).getItem()).isEqualTo("all-purpose flour");
+        assertThat(dto.getIngredients().get(0).getName()).isEqualTo("all-purpose flour");
     }
 
     // ===== Test: Image URLs extraction =====

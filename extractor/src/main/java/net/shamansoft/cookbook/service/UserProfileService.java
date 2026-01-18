@@ -1,11 +1,10 @@
 package net.shamansoft.cookbook.service;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.firestore.DocumentReference;
-import com.google.cloud.firestore.DocumentSnapshot;
-import com.google.cloud.firestore.Firestore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.repository.UserProfileRepository;
+import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -17,14 +16,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserProfileService {
 
-    private final Firestore firestore;
+    private final UserProfileRepository userProfileRepository;
     private final TokenEncryptionService tokenEncryptionService;
     private final WebClient webClient;
 
@@ -34,16 +33,15 @@ public class UserProfileService {
     @Value("${cookbook.google.oauth-secret}")
     private String googleClientSecret;
 
-    private static final String USERS_COLLECTION = "users";
     private static final long TOKEN_BUFFER_SECONDS = 300; // 5 minutes
 
     /**
      * Store OAuth tokens in user profile (encrypted)
      *
-     * @param userId Firebase UID
-     * @param accessToken Google OAuth access token
+     * @param userId       Firebase UID
+     * @param accessToken  Google OAuth access token
      * @param refreshToken Google OAuth refresh token
-     * @param expiresIn Token expiration in seconds
+     * @param expiresIn    Token expiration in seconds
      */
     public void storeOAuthTokens(String userId, String accessToken,
                                  String refreshToken, long expiresIn)
@@ -55,27 +53,33 @@ public class UserProfileService {
         String encryptedRefresh = tokenEncryptionService.encrypt(refreshToken);
 
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(
-            System.currentTimeMillis() / 1000 + expiresIn, 0
+                System.currentTimeMillis() / 1000 + expiresIn, 0
         );
 
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("googleOAuthToken", encryptedAccess);
-        updates.put("googleRefreshToken", encryptedRefresh);
-        updates.put("tokenExpiresAt", expiresAt);
-        updates.put("updatedAt", Timestamp.now());
+        Optional<UserProfile> existingProfile = userProfileRepository.findByUserId(userId).join();
 
-        DocumentReference docRef = firestore.collection(USERS_COLLECTION).document(userId);
-        DocumentSnapshot doc = docRef.get().get();
-
-        if (doc.exists()) {
+        if (existingProfile.isPresent()) {
             // Update existing profile
-            docRef.update(updates).get();
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("googleOAuthToken", encryptedAccess);
+            updates.put("googleRefreshToken", encryptedRefresh);
+            updates.put("tokenExpiresAt", expiresAt);
+            updates.put("updatedAt", Timestamp.now());
+
+            userProfileRepository.update(userId, updates).join();
             log.info("Updated OAuth tokens in existing profile");
         } else {
             // Create new profile with tokens
-            updates.put("userId", userId);
-            updates.put("createdAt", Timestamp.now());
-            docRef.set(updates).get();
+            UserProfile newProfile = UserProfile.builder()
+                    .userId(userId)
+                    .googleOAuthToken(encryptedAccess)
+                    .googleRefreshToken(encryptedRefresh)
+                    .tokenExpiresAt(expiresAt)
+                    .createdAt(Timestamp.now())
+                    .updatedAt(Timestamp.now())
+                    .build();
+
+            userProfileRepository.save(newProfile).join();
             log.info("Created new profile with OAuth tokens");
         }
     }
@@ -88,21 +92,20 @@ public class UserProfileService {
      * @throws Exception if profile not found or token refresh fails
      */
     public String getValidOAuthToken(String userId) throws Exception {
-        DocumentSnapshot doc = firestore.collection(USERS_COLLECTION)
-                .document(userId)
-                .get()
-                .get();
+        Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId).join();
 
-        if (!doc.exists()) {
+        if (profileOpt.isEmpty()) {
             throw new IllegalStateException("User profile not found: " + userId);
         }
 
-        String encryptedToken = doc.getString("googleOAuthToken");
+        UserProfile profile = profileOpt.get();
+
+        String encryptedToken = profile.googleOAuthToken();
         if (encryptedToken == null) {
             throw new IllegalStateException("No OAuth token in profile for user: " + userId);
         }
 
-        Timestamp expiresAt = doc.getTimestamp("tokenExpiresAt");
+        Timestamp expiresAt = profile.tokenExpiresAt();
         if (expiresAt == null) {
             throw new IllegalStateException("No token expiration in profile");
         }
@@ -117,15 +120,15 @@ public class UserProfileService {
         } else {
             // Token expired or about to expire, refresh it
             log.info("OAuth token expired or expiring soon, refreshing for user: {}", userId);
-            return refreshOAuthToken(userId, doc);
+            return refreshOAuthToken(userId, profile);
         }
     }
 
     /**
      * Refresh OAuth access token using refresh token
      */
-    private String refreshOAuthToken(String userId, DocumentSnapshot doc) throws Exception {
-        String encryptedRefresh = doc.getString("googleRefreshToken");
+    private String refreshOAuthToken(String userId, UserProfile profile) throws Exception {
+        String encryptedRefresh = profile.googleRefreshToken();
         if (encryptedRefresh == null) {
             throw new IllegalStateException("No refresh token in profile");
         }
@@ -143,12 +146,12 @@ public class UserProfileService {
 
         try {
             Map<String, Object> response = webClient.post()
-                .uri(tokenUrl)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData(params))
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
+                    .uri(tokenUrl)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(params))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new IllegalStateException("Failed to refresh OAuth token");
@@ -174,26 +177,57 @@ public class UserProfileService {
     }
 
     /**
-     * Get or create minimal user profile
+     * Get user profile
      */
-    public Map<String, Object> getOrCreateProfile(String userId, String email)
-            throws ExecutionException, InterruptedException {
+    public Optional<UserProfile> getProfile(String userId) {
+        return userProfileRepository.findByUserId(userId).join();
+    }
 
-        DocumentReference docRef = firestore.collection(USERS_COLLECTION).document(userId);
-        DocumentSnapshot doc = docRef.get().get();
+    /**
+     * Update user profile with provided fields.
+     * Creates profile if it doesn't exist.
+     *
+     * @param userId      Firebase UID
+     * @param email       User email (from OAuth token)
+     * @param displayName Display name to update (optional)
+     * @param emailUpdate Email to update (optional)
+     * @return Updated UserProfile
+     */
+    public UserProfile updateProfile(String userId, String email, String displayName, String emailUpdate) {
 
-        if (doc.exists()) {
-            return doc.getData();
+        log.info("Updating profile for user: {}", userId);
+
+        Optional<UserProfile> existingProfile = userProfileRepository.findByUserId(userId).join();
+
+        if (existingProfile.isPresent()) {
+            // Update existing profile
+            UserProfile current = existingProfile.get();
+
+            // Build updated profile with new values
+
+            return userProfileRepository.save(UserProfile.builder()
+                            .userId(current.userId())
+                            .uid(current.uid())
+                            .email(emailUpdate != null ? emailUpdate : current.email())
+                            .displayName(displayName != null ? displayName : current.displayName())
+                            .createdAt(current.createdAt())
+                            .updatedAt(Timestamp.now())
+                            .googleOAuthToken(current.googleOAuthToken())
+                            .googleRefreshToken(current.googleRefreshToken())
+                            .tokenExpiresAt(current.tokenExpiresAt())
+                            .storage(current.storage())
+                            .build())
+                    .join();
         } else {
+            // Create new profile
             log.info("Creating new profile for user: {}", userId);
-            Map<String, Object> profile = new HashMap<>();
-            profile.put("userId", userId);
-            profile.put("email", email);
-            profile.put("createdAt", Timestamp.now());
-            profile.put("updatedAt", Timestamp.now());
-
-            docRef.set(profile).get();
-            return profile;
+            return userProfileRepository.save(UserProfile.builder()
+                    .userId(userId)
+                    .email(emailUpdate != null ? emailUpdate : email)
+                    .displayName(displayName)
+                    .createdAt(Timestamp.now())
+                    .updatedAt(Timestamp.now())
+                    .build()).join();
         }
     }
 }

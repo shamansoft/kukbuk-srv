@@ -1,22 +1,29 @@
 package net.shamansoft.cookbook.controller;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
+import net.shamansoft.cookbook.dto.RecipeResponse;
+import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.service.RecipeService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.naming.AuthenticationException;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -115,5 +122,40 @@ public class RecipeController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS))
                 .body(recipe);
+    }
+
+    /**
+     * Save recipe endpoint
+     * <p>
+     * Authentication flow:
+     * 1. Firebase ID token required in Authorization header (validates user)
+     * 2. Backend retrieves storage OAuth tokens from Firestore (encrypted)
+     * 3. Backend uses storage provider to save recipe
+     * <p>
+     * No OAuth tokens in headers - all managed server-side!
+     */
+    @PostMapping(
+            consumes = "application/json",
+            produces = "application/json"
+    )
+    @CrossOrigin(originPatterns = "chrome-extension://*",
+            allowedHeaders = "*",
+            exposedHeaders = "*",
+            allowCredentials = "false"
+    )
+    public RecipeResponse createRecipe(@RequestBody @Valid Request request,
+                                       @RequestParam(value = "compression", required = false) String compression,
+                                       @RequestAttribute("userId") String userId,
+                                       @RequestAttribute("userEmail") String userEmail
+    )
+            throws IOException, AuthenticationException {
+
+        log.info("Creating recipe for user: {} ({})", userEmail, userId);
+        log.info("Processing recipe request - URL: {}, Title: {}, Has HTML: {}, Compression: {}",
+                request.url(),
+                request.title(),
+                request.html() != null && !request.html().isEmpty(),
+                compression != null ? compression : "default");
+        return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());
     }
 }
