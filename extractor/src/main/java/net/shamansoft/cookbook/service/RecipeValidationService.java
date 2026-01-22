@@ -6,125 +6,124 @@ import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.recipe.model.Recipe;
-import net.shamansoft.recipe.parser.RecipeParseException;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import net.shamansoft.recipe.parser.RecipeSerializer;
-import net.shamansoft.recipe.parser.YamlRecipeParser;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Service for validating and normalizing recipe YAML.
- * Parses YAML using recipe-sdk and re-serializes to ensure consistency.
+ * Service for validating Recipe objects and converting them to YAML.
+ * Uses Jakarta Bean Validation to validate Recipe objects against their constraints.
  */
 @Service
 @Slf4j
 public class RecipeValidationService {
 
-    private final YamlRecipeParser parser;
     private final RecipeSerializer serializer;
     private final Validator validator;
 
     public RecipeValidationService() {
-        this.parser = new YamlRecipeParser();
         this.serializer = new RecipeSerializer();
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         this.validator = factory.getValidator();
     }
 
     /**
-     * Validates and normalizes recipe YAML.
-     * Parses the YAML and re-serializes it to ensure it conforms to the recipe schema.
+     * Validates a Recipe object using Bean Validation.
      *
-     * @param yaml the YAML string to validate
-     * @return ValidationResult containing the normalized YAML or error details
+     * @param recipe the Recipe object to validate
+     * @return ValidationResult containing the validated recipe or error details
      */
-    public ValidationResult validate(String yaml) {
-        try {
-            // Parse YAML to Recipe object - this validates the structure
-            Recipe recipe = parser.parse(yaml);
-            log.debug("Successfully parsed recipe - Title: '{}', Has ingredients: {}, Has instructions: {}",
-                recipe.metadata().title(),
+    public ValidationResult validate(Recipe recipe) {
+        if (recipe == null) {
+            log.warn("Recipe validation called with null recipe");
+            return ValidationResult.failure("Recipe object is null");
+        }
+
+        log.debug("Validating recipe - Title: '{}', Has ingredients: {}, Has instructions: {}",
+                recipe.metadata() != null ? recipe.metadata().title() : "N/A",
                 recipe.ingredients() != null && !recipe.ingredients().isEmpty(),
                 recipe.instructions() != null && !recipe.instructions().isEmpty());
 
-            // Validate using Bean Validation annotations
-            Set<ConstraintViolation<Recipe>> violations = validator.validate(recipe);
-            if (!violations.isEmpty()) {
-                String validationErrors = violations.stream()
-                        .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-                        .collect(Collectors.joining(", "));
-                log.warn("Recipe validation failed with {} constraint violations: {}",
+        // Validate using Bean Validation annotations
+        Set<ConstraintViolation<Recipe>> violations = validator.validate(recipe);
+        if (!violations.isEmpty()) {
+            String validationErrors = formatValidationErrors(violations);
+            log.warn("Recipe validation failed with {} constraint violations: {}",
                     violations.size(),
                     validationErrors);
-                return ValidationResult.failure("Validation failed: " + validationErrors);
-            }
-
-            // Serialize back to YAML - this normalizes the format
-            String normalizedYaml = serializer.serialize(recipe);
-            log.debug("Successfully normalized recipe YAML");
-
-            return ValidationResult.success(normalizedYaml);
-        } catch (RecipeParseException e) {
-            log.warn("Recipe validation failed during parsing: {}", e.getMessage());
-            return ValidationResult.failure(buildParseErrorMessage(e));
-        } catch (RecipeSerializeException e) {
-            log.error("Recipe validation failed during serialization: {}", e.getMessage(), e);
-            return ValidationResult.failure(buildSerializeErrorMessage(e));
-        }
-    }
-
-    private String buildParseErrorMessage(RecipeParseException e) {
-        StringBuilder message = new StringBuilder("YAML parsing failed. ");
-
-        // Extract root cause for better feedback
-        Throwable rootCause = e.getCause();
-        if (rootCause != null) {
-            message.append("Error: ").append(rootCause.getMessage());
-
-            // Add more specific guidance based on error type
-            String errorMsg = rootCause.getMessage();
-            if (errorMsg != null) {
-                if (errorMsg.contains("Unrecognized field")) {
-                    message.append("\n\nThe YAML contains fields that are not part of the recipe schema.");
-                } else if (errorMsg.contains("missing") || errorMsg.contains("required")) {
-                    message.append("\n\nSome required fields are missing from the recipe.");
-                } else if (errorMsg.contains("Cannot deserialize")) {
-                    message.append("\n\nThe value type for a field is incorrect.");
-                }
-            }
-        } else {
-            message.append(e.getMessage());
+            return ValidationResult.failure(validationErrors);
         }
 
-        return message.toString();
-    }
-
-    private String buildSerializeErrorMessage(RecipeSerializeException e) {
-        return "Failed to serialize the parsed recipe back to YAML: " + e.getMessage();
+        log.debug("Recipe validation successful");
+        return ValidationResult.success(recipe);
     }
 
     /**
-     * Result of recipe validation containing either the normalized YAML or error details.
+     * Converts a Recipe object to YAML format.
+     *
+     * @param recipe the Recipe object to serialize
+     * @return the YAML string representation
+     * @throws RecipeSerializeException if serialization fails
+     */
+    public String toYaml(Recipe recipe) throws RecipeSerializeException {
+        if (recipe == null) {
+            throw new IllegalArgumentException("Cannot serialize null recipe to YAML");
+        }
+        return serializer.serialize(recipe);
+    }
+
+    /**
+     * Formats validation errors into a structured message suitable for feedback to Gemini.
+     * Each error is formatted as "path: message" for clarity.
+     *
+     * @param violations the set of constraint violations
+     * @return formatted error message
+     */
+    private String formatValidationErrors(Set<ConstraintViolation<Recipe>> violations) {
+        return violations.stream()
+                .map(v -> {
+                    String path = v.getPropertyPath().toString();
+                    String message = v.getMessage();
+                    Object invalidValue = v.getInvalidValue();
+
+                    // Include the invalid value if it's present and not null
+                    if (invalidValue != null) {
+                        return String.format("Field '%s': %s (current value: %s)", path, message, invalidValue);
+                    } else {
+                        return String.format("Field '%s': %s", path, message);
+                    }
+                })
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * Result of recipe validation containing either the validated Recipe or error details.
      */
     public static class ValidationResult {
         private final boolean valid;
-        private final String normalizedYaml;
+        private final Recipe recipe;
         private final String errorMessage;
 
-        private ValidationResult(boolean valid, String normalizedYaml, String errorMessage) {
+        private ValidationResult(boolean valid, Recipe recipe, String errorMessage) {
             this.valid = valid;
-            this.normalizedYaml = normalizedYaml;
+            this.recipe = recipe;
             this.errorMessage = errorMessage;
         }
 
-        public static ValidationResult success(String normalizedYaml) {
-            return new ValidationResult(true, normalizedYaml, null);
+        public static ValidationResult success(Recipe recipe) {
+            if (recipe == null) {
+                throw new IllegalArgumentException("Recipe cannot be null for a successful validation result");
+            }
+            return new ValidationResult(true, recipe, null);
         }
 
         public static ValidationResult failure(String errorMessage) {
+            if (errorMessage == null || errorMessage.isBlank()) {
+                throw new IllegalArgumentException("Error message cannot be null or blank for a failed validation result");
+            }
             return new ValidationResult(false, null, errorMessage);
         }
 
@@ -132,8 +131,8 @@ public class RecipeValidationService {
             return valid;
         }
 
-        public String getNormalizedYaml() {
-            return normalizedYaml;
+        public Recipe getRecipe() {
+            return recipe;
         }
 
         public String getErrorMessage() {

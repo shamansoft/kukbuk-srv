@@ -3,8 +3,19 @@
   "$id": "https://shamansoft.net/schemas/recipe/1.0.0/schema.json",
   "title": "Recipe",
   "type": "object",
-  "required": ["metadata", "ingredients", "instructions", "schema_version", "recipe_version"],
+  "required": [
+    "is_recipe",
+    "metadata",
+    "ingredients",
+    "instructions",
+    "schema_version",
+    "recipe_version"
+  ],
   "properties": {
+    "is_recipe": {
+      "type": "boolean",
+      "description": "Set to true if this is a cooking recipe, false otherwise. If the HTML content is not a recipe (e.g., blog post, product page, article), set this to false."
+    },
     "metadata": {
       "type": "object",
       "required": ["title", "source", "date_created", "servings"],
@@ -15,26 +26,27 @@
         },
         "source": {
           "type": "string",
-          "format": "url",
+          "format": "uri",
           "description": "Original recipe url"
         },
         "author": { "type": "string" },
         "language": {
           "type": "string",
           "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
-          "default": "en",
           "description": "Language code 'en' or region format 'en/us'"
         },
         "date_created": { "type": "string", "format": "date" },
         "category": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": []
+          "items": {
+            "type": "string"
+          }
         },
         "tags": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": []
+          "items": {
+            "type": "string"
+          }
         },
         "servings": { "type": "integer", "minimum": 1 },
         "prep_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
@@ -42,22 +54,26 @@
         "total_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
         "difficulty": {
           "type": "string",
-          "enum": ["easy", "medium", "hard"],
-          "default": "medium"
+          "enum": [
+            "easy",
+            "medium",
+            "hard"
+          ]
         },
         "cover_image": {
           "type": "object",
           "required": ["path"],
           "properties": {
             "path": { "type": "string" },
-            "alt": { "type": "string", "default": "" }
+            "alt": {
+              "type": "string"
+            }
           }
         }
       }
     },
     "description": {
       "type": "string",
-      "default": "",
       "description": "Markdown-formatted description"
     },
     "ingredients": {
@@ -70,7 +86,9 @@
           "amount": { "type": "number", "minimum": 0 },
           "unit": { "type": "string" },
           "notes": { "type": "string" },
-          "optional": { "type": "boolean", "default": false },
+          "optional": {
+            "type": "boolean"
+          },
           "substitutions": {
             "type": "array",
             "items": {
@@ -90,7 +108,6 @@
           },
           "component": {
             "type": "string",
-            "default": "main",
             "description": "Ingredient grouping like 'dough', 'filling', 'sauce'"
           }
         }
@@ -99,8 +116,9 @@
     },
     "equipment": {
       "type": "array",
-      "items": { "type": "string" },
-      "default": []
+      "items": {
+        "type": "string"
+      }
     },
     "instructions": {
       "type": "array",
@@ -118,27 +136,33 @@
           "media": {
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "type": "object",
-                  "required": ["type", "path"],
-                  "properties": {
-                    "type": { "const": "image" },
-                    "path": { "type": "string" },
-                    "alt": { "type": "string", "default": "" }
-                  }
+              "type": "object",
+              "required": [
+                "type",
+                "path"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video"
+                  ]
                 },
-                {
-                  "type": "object",
-                  "required": ["type", "path"],
-                  "properties": {
-                    "type": { "const": "video" },
-                    "path": { "type": "string" },
-                    "thumbnail": { "type": "string" },
-                    "duration": { "type": "string", "pattern": "^\\d+:\\d{2}$" }
-                  }
+                "path": {
+                  "type": "string"
+                },
+                "alt": {
+                  "type": "string"
+                },
+                "thumbnail": {
+                  "type": "string"
+                },
+                "duration": {
+                  "type": "string",
+                  "pattern": "^\\d+:\\d{2}$"
                 }
-              ]
+              }
             }
           }
         }
@@ -160,7 +184,6 @@
     },
     "notes": {
       "type": "string",
-      "default": "",
       "description": "Markdown-formatted notes, tips and tricks"
     },
     "storage": {

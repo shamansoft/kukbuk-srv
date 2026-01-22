@@ -1,6 +1,10 @@
 package net.shamansoft.cookbook.service;
 
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,9 +12,23 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ValidatingTransformerServiceTest {
@@ -23,35 +41,6 @@ class ValidatingTransformerServiceTest {
 
     private ValidatingTransformerService validatingTransformer;
 
-    private static final String VALID_YAML = """
-            schema_version: "1.0.0"
-            recipe_version: "1.0.0"
-            metadata:
-              title: "Test Recipe"
-              source: "https://example.com"
-              author: "Test"
-              language: "en"
-              date_created: "2024-01-15"
-            description: "Test"
-            ingredients:
-              - item: "test"
-                amount: "1"
-                unit: "cup"
-                optional: false
-                component: "main"
-            equipment: []
-            instructions:
-              - step: 1
-                description: "Test"
-            """;
-
-    private static final String NORMALIZED_YAML = """
-            schema_version: "1.0.0"
-            recipe_version: "1.0.0"
-            metadata:
-              title: "Test Recipe"
-            """;
-
     @BeforeEach
     void setUp() {
         validatingTransformer = new ValidatingTransformerService(geminiTransformer, validationService);
@@ -62,7 +51,7 @@ class ValidatingTransformerServiceTest {
     void transform_whenNotRecipe_shouldReturnImmediatelyWithoutValidation() {
         // Given
         String html = "<html>Not a recipe</html>";
-        Transformer.Response notRecipeResponse = new Transformer.Response(false, "is_recipe: false");
+        Transformer.Response notRecipeResponse = Transformer.Response.notRecipe();
         when(geminiTransformer.transform(html)).thenReturn(notRecipeResponse);
 
         // When
@@ -70,78 +59,82 @@ class ValidatingTransformerServiceTest {
 
         // Then
         assertFalse(result.isRecipe());
-        assertEquals("is_recipe: false", result.value());
+        assertNull(result.recipe());
         verify(geminiTransformer, times(1)).transform(html);
         verifyNoInteractions(validationService);
     }
 
     @Test
-    void transform_whenValidRecipeOnFirstAttempt_shouldReturnNormalizedYaml() {
+    void transform_whenValidRecipeOnFirstAttempt_shouldReturnValidatedRecipe() {
         // Given
         String html = "<html>Recipe content</html>";
-        Transformer.Response initialResponse = new Transformer.Response(true, VALID_YAML);
+        Recipe initialRecipe = createValidRecipe("Test Recipe");
+        Transformer.Response initialResponse = Transformer.Response.recipe(initialRecipe);
         RecipeValidationService.ValidationResult validResult =
-                RecipeValidationService.ValidationResult.success(NORMALIZED_YAML);
+                RecipeValidationService.ValidationResult.success(initialRecipe);
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
-        when(validationService.validate(VALID_YAML)).thenReturn(validResult);
+        when(validationService.validate(initialRecipe)).thenReturn(validResult);
 
         // When
         Transformer.Response result = validatingTransformer.transform(html);
 
         // Then
         assertTrue(result.isRecipe());
-        assertEquals(NORMALIZED_YAML, result.value());
+        assertNotNull(result.recipe());
+        assertEquals("Test Recipe", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html);
-        verify(validationService, times(1)).validate(VALID_YAML);
-        verify(geminiTransformer, never()).transformWithFeedback(anyString(), anyString(), anyString());
+        verify(validationService, times(1)).validate(initialRecipe);
+        verify(geminiTransformer, never()).transformWithFeedback(anyString(), any(Recipe.class), anyString());
     }
 
     @Test
-    void transform_whenInvalidThenValidOnRetry_shouldReturnNormalizedYaml() {
+    void transform_whenInvalidThenValidOnRetry_shouldReturnValidatedRecipe() throws Exception {
         // Given
         String html = "<html>Recipe content</html>";
-        String invalidYaml = "invalid: yaml";
-        String validYamlAfterFeedback = VALID_YAML;
+        Recipe invalidRecipe = createRecipeWithMissingFields();
+        Recipe validRecipe = createValidRecipe("Fixed Recipe");
 
-        Transformer.Response initialResponse = new Transformer.Response(true, invalidYaml);
-        Transformer.Response retryResponse = new Transformer.Response(true, validYamlAfterFeedback);
+        Transformer.Response initialResponse = Transformer.Response.recipe(invalidRecipe);
+        Transformer.Response retryResponse = Transformer.Response.recipe(validRecipe);
 
         RecipeValidationService.ValidationResult invalidResult =
-                RecipeValidationService.ValidationResult.failure("Missing required fields");
+                RecipeValidationService.ValidationResult.failure("Field 'metadata.title': must not be null");
         RecipeValidationService.ValidationResult validResult =
-                RecipeValidationService.ValidationResult.success(NORMALIZED_YAML);
+                RecipeValidationService.ValidationResult.success(validRecipe);
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
-        when(validationService.validate(invalidYaml)).thenReturn(invalidResult);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml, "Missing required fields"))
+        when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
+        lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), anyString()))
                 .thenReturn(retryResponse);
-        when(validationService.validate(validYamlAfterFeedback)).thenReturn(validResult);
+        when(validationService.validate(validRecipe)).thenReturn(validResult);
 
         // When
         Transformer.Response result = validatingTransformer.transform(html);
 
         // Then
         assertTrue(result.isRecipe());
-        assertEquals(NORMALIZED_YAML, result.value());
+        assertNotNull(result.recipe());
+        assertEquals("Fixed Recipe", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html);
-        verify(geminiTransformer, times(1)).transformWithFeedback(html, invalidYaml, "Missing required fields");
-        verify(validationService, times(2)).validate(anyString());
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), anyString());
+        verify(validationService, times(2)).validate(any(Recipe.class));
     }
 
     @Test
-    void transform_whenAllRetriesFail_shouldReturnAsNonRecipe() {
+    void transform_whenAllRetriesFail_shouldReturnAsNonRecipe() throws Exception {
         // Given
         String html = "<html>Recipe content</html>";
-        String invalidYaml1 = "invalid: yaml1";
-        String invalidYaml2 = "invalid: yaml2";
-        String invalidYaml3 = "invalid: yaml3";
-        String invalidYaml4 = "invalid: yaml4";
+        Recipe invalidRecipe1 = createRecipeWithMissingFields();
+        Recipe invalidRecipe2 = createRecipeWithMissingFields();
+        Recipe invalidRecipe3 = createRecipeWithMissingFields();
+        Recipe invalidRecipe4 = createRecipeWithMissingFields();
 
-        Transformer.Response initialResponse = new Transformer.Response(true, invalidYaml1);
-        Transformer.Response retry1Response = new Transformer.Response(true, invalidYaml2);
-        Transformer.Response retry2Response = new Transformer.Response(true, invalidYaml3);
-        Transformer.Response retry3Response = new Transformer.Response(true, invalidYaml4);
+        Transformer.Response initialResponse = Transformer.Response.recipe(invalidRecipe1);
+        Transformer.Response retry1Response = Transformer.Response.recipe(invalidRecipe2);
+        Transformer.Response retry2Response = Transformer.Response.recipe(invalidRecipe3);
+        Transformer.Response retry3Response = Transformer.Response.recipe(invalidRecipe4);
 
         RecipeValidationService.ValidationResult invalidResult1 =
                 RecipeValidationService.ValidationResult.failure("Error 1");
@@ -153,40 +146,38 @@ class ValidatingTransformerServiceTest {
                 RecipeValidationService.ValidationResult.failure("Error 4");
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
-        when(validationService.validate(invalidYaml1)).thenReturn(invalidResult1);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml1, "Error 1")).thenReturn(retry1Response);
-        when(validationService.validate(invalidYaml2)).thenReturn(invalidResult2);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml2, "Error 2")).thenReturn(retry2Response);
-        when(validationService.validate(invalidYaml3)).thenReturn(invalidResult3);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml3, "Error 3")).thenReturn(retry3Response);
-        when(validationService.validate(invalidYaml4)).thenReturn(invalidResult4);
+        when(validationService.validate(any(Recipe.class))).thenReturn(invalidResult1, invalidResult2, invalidResult3, invalidResult4);
+        lenient().when(validationService.toYaml(any(Recipe.class))).thenReturn("yaml1", "yaml2", "yaml3", "yaml4");
+        when(geminiTransformer.transformWithFeedback(eq(html), any(Recipe.class), anyString()))
+                .thenReturn(retry1Response, retry2Response, retry3Response);
 
         // When
         Transformer.Response result = validatingTransformer.transform(html);
 
         // Then
         assertFalse(result.isRecipe(), "Should return as non-recipe after exhausting retries");
-        assertEquals(invalidYaml4, result.value());
+        assertNull(result.recipe());
         verify(geminiTransformer, times(1)).transform(html);
-        verify(geminiTransformer, times(3)).transformWithFeedback(eq(html), anyString(), anyString());
-        verify(validationService, times(4)).validate(anyString());
+        verify(geminiTransformer, times(3)).transformWithFeedback(eq(html), any(Recipe.class), anyString());
+        verify(validationService, times(4)).validate(any(Recipe.class));
     }
 
     @Test
-    void transform_whenModelChangesToNonRecipeAfterFeedback_shouldRespectThat() {
+    void transform_whenModelChangesToNonRecipeAfterFeedback_shouldRespectThat() throws Exception {
         // Given
         String html = "<html>Recipe content</html>";
-        String invalidYaml = "invalid: yaml";
+        Recipe invalidRecipe = createRecipeWithMissingFields();
 
-        Transformer.Response initialResponse = new Transformer.Response(true, invalidYaml);
-        Transformer.Response retryResponse = new Transformer.Response(false, "is_recipe: false");
+        Transformer.Response initialResponse = Transformer.Response.recipe(invalidRecipe);
+        Transformer.Response retryResponse = Transformer.Response.notRecipe();
 
         RecipeValidationService.ValidationResult invalidResult =
                 RecipeValidationService.ValidationResult.failure("Error");
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
-        when(validationService.validate(invalidYaml)).thenReturn(invalidResult);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml, "Error"))
+        when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
+        lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), eq("Error")))
                 .thenReturn(retryResponse);
 
         // When
@@ -194,21 +185,20 @@ class ValidatingTransformerServiceTest {
 
         // Then
         assertFalse(result.isRecipe());
-        assertEquals("is_recipe: false", result.value());
+        assertNull(result.recipe());
         verify(geminiTransformer, times(1)).transform(html);
-        verify(geminiTransformer, times(1)).transformWithFeedback(html, invalidYaml, "Error");
-        verify(validationService, times(1)).validate(invalidYaml);
-        // Should not validate the "is_recipe: false" result
-        verify(validationService, never()).validate("is_recipe: false");
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), eq("Error"));
+        verify(validationService, times(1)).validate(invalidRecipe);
+        // Should not validate the notRecipe result (only 1 validation call)
     }
 
     @Test
-    void transform_whenRetriesSetToZero_shouldSkipValidationAndReturnRawYaml() {
+    void transform_whenRetriesSetToZero_shouldSkipValidationAndReturnRawRecipe() {
         // Given
         ReflectionTestUtils.setField(validatingTransformer, "maxRetries", 0);
         String html = "<html>Recipe content</html>";
-        String rawYaml = "raw: yaml\nno: validation";
-        Transformer.Response initialResponse = new Transformer.Response(true, rawYaml);
+        Recipe rawRecipe = createValidRecipe("Raw Recipe");
+        Transformer.Response initialResponse = Transformer.Response.recipe(rawRecipe);
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
 
@@ -217,42 +207,108 @@ class ValidatingTransformerServiceTest {
 
         // Then
         assertTrue(result.isRecipe(), "Should still be marked as recipe");
-        assertEquals(rawYaml, result.value(), "Should return raw YAML without normalization");
+        assertNotNull(result.recipe());
+        assertEquals("Raw Recipe", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html);
         verifyNoInteractions(validationService); // Validation should be completely skipped
-        verify(geminiTransformer, never()).transformWithFeedback(anyString(), anyString(), anyString());
+        verify(geminiTransformer, never()).transformWithFeedback(anyString(), any(Recipe.class), anyString());
     }
 
     @Test
-    void transform_whenRetriesSetToOne_shouldValidateAndRetryOnce() {
+    void transform_whenRetriesSetToOne_shouldValidateAndRetryOnce() throws Exception {
         // Given
         ReflectionTestUtils.setField(validatingTransformer, "maxRetries", 1);
         String html = "<html>Recipe content</html>";
-        String invalidYaml = "invalid: yaml";
-        String validYamlAfterFeedback = VALID_YAML;
+        Recipe invalidRecipe = createRecipeWithMissingFields();
+        Recipe validRecipe = createValidRecipe("Valid After Retry");
 
-        Transformer.Response initialResponse = new Transformer.Response(true, invalidYaml);
-        Transformer.Response retryResponse = new Transformer.Response(true, validYamlAfterFeedback);
+        Transformer.Response initialResponse = Transformer.Response.recipe(invalidRecipe);
+        Transformer.Response retryResponse = Transformer.Response.recipe(validRecipe);
 
         RecipeValidationService.ValidationResult invalidResult =
                 RecipeValidationService.ValidationResult.failure("Missing required fields");
         RecipeValidationService.ValidationResult validResult =
-                RecipeValidationService.ValidationResult.success(NORMALIZED_YAML);
+                RecipeValidationService.ValidationResult.success(validRecipe);
 
         when(geminiTransformer.transform(html)).thenReturn(initialResponse);
-        when(validationService.validate(invalidYaml)).thenReturn(invalidResult);
-        when(geminiTransformer.transformWithFeedback(html, invalidYaml, "Missing required fields"))
+        when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
+        lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), eq("Missing required fields")))
                 .thenReturn(retryResponse);
-        when(validationService.validate(validYamlAfterFeedback)).thenReturn(validResult);
+        when(validationService.validate(validRecipe)).thenReturn(validResult);
 
         // When
         Transformer.Response result = validatingTransformer.transform(html);
 
         // Then
         assertTrue(result.isRecipe());
-        assertEquals(NORMALIZED_YAML, result.value());
+        assertNotNull(result.recipe());
+        assertEquals("Valid After Retry", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html);
-        verify(geminiTransformer, times(1)).transformWithFeedback(html, invalidYaml, "Missing required fields");
-        verify(validationService, times(2)).validate(anyString());
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), eq("Missing required fields"));
+        verify(validationService, times(2)).validate(any(Recipe.class));
+    }
+
+    // Helper methods to create test Recipe objects
+
+    private Recipe createValidRecipe(String title) {
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                new RecipeMetadata(
+                        title,
+                        "https://example.com",  // source
+                        "Test Author",
+                        "en",
+                        LocalDate.parse("2024-01-15"),
+                        List.of("dessert"),
+                        List.of("test"),
+                        4,
+                        "15m",
+                        "12m",
+                        "27m",
+                        "easy",
+                        null
+                ),
+                "Test description",
+                List.of(new Ingredient("flour", "1", "cup", null, false, null, "main")),
+                List.of("mixing bowl"),
+                List.of(new Instruction(1, "Mix ingredients", null, null, null)),
+                null,
+                "Store in container",  // notes
+                null  // storage
+        );
+    }
+
+    private Recipe createRecipeWithMissingFields() {
+        // Recipe with null title (validation constraint violation)
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                new RecipeMetadata(
+                        null,  // Missing title
+                        null,  // source
+                        null,  // author
+                        "en",  // language
+                        LocalDate.now(),  // dateCreated
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                null,
+                List.of(),  // Empty ingredients
+                null,
+                List.of(),  // Empty instructions
+                null,
+                null,
+                null
+        );
     }
 }

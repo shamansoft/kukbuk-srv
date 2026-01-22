@@ -25,6 +25,10 @@ import java.util.List;
  */
 public record Recipe(
         @NotNull
+        @JsonProperty("is_recipe")
+        Boolean isRecipe,
+
+        @NotNull
         @Pattern(regexp = "^\\d+\\.\\d+\\.\\d+$", message = "Schema version must be semantic version like '1.0.0'")
         @JsonProperty("schema_version")
         String schemaVersion,

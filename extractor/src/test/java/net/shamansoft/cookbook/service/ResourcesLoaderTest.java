@@ -23,7 +23,7 @@ class ResourcesLoaderTest {
     @Test
     void loadSimpleYaml_shouldLoadAndTransformSuccessfully() throws IOException {
         // Load test resource from test/resources directory
-        String result = resourcesLoader.loadYaml("classpath:test-simple.yaml");
+        String result = resourcesLoader.loadTextFile("classpath:test-simple.yaml");
 
         assertThat(result).contains("name: test-recipe");
         assertThat(result).contains("description: A simple test recipe");
@@ -31,7 +31,7 @@ class ResourcesLoaderTest {
 
     @Test
     void loadComplexYaml_shouldPreserveStructure() throws IOException {
-        String result = resourcesLoader.loadYaml("classpath:test-complex.yaml");
+        String result = resourcesLoader.loadTextFile("classpath:test-complex.yaml");
 
         assertThat(result).contains("ingredients:");
         assertThat(result).contains("- name: flour");
@@ -40,8 +40,8 @@ class ResourcesLoaderTest {
     }
 
     @Test
-    void loadYamlWithLists_shouldHandleListsCorrectly() throws IOException {
-        String result = resourcesLoader.loadYaml("classpath:test-with-lists.yaml");
+    void loadTextFileWithLists_shouldHandleListsCorrectly() throws IOException {
+        String result = resourcesLoader.loadTextFile("classpath:test-with-lists.yaml");
 
         assertThat(result).contains("steps:");
         assertThat(result).contains("- \"Mix ingredients\"");
@@ -50,14 +50,14 @@ class ResourcesLoaderTest {
 
     @Test
     void loadEmptyYaml_shouldReturnEmptyString() throws IOException {
-        String result = resourcesLoader.loadYaml("classpath:test-empty.yaml");
+        String result = resourcesLoader.loadTextFile("classpath:test-empty.yaml");
 
         assertThat(result).isEqualTo("");
     }
 
     @Test
     void loadNonExistentYaml_shouldThrowException() {
-        assertThatThrownBy(() -> resourcesLoader.loadYaml("classpath:non-existent.yaml"))
+        assertThatThrownBy(() -> resourcesLoader.loadTextFile("classpath:non-existent.yaml"))
                 .isInstanceOf(IOException.class);
     }
 }

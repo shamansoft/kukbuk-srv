@@ -330,7 +330,7 @@ class RecipeMapperTest {
                 COOK_TIME, TOTAL_TIME, DIFFICULTY, null
         );
         Recipe recipe = new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 Collections.emptyList(), Collections.emptyList(),
                 List.of(createInstruction(1, "Step 1")),
                 null, NOTES, null
@@ -356,7 +356,7 @@ class RecipeMapperTest {
                 COOK_TIME, TOTAL_TIME, DIFFICULTY, null
         );
         Recipe recipe = new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 List.of(createIngredient("flour")), Collections.emptyList(),
                 Collections.emptyList(), null, NOTES, null
         );
@@ -385,7 +385,7 @@ class RecipeMapperTest {
                 COOK_TIME, TOTAL_TIME, DIFFICULTY, null
         );
         Recipe recipe = new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 ingredients, Collections.emptyList(),
                 List.of(createInstruction(1, "Mix all")), null, NOTES, null
         );
@@ -420,7 +420,7 @@ class RecipeMapperTest {
                 COOK_TIME, TOTAL_TIME, DIFFICULTY, null
         );
         Recipe recipe = new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 ingredients, Collections.emptyList(),
                 List.of(createInstruction(1, "Mix")), null, NOTES, null
         );
@@ -459,7 +459,7 @@ class RecipeMapperTest {
                 new CoverImage("https://example.com/carbonara.jpg", "Creamy pasta")
         );
         Recipe recipe = new Recipe(
-                "1.0.0", "1.0.0", metadata, "A classic Italian pasta",
+                true, "1.0.0", "1.0.0", metadata, "A classic Italian pasta",
                 List.of(createIngredient("spaghetti")), Collections.emptyList(),
                 List.of(createInstruction(1, "Cook pasta")), null, "Traditional recipe", null
         );
@@ -504,7 +504,7 @@ class RecipeMapperTest {
         );
 
         return new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 ingredients, equipment, instructions, nutrition, NOTES, null
         );
     }
@@ -517,7 +517,7 @@ class RecipeMapperTest {
         );
 
         return new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 List.of(createIngredient("flour")), Collections.emptyList(),
                 List.of(createInstruction(1, "Step 1")), null, NOTES, null
         );
@@ -532,7 +532,7 @@ class RecipeMapperTest {
         );
 
         return new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 List.of(createIngredient("flour")), Collections.emptyList(),
                 List.of(createInstruction(1, "Step 1")), null, NOTES, null
         );
@@ -559,7 +559,7 @@ class RecipeMapperTest {
         );
 
         return new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 List.of(createIngredient("flour")), Collections.emptyList(),
                 instructions, null, NOTES, null
         );
@@ -579,7 +579,7 @@ class RecipeMapperTest {
         );
 
         return new Recipe(
-                "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
                 List.of(createIngredient("flour")), Collections.emptyList(),
                 instructions, null, NOTES, null
         );

@@ -52,6 +52,12 @@ public class GeminiRequest {
         private double topP;
         @JsonProperty
         private int maxOutputTokens;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String responseMimeType;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Object responseSchema;
     }
 
     @Builder

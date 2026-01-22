@@ -1,9 +1,22 @@
 package net.shamansoft.cookbook.service;
 
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
+import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RecipeValidationServiceTest {
 
@@ -15,169 +28,259 @@ class RecipeValidationServiceTest {
     }
 
     @Test
-    void validate_withValidYaml_shouldReturnSuccess() {
+    void validate_withValidRecipe_shouldReturnSuccess() {
         // Given
-        String validYaml = """
-                schema_version: "1.0.0"
-                recipe_version: "1.0.0"
-                metadata:
-                  title: "Chocolate Chip Cookies"
-                  source: "https://example.com/recipe"
-                  author: "John Doe"
-                  language: "en"
-                  date_created: "2024-01-15"
-                  category:
-                    - dessert
-                  tags:
-                    - cookies
-                    - chocolate
-                  servings: 24
-                  prep_time: "15m"
-                  cook_time: "12m"
-                  total_time: "27m"
-                  difficulty: "easy"
-                description: "Classic chocolate chip cookies"
-                ingredients:
-                  - item: "flour"
-                    amount: "2"
-                    unit: "cups"
-                    optional: false
-                    component: "main"
-                  - item: "chocolate chips"
-                    amount: "1"
-                    unit: "cup"
-                    optional: false
-                    component: "main"
-                equipment:
-                  - "mixing bowl"
-                  - "baking sheet"
-                instructions:
-                  - step: 1
-                    description: "Mix dry ingredients"
-                  - step: 2
-                    description: "Bake at 350°F"
-                    time: "12m"
-                    temperature: "350°F"
-                notes: "Store in airtight container"
-                """;
+        Recipe validRecipe = createValidRecipe();
 
         // When
-        RecipeValidationService.ValidationResult result = validationService.validate(validYaml);
+        RecipeValidationService.ValidationResult result = validationService.validate(validRecipe);
 
         // Then
-        assertTrue(result.isValid(), "Valid YAML should pass validation");
-        assertNotNull(result.getNormalizedYaml(), "Normalized YAML should not be null");
-        assertNull(result.getErrorMessage(), "Error message should be null for valid YAML");
+        assertTrue(result.isValid(), "Valid recipe should pass validation");
+        assertNotNull(result.getRecipe(), "Recipe should not be null");
+        assertNull(result.getErrorMessage(), "Error message should be null for valid recipe");
+        assertEquals(validRecipe, result.getRecipe(), "Recipe should be returned unchanged");
     }
 
     @Test
-    void validate_withInvalidYaml_shouldReturnFailure() {
-        // Given - YAML with invalid structure
-        String invalidYaml = """
-                this is not valid yaml
-                - it has no structure
-                metadata: incomplete
-                """;
-
+    void validate_withNullRecipe_shouldReturnFailure() {
         // When
-        RecipeValidationService.ValidationResult result = validationService.validate(invalidYaml);
+        RecipeValidationService.ValidationResult result = validationService.validate(null);
 
         // Then
-        assertFalse(result.isValid(), "Invalid YAML should fail validation");
-        assertNull(result.getNormalizedYaml(), "Normalized YAML should be null for invalid YAML");
+        assertFalse(result.isValid(), "Null recipe should fail validation");
+        assertNull(result.getRecipe(), "Recipe should be null");
         assertNotNull(result.getErrorMessage(), "Error message should not be null");
-        assertTrue(result.getErrorMessage().contains("YAML parsing failed"),
-                "Error message should indicate parsing failure");
+        assertTrue(result.getErrorMessage().contains("null"), "Error message should mention null");
     }
 
     @Test
-    void validate_withMissingRequiredFields_shouldReturnFailure() {
-        // Given - YAML missing required fields
-        String incompleteYaml = """
-                schema_version: "1.0.0"
-                metadata:
-                  title: "Test Recipe"
-                """;
+    void validate_withMissingTitle_shouldReturnFailure() {
+        // Given - Recipe with null title
+        RecipeMetadata metadata = new RecipeMetadata(
+                null,  // title is null
+                "https://example.com",  // source
+                "Test Author",
+                "en",
+                LocalDate.parse("2024-01-15"),
+                List.of("dessert"),
+                List.of("test"),
+                4,
+                "15m",
+                "12m",
+                "27m",
+                "easy",
+                null
+        );
+
+        Recipe recipe = new Recipe(
+                true,  // isRecipe
+                "1.0.0",  // schemaVersion
+                "1.0.0",  // recipeVersion
+                metadata,
+                "Test description",
+                List.of(createValidIngredient()),
+                List.of(),
+                List.of(createValidInstruction()),
+                null,
+                null,
+                null  // storage
+        );
 
         // When
-        RecipeValidationService.ValidationResult result = validationService.validate(incompleteYaml);
+        RecipeValidationService.ValidationResult result = validationService.validate(recipe);
 
         // Then
-        assertFalse(result.isValid(), "YAML with missing required fields should fail validation");
+        assertFalse(result.isValid(), "Recipe with null title should fail validation");
+        assertNotNull(result.getErrorMessage(), "Error message should not be null");
+        assertTrue(result.getErrorMessage().contains("title") || result.getErrorMessage().contains("metadata"),
+                "Error message should mention the missing field");
+    }
+
+    @Test
+    void validate_withEmptyIngredients_shouldReturnFailure() {
+        // Given - Recipe with empty ingredients list
+        Recipe recipe = new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                createValidMetadata(),
+                "Test description",
+                List.of(),  // empty ingredients
+                List.of(),
+                List.of(createValidInstruction()),
+                null,
+                null,
+                null
+        );
+
+        // When
+        RecipeValidationService.ValidationResult result = validationService.validate(recipe);
+
+        // Then
+        assertFalse(result.isValid(), "Recipe with empty ingredients should fail validation");
         assertNotNull(result.getErrorMessage(), "Error message should not be null");
     }
 
     @Test
-    void validate_withExtraFields_shouldReturnFailure() {
-        // Given - YAML with unrecognized field
-        String yamlWithExtraFields = """
-                schema_version: "1.0.0"
-                recipe_version: "1.0.0"
-                unknown_field: "this should not be here"
-                metadata:
-                  title: "Test Recipe"
-                  source: "https://example.com"
-                  author: "Test Author"
-                  language: "en"
-                  date_created: "2024-01-15"
-                description: "Test description"
-                ingredients:
-                  - item: "test"
-                    amount: "1"
-                    unit: "cup"
-                    optional: false
-                    component: "main"
-                equipment: []
-                instructions:
-                  - step: 1
-                    description: "Test"
-                """;
+    void validate_withEmptyInstructions_shouldReturnFailure() {
+        // Given - Recipe with empty instructions list
+        Recipe recipe = new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                createValidMetadata(),
+                "Test description",
+                List.of(createValidIngredient()),
+                List.of(),
+                List.of(),  // empty instructions
+                null,
+                null,
+                null
+        );
 
         // When
-        RecipeValidationService.ValidationResult result = validationService.validate(yamlWithExtraFields);
+        RecipeValidationService.ValidationResult result = validationService.validate(recipe);
 
         // Then
-        assertFalse(result.isValid(), "YAML with extra fields should fail validation");
+        assertFalse(result.isValid(), "Recipe with empty instructions should fail validation");
         assertNotNull(result.getErrorMessage(), "Error message should not be null");
-        assertTrue(result.getErrorMessage().contains("Unrecognized field") ||
-                        result.getErrorMessage().contains("not part of the recipe schema"),
-                "Error message should mention unrecognized field");
     }
 
     @Test
-    void validate_withValidYaml_shouldNormalizeFormat() {
-        // Given - Valid YAML with some formatting
-        String validYaml = """
-                schema_version: "1.0.0"
-                recipe_version: "1.0.0"
-                metadata:
-                  title: "Simple Recipe"
-                  source: "https://example.com"
-                  author: "Test"
-                  language: "en"
-                  date_created: "2024-01-15"
-                  servings: 4
-                description: "Test"
-                ingredients:
-                  - item: "flour"
-                    amount: "1"
-                    unit: "cup"
-                    optional: false
-                    component: "main"
-                equipment: []
-                instructions:
-                  - step: 1
-                    description: "Mix"
-                """;
+    void toYaml_withValidRecipe_shouldReturnYamlString() throws RecipeSerializeException {
+        // Given
+        Recipe recipe = createValidRecipe();
 
         // When
-        RecipeValidationService.ValidationResult result = validationService.validate(validYaml);
+        String yaml = validationService.toYaml(recipe);
 
         // Then
-        assertTrue(result.isValid(), "Valid YAML should pass validation");
-        assertNotNull(result.getNormalizedYaml(), "Normalized YAML should not be null");
-        // The normalized YAML should be parseable again
-        RecipeValidationService.ValidationResult secondPass = validationService.validate(result.getNormalizedYaml());
-        assertTrue(secondPass.isValid(), "Normalized YAML should be valid on second pass");
+        assertNotNull(yaml, "YAML should not be null");
+        assertFalse(yaml.isEmpty(), "YAML should not be empty");
+        assertTrue(yaml.contains("schema_version"), "YAML should contain schema_version");
+        assertTrue(yaml.contains("Chocolate Chip Cookies"), "YAML should contain recipe title");
+    }
+
+    @Test
+    void toYaml_withNullRecipe_shouldThrowException() {
+        // When / Then
+        assertThrows(IllegalArgumentException.class, () -> {
+            validationService.toYaml(null);
+        }, "Should throw IllegalArgumentException for null recipe");
+    }
+
+    @Test
+    void validate_withValidRecipe_thenConvertToYaml_shouldBeReusable() throws RecipeSerializeException {
+        // Given
+        Recipe recipe = createValidRecipe();
+
+        // When
+        RecipeValidationService.ValidationResult result = validationService.validate(recipe);
+        String yaml = validationService.toYaml(result.getRecipe());
+
+        // Then
+        assertTrue(result.isValid(), "Recipe should be valid");
+        assertNotNull(yaml, "YAML should not be null");
+        assertTrue(yaml.contains("Chocolate Chip Cookies"), "YAML should contain recipe data");
+    }
+
+    @Test
+    void validate_withNonRecipe_shouldStillValidate() {
+        // Given - Recipe marked as not a recipe
+        Recipe nonRecipe = new Recipe(
+                false,  // is_recipe = false
+                "1.0.0",
+                "1.0.0",
+                new RecipeMetadata(
+                        "Not a Recipe",
+                        null,  // source
+                        null,  // author
+                        "en",  // language
+                        LocalDate.now(),  // dateCreated
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        // When
+        RecipeValidationService.ValidationResult result = validationService.validate(nonRecipe);
+
+        // Then
+        // Note: Validation only checks constraints, not is_recipe flag
+        // This will likely fail due to missing required fields
+        // The is_recipe flag is checked at the transformer level
+        assertFalse(result.isValid(), "Non-recipe with missing fields should fail validation");
+    }
+
+    // Helper methods to create test data
+
+    private Recipe createValidRecipe() {
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                createValidMetadata(),
+                "Classic chocolate chip cookies",
+                List.of(createValidIngredient()),
+                List.of(),  // equipment
+                List.of(createValidInstruction()),
+                null,  // nutrition
+                "Store in airtight container",  // notes
+                null  // storage
+        );
+    }
+
+    private RecipeMetadata createValidMetadata() {
+        return new RecipeMetadata(
+                "Chocolate Chip Cookies",
+                "https://example.com/recipe",  // source
+                "John Doe",  // author
+                "en",
+                LocalDate.parse("2024-01-15"),
+                List.of("dessert"),
+                List.of("cookies", "chocolate"),
+                24,
+                "15m",
+                "12m",
+                "27m",
+                "easy",
+                null
+        );
+    }
+
+    private Ingredient createValidIngredient() {
+        return new Ingredient(
+                "flour",
+                "2",
+                "cups",
+                null,
+                false,
+                null,
+                "main"
+        );
+    }
+
+    private Instruction createValidInstruction() {
+        return new Instruction(
+                1,
+                "Mix dry ingredients and bake at 350°F",
+                "12m",
+                "350°F",
+                null
+        );
     }
 }

@@ -12,10 +12,15 @@ import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.HtmlExtractor;
 import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.RecipeStoreService;
+import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.StorageService;
 import net.shamansoft.cookbook.service.TokenService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.UserProfileService;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +36,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -77,6 +84,9 @@ class RecipeControllerSBTest {
     @MockitoBean
     private RawContentService rawContentService;
 
+    @MockitoBean
+    private RecipeValidationService validationService;
+
     @BeforeEach
     void setUp() throws Exception {
         // Set up storage service mock - default to having storage configured
@@ -106,6 +116,10 @@ class RecipeControllerSBTest {
         // Set up UserProfileService to fall back to header tokens
         when(userProfileService.getValidOAuthToken(anyString()))
                 .thenThrow(new Exception("No OAuth token in profile"));
+
+        // Set up validation service mock
+        when(validationService.toYaml(any(Recipe.class)))
+                .thenReturn("transformed content");
     }
 
     private HttpHeaders createHeadersWithOAuthToken() {
@@ -134,8 +148,9 @@ class RecipeControllerSBTest {
     @Test
     void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
+        Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", "compressed html", null)).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(transformer.transform("raw html")).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -156,8 +171,9 @@ class RecipeControllerSBTest {
     @Test
     void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
+        Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(transformer.transform("raw html")).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -233,8 +249,9 @@ class RecipeControllerSBTest {
     void createRecipe_withNoneCompression_shouldSkipDecompression() throws IOException, AuthenticationException {
         // Given
         Request request = new Request("raw html", "Title", "http://example.com");
+        Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", "raw html", "none")).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(true, "transformed content"));
+        when(transformer.transform("raw html")).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -257,7 +274,7 @@ class RecipeControllerSBTest {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
         when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
-        when(transformer.transform("raw html")).thenReturn(new Transformer.Response(false, "not a recipe"));
+        when(transformer.transform("raw html")).thenReturn(Transformer.Response.notRecipe());
 
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -311,6 +328,36 @@ class RecipeControllerSBTest {
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+    }
+
+    private Recipe createTestRecipe() {
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                new RecipeMetadata(
+                        "Test Recipe",
+                        null,
+                        "Test Author",
+                        null,
+                        LocalDate.now(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                "Test description",
+                List.of(new Ingredient("flour", "100g", null, null, null, null, null)),
+                List.of("bowl"),
+                List.of(new Instruction(null, "Mix ingredients", null, null, null)),
+                null,
+                "Test notes",
+                null
+        );
     }
 
 }

@@ -1,6 +1,14 @@
 package net.shamansoft.recipe.parser;
 
-import net.shamansoft.recipe.model.*;
+import net.shamansoft.recipe.model.ImageMedia;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Nutrition;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
+import net.shamansoft.recipe.model.Storage;
+import net.shamansoft.recipe.model.Substitution;
+import net.shamansoft.recipe.model.VideoMedia;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -19,6 +27,7 @@ class RoundTripTest {
         RecipeSerializer serializer = new RecipeSerializer();
 
         Recipe original = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(
@@ -83,6 +92,7 @@ class RoundTripTest {
         RecipeSerializer serializer = new RecipeSerializer();
 
         Recipe original = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(
@@ -131,6 +141,7 @@ class RoundTripTest {
         RecipeSerializer serializer = new RecipeSerializer();
 
         Recipe original = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(

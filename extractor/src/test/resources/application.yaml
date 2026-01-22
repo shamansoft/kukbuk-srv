@@ -17,6 +17,8 @@ gcp:
 spring:
   application:
     name: cookbook-test
+  main:
+    allow-bean-definition-overriding: true
 
 cookbook:
   gemini:
