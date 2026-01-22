@@ -18,7 +18,7 @@ public class ServiceConfig {
 
 
     static String hideKey(ClientRequest clientRequest) {
-        if (clientRequest.url().getQuery() != null && !clientRequest.url().getQuery().contains("key=")) {
+        if (clientRequest.url().getQuery() != null && clientRequest.url().getQuery().contains("key=")) {
             return clientRequest.url().getPath()
                     + "?"
                     + clientRequest.url()

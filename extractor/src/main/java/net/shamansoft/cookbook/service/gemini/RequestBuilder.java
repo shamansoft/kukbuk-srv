@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,10 @@ public class RequestBuilder {
     private float temperature;
     @Value("${cookbook.gemini.top-p}")
     private float topP;
+    @Value("${cookbook.gemini.max-output-tokens}")
+    private int maxOutputTokens;
+    @Value("${cookbook.gemini.safety-threshold}")
+    private String safetyThreshold;
 
     private final ResourcesLoader resourceLoader;
     private final ObjectMapper objectMapper;
@@ -63,17 +68,21 @@ public class RequestBuilder {
         return prompt.formatted(withDate(), html);
     }
 
-    String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError) throws JsonProcessingException {
+    private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError) throws JsonProcessingException {
         String basePrompt = withHtml(html);
         return basePrompt + validationPrompt.formatted(validationError, objectMapper.writeValueAsString(previousRecipe));
     }
 
     public GeminiRequest buildRequest(String htmlContent) throws JsonProcessingException {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
         String fullPrompt = withHtml(htmlContent);
         return buildRequestBodyWithSchema(fullPrompt);
     }
 
     public GeminiRequest buildRequest(String htmlContent, Recipe feedback, String validationError) throws JsonProcessingException {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
+        Objects.requireNonNull(feedback, "feedback cannot be null");
+        Objects.requireNonNull(validationError, "validationError cannot be null");
         String fullPrompt = withHtmlAndFeedback(htmlContent, feedback, validationError);
         return buildRequestBodyWithSchema(fullPrompt);
     }
@@ -92,15 +101,15 @@ public class RequestBuilder {
                 .generationConfig(GeminiRequest.GenerationConfig.builder()
                         .temperature(temperature)
                         .topP(topP)
-                        .maxOutputTokens(4096)
+                        .maxOutputTokens(maxOutputTokens)
                         .responseMimeType("application/json")
                         .responseSchema(parsedJsonSchema)
                         .build())
                 .safetySettings(List.of(
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HATE_SPEECH").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_SEXUALLY_EXPLICIT").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_DANGEROUS_CONTENT").threshold("BLOCK_NONE").build()
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HATE_SPEECH").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_SEXUALLY_EXPLICIT").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_DANGEROUS_CONTENT").threshold(safetyThreshold).build()
                 ))
                 .build();
     }

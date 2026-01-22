@@ -8,8 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import javax.annotation.PostConstruct;
+import java.util.Objects;
 
 @Component
 @RequiredArgsConstructor
@@ -31,14 +33,34 @@ public class GeminiClient {
     }
 
     public <T> GeminiResponse<T> request(GeminiRequest geminiRequest, Class<T> clazz) throws JsonProcessingException {
-        JsonNode response = geminiWebClient.post()
-                .uri(url)
-                .header("Content-Type", "application/json")
-                .header("x-goog-api-key", apiKey)
-                .bodyValue(objectMapper.writeValueAsString(geminiRequest))
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
+        // Null safety checks
+        Objects.requireNonNull(geminiRequest, "geminiRequest cannot be null");
+        Objects.requireNonNull(clazz, "clazz cannot be null");
+
+        JsonNode response;
+        try {
+            response = geminiWebClient.post()
+                    .uri(url)
+                    .header("Content-Type", "application/json")
+                    .header("x-goog-api-key", apiKey)
+                    .bodyValue(objectMapper.writeValueAsString(geminiRequest))
+                    .retrieve()
+                    .onStatus(
+                            status -> status.is4xxClientError() || status.is5xxServerError(),
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .map(body -> new RuntimeException("Gemini API error: " + body))
+                    )
+                    .bodyToMono(JsonNode.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            log.error("Gemini API HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return GeminiResponse.failure(GeminiResponse.Code.OTHER,
+                    "Gemini API error: " + e.getStatusCode() + " - " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to call Gemini API", e);
+            return GeminiResponse.failure(GeminiResponse.Code.OTHER,
+                    "Network error: " + e.getMessage());
+        }
 
         log.debug("Gemini API response received - Has candidates: {}",
                 response != null && response.has("candidates"));
@@ -46,13 +68,13 @@ public class GeminiClient {
             log.debug("Full Gemini response: {}", response.toPrettyString());
         }
 
-        if (response != null && response.has("candidates")) {
+        if (response != null && response.has("candidates") && !response.get("candidates").isEmpty()) {
             JsonNode candidate = response.get("candidates").get(0);
 
             // Log finish reason to detect truncation
             if (candidate.has("finishReason")) {
                 String finishReason = candidate.get("finishReason").asText();
-                log.info("Gemini finishReason: {}", finishReason);
+                log.debug("Gemini finishReason: {}", finishReason);
                 if (!"STOP".equals(finishReason)) {
                     log.warn("Gemini response may be truncated - finishReason: {}", finishReason);
                 }
@@ -60,7 +82,7 @@ public class GeminiClient {
 
             // Log safety ratings if present
             if (candidate.has("safetyRatings")) {
-                log.info("Gemini safetyRatings: {}", candidate.get("safetyRatings").toPrettyString());
+                log.debug("Gemini safetyRatings: {}", candidate.get("safetyRatings").toPrettyString());
             }
 
             // Check if response was blocked
@@ -69,14 +91,14 @@ public class GeminiClient {
                 log.warn("Gemini promptFeedback: {}", feedback.toPrettyString());
                 if (feedback.has("blockReason")) {
                     log.error("Gemini response BLOCKED - Reason: {}", feedback.get("blockReason").asText());
-                    GeminiResponse.failure(GeminiResponse.Code.BLOCKED, feedback.get("blockReason").asText());
+                    return GeminiResponse.failure(GeminiResponse.Code.BLOCKED, feedback.get("blockReason").asText());
                 }
             }
 
             // Check how many parts are in the response
             JsonNode parts = candidate.get("content").get("parts");
             int partCount = parts.size();
-            log.info("Gemini response has {} part(s)", partCount);
+            log.debug("Gemini response has {} part(s)", partCount);
 
             // Concatenate all parts if there are multiple
             StringBuilder jsonBuilder = new StringBuilder();
@@ -84,14 +106,15 @@ public class GeminiClient {
                 if (parts.get(i).has("text")) {
                     String partText = parts.get(i).get("text").asText();
                     jsonBuilder.append(partText);
-                    log.info("Part[{}] text - Length: {} chars", i, partText.length());
+                    log.debug("Part[{}] text - Length: {} chars", i, partText.length());
                 }
             }
 
             String jsonContent = jsonBuilder.toString();
-            log.info("Combined JSON from Gemini - Total length: {} chars, First 200 chars: {}",
+            log.debug("Combined JSON from Gemini - Total length: {} chars, First 200 chars: {}",
                     jsonContent.length(),
                     jsonContent.substring(0, Math.min(200, jsonContent.length())));
+            log.info("Gemini API request successful - Response length: {} chars", jsonContent.length());
             return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz));
         }
         return GeminiResponse.failure(GeminiResponse.Code.OTHER, "No candidates in Gemini response");

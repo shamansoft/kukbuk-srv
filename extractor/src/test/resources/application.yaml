@@ -28,6 +28,8 @@ cookbook:
     prompt: "test prompt"
     temperature: 0.1
     top-p: 0.8
+    max-output-tokens: 4096
+    safety-threshold: "BLOCK_NONE"
   drive:
     folder-name: "kukbuk-test"
     application-name: "cookbook-test"
