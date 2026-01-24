@@ -1,6 +1,6 @@
 # Cookbook Project
 
-![Coverage](https://img.shields.io/badge/coverage-40%25+-yellow)
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen)
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
