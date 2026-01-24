@@ -32,7 +32,7 @@ public class GeminiClient {
         this.url = "/models/%s:generateContent".formatted(model);
     }
 
-    public <T> GeminiResponse<T> request(GeminiRequest geminiRequest, Class<T> clazz) throws JsonProcessingException {
+    public <T> GeminiResponse<T> request(GeminiRequest geminiRequest, Class<T> clazz) {
         // Null safety checks
         Objects.requireNonNull(geminiRequest, "geminiRequest cannot be null");
         Objects.requireNonNull(clazz, "clazz cannot be null");
@@ -115,7 +115,13 @@ public class GeminiClient {
                     jsonContent.length(),
                     jsonContent.substring(0, Math.min(200, jsonContent.length())));
             log.info("Gemini API request successful - Response length: {} chars", jsonContent.length());
-            return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz));
+            try {
+                return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz));
+            } catch (JsonProcessingException e) {
+                log.error("Invalid JSON structure received from Gemini API", e);
+                return GeminiResponse.failure(GeminiResponse.Code.PARSE_ERROR,
+                        "Invalid JSON structure received from Gemini API: " + e.getMessage());
+            }
         }
         return GeminiResponse.failure(GeminiResponse.Code.OTHER, "No candidates in Gemini response");
     }

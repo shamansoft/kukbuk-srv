@@ -9,10 +9,14 @@ A Spring Boot service that extracts recipe data from web pages using AI (Google 
 
 ## Features
 
-- 🤖 **AI-Powered Recipe Extraction**: Uses Google Gemini 2.0 Flash to convert HTML content to structured YAML recipes
+- 🤖 **AI-Powered Recipe Extraction**: Uses Google Gemini 2.5 Flash Lite to convert HTML content to structured JSON
+  recipes
 - 📁 **Firestore Integration**: Automatically stores extracted recipes in Firestore NoSQL database
 - 🔐 **OAuth Authentication**: Secure authentication using Google OAuth 2.0
-- 📊 **Recipe Schema Validation**: Follows a comprehensive recipe schema (v1.0.0)
+- 📊 **Recipe Schema Validation**: Follows a comprehensive recipe schema (v1.0.0) with strict JSON validation
+- 🔄 **Retry Logic**: Automatic retry with validation feedback for better extraction accuracy
+- 💾 **Recipe Caching**: In-memory caching with configurable timeouts for improved performance
+- 🔗 **Content Deduplication**: SHA-256 hashing to prevent duplicate recipe storage
 - 🗜️ **Content Compression**: Supports Base64 compressed HTML input
 - 🌐 **URL Fetching**: Can extract content directly from URLs
 - 🔍 **Recipe Detection**: AI determines if content is actually a recipe
@@ -20,7 +24,7 @@ A Spring Boot service that extracts recipe data from web pages using AI (Google 
 
 ## API Endpoints
 
-### POST /recipe
+### POST /v1/recipes
 
 Extracts recipe data from HTML content.
 
@@ -49,6 +53,36 @@ Extracts recipe data from HTML content.
 }
 ```
 
+### GET /v1/recipes
+
+Lists all recipes with pagination.
+
+**Query Parameters:**
+
+- `pageSize`: Number of recipes per page (1-100, default: 20)
+- `pageToken`: Token for next page (from previous response)
+
+**Response:**
+
+```json
+{
+  "recipes": [
+    ...
+  ],
+  "nextPageToken": "token123"
+  // Present if more results available
+}
+```
+
+### GET /v1/recipes/{id}
+
+Retrieves a single recipe by its Drive file ID.
+
+**Response:**
+
+- Recipe data as JSON
+- Cache-Control: 1 hour
+
 ## Building and Running
 
 ### Prerequisites
@@ -66,8 +100,21 @@ cookbook:
   gemini:
     api-key: "YOUR_GEMINI_API_KEY"
     base-url: "https://generativelanguage.googleapis.com/v1beta"
+    model: "gemini-2.5-flash-lite"
+    temperature: 0.1
+    top-p: 0.8
+    max-output-tokens: 4096
   google:
     oauth-id: "YOUR_GOOGLE_OAUTH_CLIENT_ID"
+  drive:
+    folder-name: "_save_a_recipe"
+
+# Recipe validation retry (default: 1)
+  RECIPE_LLM_RETRY=1
+
+        # GCP configuration
+  GOOGLE_CLOUD_PROJECT_ID=your-project-id
+  FIRESTORE_ENABLED=true
 ```
 
 ### Build
@@ -197,36 +244,62 @@ For detailed CI/CD documentation, see:
 
 ### Key Components
 
-- **CookbookController**: REST API endpoint
-- **GeminiRestTransformer**: AI-powered HTML to YAML conversion
-- **FirestoreService**: Recipe storage and management in Firestore
+- **RecipeController**: REST API endpoints for recipe operations (GET, POST)
+- **RecipeService**: Orchestrates recipe extraction and storage workflow
+- **GeminiClient**: HTTP client for Gemini API communication
+- **GeminiRestTransformer**: AI-powered HTML to JSON conversion
+- **RequestBuilder**: Builds Gemini API requests with schema and retry feedback
+- **RecipeValidationService**: Validates recipes against JSON schema
+- **ValidatingTransformerService**: Orchestrates transformation with retry logic
+- **RecipeStoreService**: Caching layer for recipe data
+- **ContentHashService**: Deduplication via content hashing
+- **FirestoreRecipeRepository**: Recipe storage and management in Firestore
 - **TokenRestService**: OAuth token validation
 - **CompressorHTMLBase64**: Content compression/decompression
+- **HtmlExtractor**: HTML cleanup and preparation
 
 For detailed Firestore schema, see `../terraform/firestore-schema.md`.
 
 ## Recipe Schema
 
-Extracted recipes follow a structured YAML schema (v1.0.0):
+Extracted recipes follow a structured JSON schema (v1.0.0):
 
-```yaml
-schema_version: "1.0.0"
-recipe_version: "1.0"
-title: "Recipe Title"
-description: "Recipe description"
-servings: 4
-prep_time: "15m"
-cook_time: "30m"
-total_time: "45m"
-ingredients:
-  - name: "Ingredient name"
-    amount: 1
-    unit: "cup"
-instructions:
-  - step: 1
-    description: "Instruction text"
-isRecipe: true
+```json
+{
+  "schema_version": "1.0.0",
+  "recipe_version": "1.0.0",
+  "metadata": {
+    "title": "Recipe Title",
+    "source": "https://...",
+    "language": "en",
+    "servings": 4,
+    "prep_time": "15m",
+    "cook_time": "30m",
+    "total_time": "45m",
+    "difficulty": "easy"
+  },
+  "description": "Recipe description",
+  "ingredients": [
+    {
+      "item": "Ingredient name",
+      "amount": 1.0,
+      "unit": "cup",
+      "optional": false,
+      "component": "main"
+    }
+  ],
+  "instructions": [
+    {
+      "step": 1,
+      "description": "Instruction text",
+      "time": "5m"
+    }
+  ],
+  "is_recipe": true
+}
 ```
+
+Schema is strictly validated with automatic retry on validation errors.
 
 ## Native Image
 

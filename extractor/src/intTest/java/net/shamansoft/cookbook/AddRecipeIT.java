@@ -175,7 +175,7 @@ class AddRecipeIT {
                                     "candidates": [{
                                         "content": {
                                             "parts": [{
-                                                "text": "metadata:\\n  title: \\"Chocolate Chip Cookies\\"\\n  source: \\"https://example.com/recipe\\"\\n  date_created: \\"2024-01-15\\"\\n  servings: 24\\n  prep_time: \\"15m\\"\\n  cook_time: \\"12m\\"\\n  total_time: \\"27m\\"\\ndescription: \\"Classic homemade chocolate chip cookies\\"\\ningredients:\\n  - item: \\"All-purpose flour\\"\\n    amount: 2.25\\n    unit: \\"cups\\"\\n  - item: \\"Chocolate chips\\"\\n    amount: 2\\n    unit: \\"cups\\"\\ninstructions:\\n  - step: 1\\n    description: \\"Preheat oven to 375°F\\"\\n  - step: 2\\n    description: \\"Mix ingredients and bake for 12 minutes\\"\\nschema_version: \\"1.0.0\\"\\nrecipe_version: \\"1.0.0\\""
+                                                "text": "{\\"is_recipe\\": true, \\"metadata\\": {\\"title\\": \\"Chocolate Chip Cookies\\", \\"source\\": \\"https://example.com/recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 24, \\"prep_time\\": \\"15m\\", \\"cook_time\\": \\"12m\\", \\"total_time\\": \\"27m\\"}, \\"description\\": \\"Classic homemade chocolate chip cookies\\", \\"ingredients\\": [{\\"item\\": \\"All-purpose flour\\", \\"amount\\": 2.25, \\"unit\\": \\"cups\\"}, {\\"item\\": \\"Chocolate chips\\", \\"amount\\": 2, \\"unit\\": \\"cups\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"Preheat oven to 375°F\\"}, {\\"step\\": 2, \\"description\\": \\"Mix ingredients and bake for 12 minutes\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
                                             }]
                                         }
                                     }]
@@ -465,7 +465,7 @@ class AddRecipeIT {
                                     "candidates": [{
                                         "content": {
                                             "parts": [{
-                                                "text": "This is not a recipe content"
+                                                "text": "{\\"is_recipe\\": false, \\"metadata\\": {\\"title\\": \\"Not a Recipe\\", \\"source\\": \\"https://example.com/not-recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 1}, \\"ingredients\\": [{\\"item\\": \\"placeholder\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"placeholder\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
                                             }]
                                         }
                                     }]

@@ -35,7 +35,6 @@ public class GeminiRestTransformer implements Transformer {
 
     private Response transformInternal(String htmlContent, Recipe previousRecipe, String validationError) {
         try {
-
             GeminiRequest request;
             if (previousRecipe != null && validationError != null) {
                 request = requestBuilder.buildRequest(htmlContent, previousRecipe, validationError);

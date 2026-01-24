@@ -13,6 +13,7 @@ public record GeminiResponse<T>(Code code, T data, String errorMessage) {
     public enum Code {
         SUCCESS,
         BLOCKED,
+        PARSE_ERROR,
         OTHER
     }
 }
