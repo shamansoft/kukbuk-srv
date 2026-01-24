@@ -11,3 +11,8 @@ logging:
     net.shamansoft.cookbook: DEBUG
     com.google.cloud: WARN
     root: WARN
+
+cookbook:
+  html-cleanup:
+    content-filter:
+      min-output-size: 100

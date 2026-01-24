@@ -6,11 +6,11 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.html.HtmlFetcher;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
-import net.shamansoft.cookbook.service.HtmlExtractor;
-import net.shamansoft.cookbook.service.RawContentService;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.StorageService;
@@ -82,7 +82,7 @@ class RecipeControllerSBTest {
     private Compressor compressor;
 
     @MockitoBean
-    private RawContentService rawContentService;
+    private HtmlFetcher htmlFetcher;
 
     @MockitoBean
     private RecipeValidationService validationService;

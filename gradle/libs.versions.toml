@@ -8,8 +8,11 @@ graalvm-buildtools = "0.10.5"
 jacoco = "0.8.11"
 owasp-dependency-check = "10.0.4"
 
+# HTTP Client
+httpclient5 = "5.4.1"
+
 # Main Dependencies
-jsoup = "1.15.3"
+jsoup = "1.17.2"
 google-cloud-firestore = "3.33.4"
 google-cloud-storage = "2.60.0"
 firebase-admin = "9.7.0"
@@ -42,6 +45,10 @@ spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-s
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+micrometer-registry-stackdriver = { module = "io.micrometer:micrometer-registry-stackdriver" }
+
+# HTTP Client (for RestClient connection pooling)
+apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
 
 # Google Cloud
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }

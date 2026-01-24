@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook.service;
+package net.shamansoft.cookbook.html;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

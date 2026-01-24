@@ -1,6 +1,7 @@
-package net.shamansoft.cookbook.service;
+package net.shamansoft.cookbook.html;
 
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.service.Compressor;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;

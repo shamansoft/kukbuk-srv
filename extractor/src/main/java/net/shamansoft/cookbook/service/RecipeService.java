@@ -9,6 +9,8 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.html.HtmlCleaner;
+import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
@@ -35,6 +37,7 @@ public class RecipeService {
     private final RecipeParser recipeParser;
     private final RecipeMapper recipeMapper;
     private final HtmlExtractor htmlExtractor;
+    private final HtmlCleaner htmlPreprocessor;
     private final Transformer transformer;
     private final RecipeValidationService validationService;
 
@@ -69,9 +72,16 @@ public class RecipeService {
         String contentHash = contentHashService.generateContentHash(url);
         Optional<StoredRecipe> stored = recipeStoreService.findStoredRecipeByHash(contentHash);
         if (stored.isEmpty()) {
+            // 1. Extract raw HTML
             String html = htmlExtractor.extractHtml(url, sourceHtml, compression);
             log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
-            var response = transformer.transform(html);
+
+            // 2. Preprocess HTML to reduce token usage
+            HtmlCleaner.Results preprocessed = htmlPreprocessor.process(html, url);
+            log.info("HTML preprocessing - URL: {}, {}", url, preprocessed.metricsMessage());
+
+            // 3. Transform preprocessed HTML to recipe
+            var response = transformer.transform(preprocessed.cleanedHtml());
             if (response.isRecipe()) {
                 // Convert Recipe to YAML for caching
                 String yamlContent = convertRecipeToYaml(response.recipe());

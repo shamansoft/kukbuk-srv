@@ -1,7 +1,8 @@
-package net.shamansoft.cookbook.service;
+package net.shamansoft.cookbook.html;
 
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.service.Compressor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -12,11 +13,11 @@ public class HtmlExtractor {
 
     private final Compressor compressor;
     public static final String NONE = "none";
-    private final RawContentService rawContentService;
+    private final HtmlFetcher htmlFetcher;
 
-    public HtmlExtractor(Compressor compressor, RawContentService rawContentService) {
+    public HtmlExtractor(Compressor compressor, HtmlFetcher htmlFetcher) {
         this.compressor = compressor;
-        this.rawContentService = rawContentService;
+        this.htmlFetcher = htmlFetcher;
     }
 
     public String extractHtml(Request request, String compression) throws IOException {
@@ -38,6 +39,6 @@ public class HtmlExtractor {
             }
         }
         log.debug("No HTML in request, fetching from URL: {}", url);
-        return rawContentService.fetch(url);
+        return htmlFetcher.fetch(url);
     }
 }

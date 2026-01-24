@@ -44,6 +44,9 @@ dependencies {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
+    // Metrics
+    implementation(libs.micrometer.registry.stackdriver)
+
     // SLF4J Simple Logging for native compatibility
     implementation(libs.slf4j.api)
     implementation(libs.slf4j.simple)
