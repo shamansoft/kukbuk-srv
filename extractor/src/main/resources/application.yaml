@@ -153,6 +153,18 @@ cookbook:
     # Default: 0.8
     top-p: 0.8
 
+    # Maximum number of tokens in the model's response
+    # Used by: RequestBuilder.java (@Value("${cookbook.gemini.max-output-tokens}"))
+    # Default: 4096
+    # Range: 1 to 8192 (model-dependent)
+    max-output-tokens: 4096
+
+    # Safety filter threshold for harmful content categories
+    # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
+    # Options: BLOCK_NONE, BLOCK_ONLY_HIGH, BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE
+    # Default: BLOCK_NONE (minimal filtering for recipe content)
+    safety-threshold: "BLOCK_NONE"
+
   # ---------------------------------------------------------------------------
   # GOOGLE DRIVE CONFIGURATION
   # ---------------------------------------------------------------------------

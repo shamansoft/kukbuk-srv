@@ -2,6 +2,8 @@ package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
@@ -9,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service that combines recipe transformation with validation and retry logic.
- * When Gemini produces invalid YAML, it retries with validation feedback.
+ * When Gemini produces invalid Recipe objects, it retries with validation feedback.
  * This is the primary Transformer implementation that should be used by controllers.
  */
 @Service
@@ -31,10 +33,10 @@ public class ValidatingTransformerService implements Transformer {
     private int maxRetries;
 
     /**
-     * Transforms HTML content to validated and normalized recipe YAML.
+     * Transforms HTML content to validated Recipe object.
      * If validation fails, retries with feedback up to max-retries times.
      *
-     * When recipe.llm.retry = 0, validation is skipped entirely and raw YAML is returned.
+     * When recipe.llm.retry = 0, validation is skipped entirely and the raw Recipe is returned.
      * When recipe.llm.retry > 0, validation is performed with the specified number of retry attempts.
      *
      * @param htmlContent the HTML string to transform
@@ -50,9 +52,9 @@ public class ValidatingTransformerService implements Transformer {
             return initialResponse;
         }
 
-        // If maxRetries is 0, skip validation entirely and return raw YAML
+        // If maxRetries is 0, skip validation entirely and return raw Recipe
         if (maxRetries == 0) {
-            log.info("Validation disabled (recipe.llm.retry=0), returning raw YAML");
+            log.info("Validation disabled (recipe.llm.retry=0), returning raw Recipe without validation");
             return initialResponse;
         }
 
@@ -61,29 +63,34 @@ public class ValidatingTransformerService implements Transformer {
     }
 
     private Response validateWithRetry(String htmlContent, Response initialResponse) {
-        String currentYaml = initialResponse.value();
-        RecipeValidationService.ValidationResult validationResult = validationService.validate(currentYaml);
+        Recipe currentRecipe = initialResponse.recipe();
+        RecipeValidationService.ValidationResult validationResult = validationService.validate(currentRecipe);
 
         if (validationResult.isValid()) {
-            log.info("Recipe YAML validated successfully on first attempt");
-            return new Response(true, validationResult.getNormalizedYaml());
+            log.info("Recipe validated successfully on first attempt - Title: '{}'",
+                    currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
+            return Response.recipe(validationResult.getRecipe());
         }
 
-        log.warn("Initial recipe YAML failed validation - Will retry up to {} times. Error: {}",
+        log.warn("Initial Recipe failed validation - Will retry up to {} times. Error:\n{}", 
             maxRetries,
             validationResult.getErrorMessage());
-        log.error("Full YAML content that failed initial validation:\n{}", currentYaml);
+        logRecipeDetails(currentRecipe, "initial validation failure");
 
         // Retry with feedback
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            log.info("Retry attempt {}/{} - Sending validation feedback to Gemini: {}",
+            String errorPreview = validationResult.getErrorMessage().substring(
+                    0, Math.min(200, validationResult.getErrorMessage().length())
+            );
+            log.info("Retry attempt {}/{} - Sending validation feedback to Gemini: {}{}", 
                 attempt,
                 maxRetries,
-                validationResult.getErrorMessage().substring(0, Math.min(200, validationResult.getErrorMessage().length())));
+                    errorPreview,
+                    validationResult.getErrorMessage().length() > 200 ? "..." : "");
 
             Response retryResponse = geminiTransformer.transformWithFeedback(
                     htmlContent,
-                    currentYaml,
+                    currentRecipe,
                     validationResult.getErrorMessage()
             );
 
@@ -95,24 +102,46 @@ public class ValidatingTransformerService implements Transformer {
                 return retryResponse;
             }
 
-            currentYaml = retryResponse.value();
-            validationResult = validationService.validate(currentYaml);
+            currentRecipe = retryResponse.recipe();
+            validationResult = validationService.validate(currentRecipe);
 
             if (validationResult.isValid()) {
-                log.info("Recipe YAML validated successfully after {} retry attempts", attempt);
-                return new Response(true, validationResult.getNormalizedYaml());
+                log.info("Recipe validated successfully after {} retry attempt(s) - Title: '{}'",
+                        attempt,
+                        currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
+                return Response.recipe(validationResult.getRecipe());
             }
 
-            log.warn("Retry attempt {} failed validation: {}", attempt, validationResult.getErrorMessage());
-            log.error("Full YAML content that failed validation (attempt {}):\n{}", attempt, currentYaml);
+            log.warn("Retry attempt {}/{} failed validation:\n{}", attempt, maxRetries, validationResult.getErrorMessage());
+            logRecipeDetails(currentRecipe, "retry attempt " + attempt);
         }
 
-        // All retries exhausted, return the last attempt with warning
-        log.error("VALIDATION FAILED after {} retry attempts. Final error: {}. Returning as NOT a recipe.",
+        // All retries exhausted, return as non-recipe since validation failed
+        log.error("VALIDATION FAILED after {} retry attempt(s). Final error:\n{}", 
             maxRetries,
             validationResult.getErrorMessage());
-        log.error("Full YAML content that failed all validation attempts:\n{}", currentYaml);
+        log.error("Recipe that failed all validation attempts - Title: '{}'",
+                currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
+        logRecipeDetails(currentRecipe, "all validation attempts");
+
         // Return as non-recipe since validation failed
-        return new Response(false, currentYaml);
+        return Response.notRecipe();
+    }
+
+    /**
+     * Logs detailed information about a Recipe for debugging purposes.
+     * Includes conversion to YAML for inspection.
+     */
+    private void logRecipeDetails(Recipe recipe, String context) {
+        try {
+            String yamlContent = validationService.toYaml(recipe);
+            log.error("Recipe YAML that failed {} (first 500 chars):\n{}{}",
+                    context,
+                    yamlContent.substring(0, Math.min(500, yamlContent.length())),
+                    yamlContent.length() > 500 ? "\n... (truncated)" : "");
+        } catch (RecipeSerializeException e) {
+            log.error("Failed to serialize Recipe to YAML for logging ({}): {}", context, e.getMessage());
+            log.error("Recipe object toString: {}", recipe);
+        }
     }
 }

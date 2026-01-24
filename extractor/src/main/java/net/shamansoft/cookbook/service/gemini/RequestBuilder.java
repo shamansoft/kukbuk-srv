@@ -1,30 +1,38 @@
 package net.shamansoft.cookbook.service.gemini;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import net.shamansoft.cookbook.service.ResourcesLoader;
+import net.shamansoft.recipe.model.Recipe;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class RequestBuilder {
 
     private String prompt;
-    private String exampleYaml;
-    private String jsonSchema;
+    private String validationPrompt;
+    private Object parsedJsonSchema;
 
     @Value("${cookbook.gemini.temperature}")
     private float temperature;
     @Value("${cookbook.gemini.top-p}")
     private float topP;
+    @Value("${cookbook.gemini.max-output-tokens}")
+    private int maxOutputTokens;
+    @Value("${cookbook.gemini.safety-threshold}")
+    private String safetyThreshold;
 
     private final ResourcesLoader resourceLoader;
     private final ObjectMapper objectMapper;
@@ -32,9 +40,22 @@ public class RequestBuilder {
     @PostConstruct
     @SneakyThrows
     public void init() {
-        this.prompt = resourceLoader.loadYaml("classpath:prompt.md");
-        this.jsonSchema = resourceLoader.loadYaml("classpath:recipe-schema-1.0.0.json");
-        this.exampleYaml = resourceLoader.loadYaml("classpath:example.yaml");
+        this.prompt = resourceLoader.loadTextFile("classpath:prompt.md");
+        this.validationPrompt = resourceLoader.loadTextFile("classpath:prompt_with_validation.md");
+        String jsonSchemaString = loadSchema();
+        this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
+    }
+
+    private String loadSchema() throws IOException {
+        String jsonSchemaString = resourceLoader.loadTextFile("classpath:recipe-schema-1.0.0.json");
+        // Parse JSON schema and remove $id and $schema fields as they're not needed for Gemini API
+        JsonNode schemaNode = objectMapper.readTree(jsonSchemaString);
+        if (schemaNode instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
+            objectNode.remove("$id");
+            objectNode.remove("$schema");
+            return objectMapper.writeValueAsString(objectNode);
+        }
+        return jsonSchemaString;
     }
 
     private String withDate() {
@@ -42,37 +63,32 @@ public class RequestBuilder {
         return today.format(DateTimeFormatter.ISO_LOCAL_DATE); // YYYY-MM-DD
     }
 
-    String withHtml(String html) {
-        return prompt.formatted(withDate(), jsonSchema, exampleYaml, html);
+    private String withHtml(String html) {
+        // Note: prompt still references schema as string for documentation, but we use parsedJsonSchema in the request
+        return prompt.formatted(withDate(), html);
     }
 
-    String withHtmlAndFeedback(String html, String previousYaml, String validationError) {
+    private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError) throws JsonProcessingException {
         String basePrompt = withHtml(html);
-        StringBuilder feedbackPrompt = new StringBuilder(basePrompt);
-        feedbackPrompt.append("\n\n---VALIDATION FEEDBACK---\n\n");
-        feedbackPrompt.append("Your previous attempt produced YAML that failed validation:\n\n");
-        feedbackPrompt.append("Previous YAML (for reference):\n");
-        feedbackPrompt.append(previousYaml);
-        feedbackPrompt.append("\n\nValidation Error:\n");
-        feedbackPrompt.append(validationError);
-        feedbackPrompt.append("\n\nIMPORTANT: Please correct these issues and provide a valid recipe YAML that conforms to the schema.");
-        feedbackPrompt.append("\nREMINDER: Output ONLY the YAML content - DO NOT wrap it in markdown code fences (```yaml).");
-        feedbackPrompt.append("\nStart your response directly with 'schema_version:' and nothing else before it.");
-        return feedbackPrompt.toString();
+        return basePrompt + validationPrompt.formatted(validationError, objectMapper.writeValueAsString(previousRecipe));
     }
 
-    public String buildBodyString(String htmlContent) throws JsonProcessingException {
+    public GeminiRequest buildRequest(String htmlContent) throws JsonProcessingException {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
         String fullPrompt = withHtml(htmlContent);
-        return buildRequestBody(fullPrompt);
+        return buildRequestBodyWithSchema(fullPrompt);
     }
 
-    public String buildBodyStringWithFeedback(String htmlContent, String previousYaml, String validationError) throws JsonProcessingException {
-        String fullPrompt = withHtmlAndFeedback(htmlContent, previousYaml, validationError);
-        return buildRequestBody(fullPrompt);
+    public GeminiRequest buildRequest(String htmlContent, Recipe feedback, String validationError) throws JsonProcessingException {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
+        Objects.requireNonNull(feedback, "feedback cannot be null");
+        Objects.requireNonNull(validationError, "validationError cannot be null");
+        String fullPrompt = withHtmlAndFeedback(htmlContent, feedback, validationError);
+        return buildRequestBodyWithSchema(fullPrompt);
     }
 
-    private String buildRequestBody(String fullPrompt) throws JsonProcessingException {
-        GeminiRequest request = GeminiRequest.builder()
+    private GeminiRequest buildRequestBodyWithSchema(String fullPrompt) throws JsonProcessingException {
+        return GeminiRequest.builder()
                 .contents(List.of(
                         GeminiRequest.Content.builder()
                                 .parts(List.of(
@@ -85,16 +101,17 @@ public class RequestBuilder {
                 .generationConfig(GeminiRequest.GenerationConfig.builder()
                         .temperature(temperature)
                         .topP(topP)
-                        .maxOutputTokens(4096)
+                        .maxOutputTokens(maxOutputTokens)
+                        .responseMimeType("application/json")
+                        .responseSchema(parsedJsonSchema)
                         .build())
                 .safetySettings(List.of(
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HATE_SPEECH").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_SEXUALLY_EXPLICIT").threshold("BLOCK_NONE").build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_DANGEROUS_CONTENT").threshold("BLOCK_NONE").build()
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HATE_SPEECH").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_SEXUALLY_EXPLICIT").threshold(safetyThreshold).build(),
+                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_DANGEROUS_CONTENT").threshold(safetyThreshold).build()
                 ))
                 .build();
-        return objectMapper.writeValueAsString(request);
     }
 
 }

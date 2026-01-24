@@ -11,9 +11,8 @@ public class ResourcesLoader {
 
     private final org.springframework.core.io.ResourceLoader resourceLoader;
 
-    public String loadYaml(String resourceName) throws IOException {
-        String content = resourceLoader.getResource(resourceName)
+    public String loadTextFile(String resourceName) throws IOException {
+        return resourceLoader.getResource(resourceName)
                 .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
-        return content;
     }
 }

@@ -1,345 +1,282 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import net.shamansoft.cookbook.client.ClientException;
-import net.shamansoft.cookbook.service.CleanupService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.io.IOException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class GeminiRestTransformerTest {
 
     @Mock
-    private WebClient geminiWebClient;
+    private GeminiClient geminiClient;
 
     @Mock
     private RequestBuilder requestBuilder;
 
-    @Mock
-    private CleanupService cleanupService;
-
-    @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
-
-    @Mock
-    private WebClient.RequestBodySpec requestBodySpec;
-
-    @Mock
-    private WebClient.RequestHeadersSpec requestHeadersSpec;
-
-    @Mock
-    private WebClient.ResponseSpec responseSpec;
-
-    private ObjectMapper testObjectMapper = new ObjectMapper();
-
-    @InjectMocks
-    private GeminiRestTransformer geminiRestTransformer;
+    private GeminiRestTransformer transformer;
 
     @BeforeEach
-    void setUp() throws IOException {
-        // Setup common WebClient mocking
-        when(geminiWebClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+    void setUp() {
+        transformer = new GeminiRestTransformer(geminiClient, requestBuilder);
+    }
 
-        // Mock requestBuilder to return non-null body
-        // Use lenient() since transformWithFeedback test uses buildBodyStringWithFeedback instead
-        lenient().when(requestBuilder.buildBodyString(anyString())).thenReturn("{}");
+    private Recipe createTestRecipe(String title, boolean isRecipe) {
+        RecipeMetadata metadata = new RecipeMetadata(
+                title,
+                "https://example.com",
+                "Test Author",
+                "en",
+                null,
+                null,
+                null,
+                4,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        List<Ingredient> ingredients = List.of(
+                new Ingredient("Sugar", "1", "cup", null, null, null, null)
+        );
+
+        List<Instruction> instructions = List.of(
+                new Instruction(1, "Mix ingredients", null, null, null)
+        );
+
+        return new Recipe(
+                isRecipe,
+                "1.0.0",
+                "1.0.0",
+                metadata,
+                null,
+                ingredients,
+                null,
+                instructions,
+                null,
+                null,
+                null
+        );
     }
 
     @Test
-    void transformReturnsValidResponseWhenCandidatesExist() {
-        String htmlContent = "<html>Test content</html>";
-        String yamlContent = "is_recipe: true\ntitle: Valid Recipe";
+    void transformSuccessfullyReturnsRecipe() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        Recipe expectedRecipe = createTestRecipe("Test Recipe", true);
 
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        ObjectNode contentNode = testObjectMapper.createObjectNode();
-        ObjectNode partNode = testObjectMapper.createObjectNode();
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.success(expectedRecipe));
 
-        partNode.put("text", yamlContent);
-        contentNode.set("parts", testObjectMapper.createArrayNode().add(partNode));
-        candidateNode.set("content", contentNode);
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
+        // When
+        Transformer.Response response = transformer.transform(htmlContent);
 
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipe()).isEqualTo(expectedRecipe);
+        assertThat(response.recipe().metadata().title()).isEqualTo("Test Recipe");
 
-        Transformer.Response result = geminiRestTransformer.transform(htmlContent);
-
-        assertThat(result.isRecipe()).isTrue();
-        assertThat(result.value()).isEqualTo(yamlContent);
+        verify(requestBuilder).buildRequest(eq(htmlContent));
+        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
     }
 
     @Test
-    void transformThrowsExceptionWhenResponseIsNull() {
-        String htmlContent = "<html>Test content</html>";
+    void transformReturnsNonRecipeWhenIsRecipeIsFalse() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Not a recipe</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        Recipe nonRecipe = createTestRecipe("Not a recipe", false);
 
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.empty());
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.success(nonRecipe));
 
-        assertThatThrownBy(() -> geminiRestTransformer.transform(htmlContent))
+        // When
+        Transformer.Response response = transformer.transform(htmlContent);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isFalse();
+        assertThat(response.recipe()).isEqualTo(nonRecipe);
+    }
+
+    @Test
+    void transformWithFeedbackUsesCorrectRequestBuilder() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        Recipe previousRecipe = createTestRecipe("Previous Recipe", true);
+        String validationError = "Missing required field: instructions";
+
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        Recipe correctedRecipe = createTestRecipe("Corrected Recipe", true);
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
+                .thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.success(correctedRecipe));
+
+        // When
+        Transformer.Response response = transformer.transformWithFeedback(htmlContent, previousRecipe, validationError);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipe()).isEqualTo(correctedRecipe);
+
+        verify(requestBuilder).buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError));
+        verify(requestBuilder, never()).buildRequest(anyString());
+        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
+    }
+
+    @Test
+    void transformThrowsExceptionWhenGeminiReturnsBlockedCode() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Content blocked by safety filter"));
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transform(htmlContent))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+
+        verify(requestBuilder).buildRequest(eq(htmlContent));
+        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
+    }
+
+    @Test
+    void transformThrowsExceptionWhenGeminiReturnsOtherErrorCode() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.OTHER, "Network error"));
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transform(htmlContent))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Gemini Client returned error code: OTHER");
+    }
+
+    @Test
+    void transformThrowsExceptionWhenRequestBuilderFailsWithJsonProcessingException() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+
+        when(requestBuilder.buildRequest(eq(htmlContent)))
+                .thenThrow(new JsonProcessingException("Failed to serialize request") {});
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transform(htmlContent))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Failed to transform content via Gemini API")
+                .hasCauseInstanceOf(JsonProcessingException.class);
+
+        verify(requestBuilder).buildRequest(eq(htmlContent));
+        verify(geminiClient, never()).request(any(), any());
+    }
+
+    @Test
+    void transformWithFeedbackThrowsExceptionWhenRequestBuilderFails() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        Recipe previousRecipe = createTestRecipe("Test", true);
+        String validationError = "Error";
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
+                .thenThrow(new JsonProcessingException("Failed to serialize") {});
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transformWithFeedback(htmlContent, previousRecipe, validationError))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to transform content via Gemini API");
+
+        verify(geminiClient, never()).request(any(), any());
     }
 
     @Test
-    void transformThrowsExceptionWhenCandidatesAreMissing() {
-        String htmlContent = "<html>Test content</html>";
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
+    void transformHandlesComplexRecipe() throws JsonProcessingException {
+        // Given
+        String htmlContent = "<html><body>Complex recipe</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
 
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
+        RecipeMetadata metadata = new RecipeMetadata(
+                "Complex Recipe",
+                "https://example.com",
+                null,
+                null,
+                null,
+                null,
+                null,
+                4,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
 
-        assertThatThrownBy(() -> geminiRestTransformer.transform(htmlContent))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Failed to transform content via Gemini API");
+        List<Ingredient> ingredients = List.of(
+                new Ingredient("Flour", "2", "cups", null, null, null, null),
+                new Ingredient("Sugar", "1", "cup", null, null, null, null),
+                new Ingredient("Eggs", "3", null, null, null, null, null)
+        );
+
+        List<Instruction> instructions = List.of(
+                new Instruction(1, "Mix ingredients", null, null, null)
+        );
+
+        Recipe complexRecipe = new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                metadata,
+                null,
+                ingredients,
+                null,
+                instructions,
+                null,
+                null,
+                null
+        );
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+                .thenReturn(GeminiResponse.success(complexRecipe));
+
+        // When
+        Transformer.Response response = transformer.transform(htmlContent);
+
+        // Then
+        assertThat(response).isNotNull();
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipe().ingredients()).hasSize(3);
+        assertThat(response.recipe().ingredients().get(0).item()).isEqualTo("Flour");
     }
-
-    @Test
-    void transformReturnsNonRecipeWhenYamlIndicatesFalse() {
-        String htmlContent = "<html>Test content</html>";
-        String yamlContent = "is_recipe: false\ntitle: Not a Recipe";
-
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        ObjectNode contentNode = testObjectMapper.createObjectNode();
-        ObjectNode partNode = testObjectMapper.createObjectNode();
-
-        partNode.put("text", yamlContent);
-        contentNode.set("parts", testObjectMapper.createArrayNode().add(partNode));
-        candidateNode.set("content", contentNode);
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform(htmlContent);
-
-        assertThat(result.isRecipe()).isFalse();
-        assertThat(result.value()).isEqualTo(yamlContent);
-    }
-
-    @Test
-    void transformHandlesMalformedCandidateContent() {
-        String htmlContent = "<html>Test content</html>";
-
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        candidateNode.set("content", testObjectMapper.createObjectNode()); // Missing parts
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-
-        assertThatThrownBy(() -> geminiRestTransformer.transform(htmlContent))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Failed to transform content via Gemini API");
-    }
-
-    @Test
-    void transformWithFeedback_shouldCallGeminiWithFeedback() throws IOException {
-        String htmlContent = "<html>Recipe</html>";
-        String previousYaml = "invalid: yaml";
-        String validationError = "Missing required fields";
-        String correctedYaml = "schema_version: \"1.0.0\"\ntitle: Fixed";
-
-        // Stub the feedback method for this test
-        when(requestBuilder.buildBodyStringWithFeedback(anyString(), anyString(), anyString())).thenReturn("{}");
-
-        ObjectNode responseNode = createBasicResponse(correctedYaml);
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(correctedYaml)).thenReturn(correctedYaml);
-
-        Transformer.Response result = geminiRestTransformer.transformWithFeedback(
-                htmlContent, previousYaml, validationError);
-
-        assertThat(result.isRecipe()).isTrue();
-        verify(requestBuilder).buildBodyStringWithFeedback(eq(htmlContent), eq(previousYaml), eq(validationError));
-    }
-
-    @Test
-    void transform_shouldLogFinishReason_whenPresent() {
-        String yamlContent = "schema_version: \"1.0.0\"";
-        ObjectNode responseNode = createResponseWithFinishReason(yamlContent, "STOP");
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.isRecipe()).isTrue();
-    }
-
-    @Test
-    void transform_shouldWarnOnTruncation_whenFinishReasonIsNotStop() {
-        String yamlContent = "schema_version: \"1.0.0\"";
-        ObjectNode responseNode = createResponseWithFinishReason(yamlContent, "MAX_TOKENS");
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.isRecipe()).isTrue();
-    }
-
-    @Test
-    void transform_shouldLogSafetyRatings_whenPresent() {
-        String yamlContent = "schema_version: \"1.0.0\"";
-        ObjectNode responseNode = createBasicResponse(yamlContent);
-
-        // Add safety ratings
-        ObjectNode candidateNode = (ObjectNode) responseNode.get("candidates").get(0);
-        ArrayNode safetyRatings = testObjectMapper.createArrayNode();
-        ObjectNode rating = testObjectMapper.createObjectNode();
-        rating.put("category", "HARM_CATEGORY_HATE_SPEECH");
-        rating.put("probability", "NEGLIGIBLE");
-        safetyRatings.add(rating);
-        candidateNode.set("safetyRatings", safetyRatings);
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.isRecipe()).isTrue();
-    }
-
-    @Test
-    void transform_shouldLogPromptFeedback_whenPresent() {
-        String yamlContent = "schema_version: \"1.0.0\"";
-        ObjectNode responseNode = createBasicResponse(yamlContent);
-
-        ObjectNode promptFeedback = testObjectMapper.createObjectNode();
-        promptFeedback.put("safetyRatings", "info");
-        responseNode.set("promptFeedback", promptFeedback);
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.isRecipe()).isTrue();
-    }
-
-    @Test
-    void transform_shouldLogBlockReason_whenResponseIsBlocked() {
-        String yamlContent = "schema_version: \"1.0.0\"";
-        ObjectNode responseNode = createBasicResponse(yamlContent);
-
-        ObjectNode promptFeedback = testObjectMapper.createObjectNode();
-        promptFeedback.put("blockReason", "SAFETY");
-        responseNode.set("promptFeedback", promptFeedback);
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(yamlContent)).thenReturn(yamlContent);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.isRecipe()).isTrue();
-    }
-
-    @Test
-    void transform_shouldConcatenateMultipleParts() {
-        String part1 = "schema_version: \"1.0.0\"\n";
-        String part2 = "title: Recipe\n";
-        String part3 = "description: Test";
-        String expectedYaml = part1 + part2 + part3;
-
-        ObjectNode responseNode = createResponseWithMultipleParts(part1, part2, part3);
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(expectedYaml)).thenReturn(expectedYaml);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.value()).isEqualTo(expectedYaml);
-    }
-
-    @Test
-    void transform_shouldSkipPartsWithoutTextField() {
-        String validText = "schema_version: \"1.0.0\"";
-
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        ObjectNode contentNode = testObjectMapper.createObjectNode();
-
-        ArrayNode partsArray = testObjectMapper.createArrayNode();
-        ObjectNode partWithText = testObjectMapper.createObjectNode();
-        partWithText.put("text", validText);
-        ObjectNode partWithoutText = testObjectMapper.createObjectNode();
-        partWithoutText.put("other", "value"); // No "text" field
-        partsArray.add(partWithText).add(partWithoutText);
-
-        contentNode.set("parts", partsArray);
-        candidateNode.set("content", contentNode);
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
-
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
-        when(cleanupService.removeYamlSign(validText)).thenReturn(validText);
-
-        Transformer.Response result = geminiRestTransformer.transform("<html>Recipe</html>");
-
-        assertThat(result.value()).isEqualTo(validText);
-    }
-
-    // Helper methods
-    private ObjectNode createBasicResponse(String yamlContent) {
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        ObjectNode contentNode = testObjectMapper.createObjectNode();
-        ObjectNode partNode = testObjectMapper.createObjectNode();
-        partNode.put("text", yamlContent);
-        contentNode.set("parts", testObjectMapper.createArrayNode().add(partNode));
-        candidateNode.set("content", contentNode);
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
-        return responseNode;
-    }
-
-    private ObjectNode createResponseWithFinishReason(String yamlContent, String finishReason) {
-        ObjectNode responseNode = createBasicResponse(yamlContent);
-        ObjectNode candidateNode = (ObjectNode) responseNode.get("candidates").get(0);
-        candidateNode.put("finishReason", finishReason);
-        return responseNode;
-    }
-
-    private ObjectNode createResponseWithMultipleParts(String... parts) {
-        ObjectNode responseNode = testObjectMapper.createObjectNode();
-        ObjectNode candidateNode = testObjectMapper.createObjectNode();
-        ObjectNode contentNode = testObjectMapper.createObjectNode();
-
-        ArrayNode partsArray = testObjectMapper.createArrayNode();
-        for (String part : parts) {
-            ObjectNode partNode = testObjectMapper.createObjectNode();
-            partNode.put("text", part);
-            partsArray.add(partNode);
-        }
-
-        contentNode.set("parts", partsArray);
-        candidateNode.set("content", contentNode);
-        responseNode.set("candidates", testObjectMapper.createArrayNode().add(candidateNode));
-        return responseNode;
-    }
-
 }

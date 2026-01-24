@@ -5,6 +5,10 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +67,8 @@ class RecipeServiceCreateRecipeTest {
     private HtmlExtractor htmlExtractor;
     @Mock
     private Transformer transformer;
+    @Mock
+    private RecipeValidationService validationService;
 
     @InjectMocks
     private RecipeService recipeService;
@@ -82,13 +90,15 @@ class RecipeServiceCreateRecipeTest {
 
     @Test
     @DisplayName("Should create recipe and upload to Drive when HTML transforms into valid recipe")
-    void shouldCreateRecipeAndUploadToDrive() throws IOException {
+    void shouldCreateRecipeAndUploadToDrive() throws Exception {
         // Given
+        Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
@@ -119,7 +129,7 @@ class RecipeServiceCreateRecipeTest {
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(false, "raw text"));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.notRecipe());
 
         // When
         RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
@@ -136,8 +146,9 @@ class RecipeServiceCreateRecipeTest {
 
     @Test
     @DisplayName("Should use cached result when recipe already stored")
-    void shouldUseCachedResult() throws IOException {
+    void shouldUseCachedResult() throws Exception {
         // Given
+        Recipe testRecipe = createTestRecipe();
         StoredRecipe storedRecipe = mock(StoredRecipe.class);
         when(storedRecipe.isValid()).thenReturn(true);
         when(storedRecipe.getRecipeYaml()).thenReturn(YAML);
@@ -145,6 +156,8 @@ class RecipeServiceCreateRecipeTest {
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.of(storedRecipe));
+        when(recipeParser.parse(YAML)).thenReturn(testRecipe);
+        when(validationService.toYaml(testRecipe)).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
@@ -160,19 +173,22 @@ class RecipeServiceCreateRecipeTest {
         // Should NOT extract HTML or transform when cached
         verify(htmlExtractor, never()).extractHtml(any(), any(), any());
         verify(transformer, never()).transform(any());
+        verify(recipeParser).parse(YAML);
         verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
     }
 
     @Test
     @DisplayName("Should respect compression parameter")
-    void shouldRespectCompressionParameter() throws IOException {
+    void shouldRespectCompressionParameter() throws Exception {
         // Given
+        Recipe testRecipe = createTestRecipe();
         String compression = "gzip";
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, compression)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
@@ -238,13 +254,15 @@ class RecipeServiceCreateRecipeTest {
 
     @Test
     @DisplayName("Should propagate RuntimeException from Drive upload")
-    void shouldPropagateDriveUploadException() throws IOException {
+    void shouldPropagateDriveUploadException() throws Exception {
         // Given
+        Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenThrow(new RuntimeException("Drive upload failed"));
@@ -261,7 +279,6 @@ class RecipeServiceCreateRecipeTest {
         // Given
         StoredRecipe storedRecipe = mock(StoredRecipe.class);
         when(storedRecipe.isValid()).thenReturn(false);
-        when(storedRecipe.getRecipeYaml()).thenReturn("not a recipe");
 
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
@@ -273,5 +290,35 @@ class RecipeServiceCreateRecipeTest {
         // Then
         assertThat(response.isRecipe()).isFalse();
         verify(driveService, never()).uploadRecipeYaml(any(), any(), any(), any());
+    }
+
+    private Recipe createTestRecipe() {
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                new RecipeMetadata(
+                        TITLE,
+                        null,
+                        "Test Author",
+                        null,
+                        LocalDate.now(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                "Test description",
+                List.of(new Ingredient("flour", "100g", null, null, null, null, null)),
+                List.of("bowl"),
+                List.of(new Instruction(null, "Mix ingredients", null, null, null)),
+                null,
+                "Test notes",
+                null
+        );
     }
 }

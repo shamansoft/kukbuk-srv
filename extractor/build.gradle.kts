@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.owasp.dependency.check)
 }
 
-version = "0.8.5-SNAPSHOT"
+version = "0.9.0-SNAPSHOT"
 
 springBoot {
     buildInfo()   // This will generate a build-info.properties file with accurate values
@@ -86,6 +86,11 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 tasks.named<Test>("test") {
     useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport) // Generate report after tests run
+}
+
+// Disable AOT processing for tests to avoid bean definition conflicts
+tasks.named("processTestAot") {
+    enabled = false
 }
 
 // Integration test task

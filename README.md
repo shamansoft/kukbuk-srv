@@ -1,17 +1,23 @@
 # Cookbook Project
 
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
-A recipe extraction and management system with a Java Spring Boot backend, featuring automated CI/CD pipelines, GraalVM native image compilation, and deployment to Google Cloud Run.
+![Coverage](https://img.shields.io/badge/coverage-40%25+-yellow)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen)
+![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
+
+A recipe extraction and management system with a Java Spring Boot backend, featuring automated CI/CD pipelines, GraalVM
+native image compilation, and deployment to Google Cloud Run. Current version: **0.9.0-SNAPSHOT**
 
 ## Technologies
 
-- **Java 21** with Spring Boot for the REST API
+- **Java 21** with Spring Boot 3.4.2 for the REST API
+- **Gradle 9.2.0** for building and dependency management
 - **GraalVM Native Image** for fast startup and low memory footprint
-- **Gradle** for building and dependency management
+- **Gemini AI** (gemini-2.5-flash-lite) for intelligent recipe extraction
 - **Docker** for containerization
-- **GitHub Actions** for CI/CD automation
+- **GitHub Actions** for CI/CD automation (Java 25 for builds)
 - **OpenTofu/Terraform** for infrastructure as code
-- **Google Cloud Platform** (Cloud Run, Firestore, Secret Manager)
+- **Google Cloud Platform** (Cloud Run, Firestore, Secret Manager, KMS)
 
 ## CI/CD Workflow
 
@@ -65,9 +71,10 @@ When PR is merged to `main`:
 ### Version Management
 
 - Versions follow **Maven/Gradle conventions**: `X.Y.Z-SNAPSHOT`
-- Development uses `-SNAPSHOT` suffix (e.g., `0.6.6-SNAPSHOT`)
-- Releases remove `-SNAPSHOT` (e.g., `0.6.5`)
-- Patch version auto-incremented after each release
+- Current development version: `0.9.0-SNAPSHOT`
+- Development uses `-SNAPSHOT` suffix
+- Releases remove `-SNAPSHOT` (e.g., `0.9.0` when deployed)
+- Version auto-incremented after each release (e.g., to `0.9.1-SNAPSHOT`)
 - Version managed by `extractor/scripts/version-updater.sh`
 
 ### Manual Deployment Triggers

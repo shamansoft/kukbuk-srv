@@ -11,6 +11,7 @@ import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -35,6 +36,7 @@ public class RecipeService {
     private final RecipeMapper recipeMapper;
     private final HtmlExtractor htmlExtractor;
     private final Transformer transformer;
+    private final RecipeValidationService validationService;
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
@@ -51,8 +53,10 @@ public class RecipeService {
                 .isRecipe(recipe.isRecipe());
         if (recipe.isRecipe()) {
             String fileName = googleDriveService.generateFileName(title);
+            // Convert Recipe object to YAML for storage
+            String yamlContent = convertRecipeToYaml(recipe.recipe());
             DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
-                    storage.accessToken(), storage.folderId(), fileName, recipe.value());
+                    storage.accessToken(), storage.folderId(), fileName, yamlContent);
             responseBuilder.driveFileId(uploadResult.fileId())
                     .driveFileUrl(uploadResult.fileUrl());
         } else {
@@ -69,7 +73,9 @@ public class RecipeService {
             log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
             var response = transformer.transform(html);
             if (response.isRecipe()) {
-                recipeStoreService.storeValidRecipe(contentHash, url, response.value());
+                // Convert Recipe to YAML for caching
+                String yamlContent = convertRecipeToYaml(response.recipe());
+                recipeStoreService.storeValidRecipe(contentHash, url, yamlContent);
             } else {
                 log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", url, contentHash);
                 recipeStoreService.storeInvalidRecipe(contentHash, url);
@@ -77,7 +83,13 @@ public class RecipeService {
             return response;
         } else {
             StoredRecipe storedRecipe = stored.get();
-            return new Transformer.Response(storedRecipe.isValid(), storedRecipe.getRecipeYaml());
+            if (storedRecipe.isValid()) {
+                // Parse cached YAML back to Recipe object
+                Recipe recipe = recipeParser.parse(storedRecipe.getRecipeYaml());
+                return Transformer.Response.recipe(recipe);
+            } else {
+                return Transformer.Response.notRecipe();
+            }
         }
     }
 
@@ -214,5 +226,23 @@ public class RecipeService {
      * @param nextPageToken Token for next page (null if no more pages)
      */
     public record RecipeListResult(List<RecipeDto> recipes, String nextPageToken) {
+    }
+
+    /**
+     * Converts a Recipe object to YAML format for storage.
+     * Handles serialization errors gracefully.
+     *
+     * @param recipe the Recipe object to convert
+     * @return YAML string representation
+     * @throws RuntimeException if serialization fails
+     */
+    private String convertRecipeToYaml(Recipe recipe) {
+        try {
+            return validationService.toYaml(recipe);
+        } catch (RecipeSerializeException e) {
+            log.error("Failed to serialize Recipe to YAML - Title: {}",
+                    recipe.metadata() != null ? recipe.metadata().title() : "N/A", e);
+            throw new RuntimeException("Failed to convert recipe to YAML for storage", e);
+        }
     }
 }

@@ -3,3 +3,6 @@ logging:
     net.shamansoft: DEBUG
     com.google.cloud: WARN
     root: INFO
+recipe:
+  store:
+    enabled: false

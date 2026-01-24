@@ -18,11 +18,14 @@ public class ServiceConfig {
 
 
     static String hideKey(ClientRequest clientRequest) {
-        return clientRequest.url().getPath()
-                + "?"
-                + clientRequest.url()
-                .getQuery()
-                .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
+        if (clientRequest.url().getQuery() != null && clientRequest.url().getQuery().contains("key=")) {
+            return clientRequest.url().getPath()
+                    + "?"
+                    + clientRequest.url()
+                    .getQuery()
+                    .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
+        }
+        return clientRequest.url().getPath();
     }
 
     // shows first 3 chars of the key and last 3 chars, e.g. "abc***xyz"

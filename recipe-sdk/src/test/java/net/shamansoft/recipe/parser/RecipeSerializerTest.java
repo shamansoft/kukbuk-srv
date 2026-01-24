@@ -1,6 +1,15 @@
 package net.shamansoft.recipe.parser;
 
-import net.shamansoft.recipe.model.*;
+import net.shamansoft.recipe.model.CoverImage;
+import net.shamansoft.recipe.model.ImageMedia;
+import net.shamansoft.recipe.model.Ingredient;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Nutrition;
+import net.shamansoft.recipe.model.Recipe;
+import net.shamansoft.recipe.model.RecipeMetadata;
+import net.shamansoft.recipe.model.Storage;
+import net.shamansoft.recipe.model.Substitution;
+import net.shamansoft.recipe.model.VideoMedia;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +32,7 @@ class RecipeSerializerTest {
     @Test
     void shouldSerializeSimpleRecipe() throws RecipeSerializeException {
         Recipe recipe = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(
@@ -62,6 +72,7 @@ class RecipeSerializerTest {
     @Test
     void shouldSerializeComplexRecipe() throws RecipeSerializeException {
         Recipe recipe = new Recipe(
+                true,
                 "1.0.0",
                 "1.1.0",
                 new RecipeMetadata(
@@ -121,6 +132,7 @@ class RecipeSerializerTest {
     @Test
     void shouldSerializeToFile() throws Exception {
         Recipe recipe = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(
@@ -159,6 +171,7 @@ class RecipeSerializerTest {
     @Test
     void shouldSerializeToWriter() throws Exception {
         Recipe recipe = new Recipe(
+                true,
                 "1.0.0",
                 "1.0.0",
                 new RecipeMetadata(
