@@ -360,7 +360,7 @@ jobs:
     if: |
       github.ref == 'refs/heads/main' &&
       always() &&
-      inputs.include_finalize != false &&
+      (github.event_name == 'push' || inputs.include_finalize != false) &&
       needs.test.result == 'success' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
       (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
