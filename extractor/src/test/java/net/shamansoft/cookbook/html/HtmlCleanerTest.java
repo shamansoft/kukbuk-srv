@@ -5,14 +5,15 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
+import net.shamansoft.cookbook.html.strategy.Strategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static net.shamansoft.cookbook.html.HtmlCleaner.Strategy.CONTENT_FILTER;
-import static net.shamansoft.cookbook.html.HtmlCleaner.Strategy.FALLBACK;
+import static net.shamansoft.cookbook.html.strategy.Strategy.CONTENT_FILTER;
+import static net.shamansoft.cookbook.html.strategy.Strategy.FALLBACK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -68,7 +69,14 @@ class HtmlCleanerTest {
         when(meterRegistry.gauge(anyString(), any(Double.class))).thenReturn(0.0);
         when(meterRegistry.summary(anyString())).thenReturn(summary);
 
-        htmlCleaner = new HtmlCleaner(config, objectMapper, meterRegistry);
+        // Build strategy chain in preferred order
+        var strategies = java.util.List.of(
+                new net.shamansoft.cookbook.html.strategy.StructuredDataStrategy(config, objectMapper),
+                new net.shamansoft.cookbook.html.strategy.SectionBasedStrategy(config),
+                new net.shamansoft.cookbook.html.strategy.ContentFilterStrategy(config)
+        );
+
+        htmlCleaner = new HtmlCleaner(config, meterRegistry, strategies);
     }
 
     @Test
@@ -101,7 +109,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.STRUCTURED_DATA);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.STRUCTURED_DATA);
         assertThat(result.reductionRatio()).isGreaterThan(0.5); // At least 50% reduction
         assertThat(result.cleanedHtml()).contains("Chocolate Cake");
         assertThat(result.cleanedHtml()).contains("recipeIngredient");
@@ -138,7 +146,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.STRUCTURED_DATA);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.STRUCTURED_DATA);
         assertThat(result.cleanedHtml()).contains("Pasta Recipe");
     }
 
@@ -175,7 +183,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.SECTION_BASED);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.SECTION_BASED);
         assertThat(result.reductionRatio()).isGreaterThan(0.3); // At least 30% reduction
         assertThat(result.cleanedHtml()).contains("Ingredients");
         assertThat(result.cleanedHtml()).contains("Preparation Steps");
@@ -225,7 +233,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.FALLBACK);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
         assertThat(result.reductionRatio()).isEqualTo(0.0);
         assertThat(result.cleanedHtml()).isEqualTo(html);
     }
@@ -237,7 +245,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.DISABLED);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.DISABLED);
         assertThat(result.cleanedHtml()).isEqualTo(html);
         assertThat(result.reductionRatio()).isEqualTo(0.0);
     }
@@ -246,7 +254,7 @@ class HtmlCleanerTest {
     void shouldHandleEmptyHtml() {
         HtmlCleaner.Results result = htmlCleaner.process("", "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.FALLBACK);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
         assertThat(result.cleanedHtml()).isEmpty();
         assertThat(result.originalSize()).isEqualTo(0);
         assertThat(result.cleanedSize()).isEqualTo(0);
@@ -256,7 +264,7 @@ class HtmlCleanerTest {
     void shouldHandleNullHtml() {
         HtmlCleaner.Results result = htmlCleaner.process(null, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.FALLBACK);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
         assertThat(result.cleanedHtml()).isEmpty();
         assertThat(result.originalSize()).isEqualTo(0);
     }
@@ -291,7 +299,7 @@ class HtmlCleanerTest {
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
         // Should use SECTION_BASED due to high keyword density
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.SECTION_BASED);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.SECTION_BASED);
         assertThat(result.reductionRatio()).isGreaterThan(0.0);
     }
 
@@ -320,7 +328,7 @@ class HtmlCleanerTest {
         assertThat(result.cleanedHtml()).isNotEmpty();
         assertThat(result.strategyUsed()).isIn(
                 CONTENT_FILTER,
-                HtmlCleaner.Strategy.FALLBACK
+                Strategy.FALLBACK
         );
     }
 
@@ -424,7 +432,7 @@ class HtmlCleanerTest {
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
         // Should prefer structured data even when good sections exist
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.STRUCTURED_DATA);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.STRUCTURED_DATA);
     }
 
     @Test
@@ -469,7 +477,7 @@ class HtmlCleanerTest {
 
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
-        assertThat(result.strategyUsed()).isEqualTo(HtmlCleaner.Strategy.STRUCTURED_DATA);
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.STRUCTURED_DATA);
     }
 
     @Test
@@ -500,7 +508,7 @@ class HtmlCleanerTest {
         HtmlCleaner.Results result = htmlCleaner.process(html, "test-url");
 
         // Should fall back to section-based or content filter, not structured data
-        assertThat(result.strategyUsed()).isNotEqualTo(HtmlCleaner.Strategy.STRUCTURED_DATA);
+        assertThat(result.strategyUsed()).isNotEqualTo(Strategy.STRUCTURED_DATA);
     }
 
     @Test

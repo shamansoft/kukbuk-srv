@@ -35,6 +35,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,6 +124,11 @@ class AddRecipeIT {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        // Ensure WireMock container is started so mapped port is available when registering properties
+        if (!wiremockContainer.isRunning()) {
+            wiremockContainer.start();
+        }
+
         String wiremockUrl = "http://localhost:" + wiremockContainer.getMappedPort(8080);
 
         // Configure Google services to use WireMock
@@ -156,11 +162,40 @@ class AddRecipeIT {
     }
 
     private void clearFirestore() throws Exception {
-        // Delete the test user document if it exists
+        // Delete the test user document AND all subcollections
+        // This is critical for test isolation - Firestore doesn't auto-delete subcollections
+        String userId = "test-user-123";
+
         try {
-            firestore.collection("users").document("test-user-123").delete().get();
+            // IMPORTANT: Wait for any async save operations to complete
+            // RecipeStoreService saves recipes asynchronously with a 5000ms timeout
+            // We need to wait for those saves to complete before clearing
+            Thread.sleep(500); // Wait 500ms for async saves to complete
+
+            // First, delete all documents in the recipes subcollection
+            // Use get() to actually fetch the documents, not just list references
+            var recipesCollection = firestore.collection("users")
+                    .document(userId)
+                    .collection("recipes");
+
+            // Query for all documents (listDocuments() only returns references, not actual documents)
+            var querySnapshot = recipesCollection.get().get();
+            int deletedCount = 0;
+            for (var document : querySnapshot.getDocuments()) {
+                try {
+                    System.out.println("Deleting recipe document: " + document.getId());
+                    document.getReference().delete().get();
+                    deletedCount++;
+                } catch (Exception e) {
+                    System.out.println("Failed to delete document " + document.getId() + ": " + e.getMessage());
+                }
+            }
+            System.out.println("Cleared " + deletedCount + " recipe documents from Firestore");
+
+            // Then delete the user document itself
+            firestore.collection("users").document(userId).delete().get();
         } catch (Exception e) {
-            // Document might not exist, that's OK
+            System.out.println("Error clearing Firestore: " + e.getMessage());
         }
     }
 
@@ -264,6 +299,36 @@ class AddRecipeIT {
         ).get();
     }
 
+    // Helper to print WireMock recorded requests for debugging failing verifications
+    private void dumpWireMockRequests() {
+        try {
+            var events = WireMock.getAllServeEvents();
+            String urls = events.stream()
+                    .map(e -> e.getRequest().getUrl())
+                    .collect(Collectors.joining(", "));
+            System.out.println("WireMock recorded URLs: " + urls);
+        } catch (Exception ex) {
+            System.out.println("Failed to dump WireMock serve events: " + ex.getMessage());
+        }
+    }
+
+    // Helper to print full WireMock recorded request bodies for debugging
+    private void dumpWireMockRequestBodies() {
+        try {
+            var events = WireMock.getAllServeEvents();
+            for (int i = 0; i < events.size(); i++) {
+                var e = events.get(i);
+                String method = e.getRequest().getMethod().getName();
+                String url = e.getRequest().getUrl();
+                String body = e.getRequest().getBodyAsString();
+                System.out.println("WireMock Request [" + i + "]: " + method + " " + url);
+                System.out.println("WireMock Body [" + i + "]: " + body);
+            }
+        } catch (Exception ex) {
+            System.out.println("Failed to dump WireMock request bodies: " + ex.getMessage());
+        }
+    }
+
     private HttpHeaders createAuthHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth("test-firebase-token");
@@ -328,8 +393,18 @@ class AddRecipeIT {
                         true
                 );
 
+        // Debug: dump WireMock recorded requests to help diagnose mismatches
+        dumpWireMockRequests();
+        // Debug: dump full request bodies to compare with stubbed Gemini payloads
+        dumpWireMockRequestBodies();
+
         // Verify Gemini was called for transformation
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
+
+        // Verify request body sent to Gemini contains the extraction instruction and page title
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
+                .withRequestBody(containing("You are an AI specialized in extracting cooking recipes"))
+                .withRequestBody(containing("Chocolate Chip Cookies")));
 
         // Verify Google Drive operations
         // The flow now uses the cached folderId from storage, so it searches for the file directly

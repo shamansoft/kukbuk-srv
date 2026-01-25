@@ -104,7 +104,7 @@ class RecipeServiceCreateRecipeTest {
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, HtmlCleaner.Strategy.DISABLED, "No preprocessing"));
+                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
@@ -139,7 +139,7 @@ class RecipeServiceCreateRecipeTest {
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, HtmlCleaner.Strategy.DISABLED, "No preprocessing"));
+                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(false, "raw text"));
 
         // When
@@ -201,7 +201,7 @@ class RecipeServiceCreateRecipeTest {
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, HtmlCleaner.Strategy.DISABLED, "No preprocessing"));
+                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
@@ -261,7 +261,7 @@ class RecipeServiceCreateRecipeTest {
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, HtmlCleaner.Strategy.DISABLED, "No preprocessing"));
+                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(EXTRACTED_HTML)).thenThrow(new RuntimeException("AI transformation failed"));
 
         // When/Then
@@ -286,7 +286,7 @@ class RecipeServiceCreateRecipeTest {
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, HtmlCleaner.Strategy.DISABLED, "No preprocessing"));
+                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))

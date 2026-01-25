@@ -17,16 +17,9 @@ import reactor.core.publisher.Mono;
 public class ServiceConfig {
 
 
-    static String hideKey(ClientRequest clientRequest) {
-        if (clientRequest.url().getQuery() != null && clientRequest.url().getQuery().contains("key=")) {
-            return clientRequest.url().getPath()
-                    + "?"
-                    + clientRequest.url()
-                    .getQuery()
-                    .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
-        }
-        return clientRequest.url().getPath();
-    }
+    // Hide API key in URL query (keeps first 2 chars)
+    // We avoid referencing ClientRequest in a method signature to prevent
+    // classloading issues when reactive classes are not present at runtime.
 
     // shows first 3 chars of the key and last 3 chars, e.g. "abc***xyz"
     static String hideKey(String apiKey) {
@@ -40,7 +33,15 @@ public class ServiceConfig {
     ExchangeFilterFunction loggingFilter() {
         return ExchangeFilterFunction.ofRequestProcessor(
                 clientRequest -> {
-                    log.info("Request: {} {}", clientRequest.method(), hideKey(clientRequest));
+                    // build masked path+query without using ClientRequest in other signatures
+                    String path = clientRequest.url().getPath();
+                    String query = clientRequest.url().getQuery();
+                    String masked = "";
+                    if (query != null) {
+                        masked = query.replaceAll("key=([^&]{2})[^&]+", "key=$1***");
+                        masked = "?" + masked;
+                    }
+                    log.info("Request: {} {}", clientRequest.method(), path + masked);
                     return Mono.just(clientRequest);
                 });
     }

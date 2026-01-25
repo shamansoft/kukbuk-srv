@@ -286,19 +286,3 @@ management:
         # - firestore: Custom Firestore metrics endpoint
         # - store-metrics: Custom recipe store metrics endpoint
         include: health,httpexchanges,env,info,firestore,store-metrics
-
-  metrics:
-    export:
-      stackdriver:
-        # Enable Stackdriver metrics export
-        # Used by: Micrometer Stackdriver Registry
-        # Required: Yes (for Cloud Run monitoring)
-        enabled: true
-        
-        # GCP project ID for metrics
-        # Required: Yes
-        project-id: ${GOOGLE_CLOUD_PROJECT_ID}
-        
-        # Reporting step/interval (Cloud Run standard is 60s)
-        # Default: 1m
-        step: 1m
