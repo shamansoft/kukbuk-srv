@@ -19,25 +19,26 @@ RUN ./gradlew :cookbook:dependencies
 COPY extractor/src ./extractor/src
 COPY recipe-sdk/src ./recipe-sdk/src
 
-# Extreme memory optimization settings
-ENV JAVA_OPTS="-Xmx8g -XX:MaxMetaspaceSize=512m"
-ENV NATIVE_IMAGE_OPTS="-J-Xmx2560m -J-XX:MaxMetaspaceSize=512m -H:+PrintAnalysisCallTree -H:MaximumHeapSizePercent=50"
+# Memory optimization settings for Java 25 + GraalVM 25
+# Java 25 may require slightly more memory for compilation
+ENV JAVA_OPTS="-Xmx10g -XX:MaxMetaspaceSize=768m"
+ENV NATIVE_IMAGE_OPTS="-J-Xmx3g -J-XX:MaxMetaspaceSize=768m -H:+PrintAnalysisCallTree -H:MaximumHeapSizePercent=50"
 
 # Run native compilation with memory constraints and incremental build support
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew -Dorg.gradle.jvmargs="-Xmx6g" cookbook:nativeCompile \
+    ./gradlew -Dorg.gradle.jvmargs="-Xmx8g" cookbook:nativeCompile \
     -Porg.graalvm.buildtools.native.targetPlatform=linux-amd64 \
     -Porg.graalvm.buildtools.native.imageName=cookbook
 
-FROM --platform=linux/amd64 gcr.io/distroless/base-debian12
+FROM --platform=linux/amd64 gcr.io/distroless/base-debian12:nonroot
 # Install libz dependency (from matching Debian 12)
 COPY --from=debian:12-slim /usr/lib/x86_64-linux-gnu/libz.so.1 /lib/x86_64-linux-gnu/
 COPY --from=debian:12-slim /usr/lib/x86_64-linux-gnu/libz.so.1.2.13 /lib/x86_64-linux-gnu/
 
 WORKDIR /app
 COPY --from=builder /app/extractor/build/native/nativeCompile/cookbook .
+
 # Expose the port (though Cloud Run handles this, it's good practice)
 EXPOSE $PORT
-
 # Set the startup command, using the PORT environment variable
 CMD ["./cookbook", "--server.port=${PORT}"]

@@ -1,6 +1,27 @@
 FROM eclipse-temurin:25-jre
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
 COPY extractor/build/libs/cookbook.jar app.jar
+
+# Set ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
 EXPOSE 8080
 EXPOSE 5005
-ENTRYPOINT ["java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", "-jar", "app.jar"]
+
+# Java 25 flags:
+# --enable-native-access=ALL-UNNAMED: Suppress native access warnings from Netty
+# -XX:+UseContainerSupport: Respect container memory limits
+# -XX:MaxRAMPercentage=75.0: Use up to 75% of container memory
+ENTRYPOINT ["java", \
+    "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", \
+    "--enable-native-access=ALL-UNNAMED", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-jar", "app.jar"]
