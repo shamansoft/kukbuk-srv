@@ -6,10 +6,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -25,13 +25,14 @@ import static org.mockito.Mockito.when;
 class TokenRestServiceTest {
 
     @Mock
-    private WebClient authWebClient;
+    private RestClient authWebClient;
 
     @Mock
-    private WebClient.RequestHeadersUriSpec requestHeadersUriSpec;
+    @SuppressWarnings("rawtypes")
+    private RestClient.RequestHeadersUriSpec requestHeadersUriSpec;
 
     @Mock
-    private WebClient.ResponseSpec responseSpec;
+    private RestClient.ResponseSpec responseSpec;
 
     @InjectMocks
     private TokenRestService tokenRestService;
@@ -45,7 +46,7 @@ class TokenRestServiceTest {
         // Mock the URI builder chain
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(tokenInfo));
+        when(responseSpec.body(Map.class)).thenReturn(tokenInfo);
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
@@ -65,9 +66,9 @@ class TokenRestServiceTest {
         when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class))
-                .thenThrow(new WebClientResponseException(
-                        401, "Unauthorized", null, null, null));
+        when(responseSpec.body(Map.class))
+                .thenThrow(new RestClientResponseException(
+                        "Unauthorized", 401, "Unauthorized", null, null, null));
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
@@ -86,7 +87,7 @@ class TokenRestServiceTest {
         // Mock the URI builder chain
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.empty());
+        when(responseSpec.body(Map.class)).thenReturn(null);
 
         // Act
         boolean result = tokenRestService.verifyToken(authToken);
@@ -140,7 +141,7 @@ class TokenRestServiceTest {
 
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(tokenInfo));
+        when(responseSpec.body(Map.class)).thenReturn(tokenInfo);
         when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         // Act
         String result = tokenRestService.getAuthToken(headers);
@@ -169,9 +170,9 @@ class TokenRestServiceTest {
         when(authWebClient.get()).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class))
-                .thenThrow(new WebClientResponseException(
-                        401, "Unauthorized", null, null, null));
+        when(responseSpec.body(Map.class))
+                .thenThrow(new RestClientResponseException(
+                        "Unauthorized", 401, "Unauthorized", null, null, null));
 
         // Act & Assert
         assertThatThrownBy(() -> tokenRestService.getAuthToken(headers))

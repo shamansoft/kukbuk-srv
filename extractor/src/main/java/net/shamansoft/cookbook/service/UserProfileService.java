@@ -6,26 +6,35 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.repository.UserProfileRepository;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class UserProfileService {
 
     private final UserProfileRepository userProfileRepository;
     private final TokenEncryptionService tokenEncryptionService;
-    private final WebClient webClient;
+    private final RestClient restClient;
+
+    public UserProfileService(
+            UserProfileRepository userProfileRepository,
+            TokenEncryptionService tokenEncryptionService,
+            @Qualifier("genericRestClient") RestClient restClient) {
+        this.userProfileRepository = userProfileRepository;
+        this.tokenEncryptionService = tokenEncryptionService;
+        this.restClient = restClient;
+    }
 
     @Value("${cookbook.google.oauth-id}")
     private String googleClientId;
@@ -145,13 +154,12 @@ public class UserProfileService {
         params.add("grant_type", "refresh_token");
 
         try {
-            Map<String, Object> response = webClient.post()
+            Map<String, Object> response = restClient.post()
                     .uri(tokenUrl)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData(params))
+                    .body(params)
                     .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new IllegalStateException("Failed to refresh OAuth token");

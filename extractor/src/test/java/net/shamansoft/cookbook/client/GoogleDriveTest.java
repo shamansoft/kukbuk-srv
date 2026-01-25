@@ -1,10 +1,10 @@
 package net.shamansoft.cookbook.client;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestClient;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,33 +18,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 class GoogleDriveTest {
 
     @Test
     void testGetFolderFound() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
-        
-        WebClient mockDriveClient = mock(WebClient.class);
+
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
-        
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
-        
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        
+
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", List.of(Map.of("id", "folder_id_123")));
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> folder = googleDrive.getFolder("TestFolder", "dummyToken");
@@ -58,16 +62,18 @@ class GoogleDriveTest {
     @Test
     void testGetFolderNotFound() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -76,7 +82,7 @@ class GoogleDriveTest {
         
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", Collections.emptyList());
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> folder = googleDrive.getFolder("NonExistentFolder", "dummyToken");
@@ -88,28 +94,29 @@ class GoogleDriveTest {
     @Test
     void testCreateFolderSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
         
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("id", "new_folder_123");
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         GoogleDrive.Item folder = googleDrive.createFolder("NewFolder", "dummyToken");
@@ -123,16 +130,18 @@ class GoogleDriveTest {
     @Test
     void testGetFileFound() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -141,7 +150,7 @@ class GoogleDriveTest {
         
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", List.of(Map.of("id", "file_456")));
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> file = googleDrive.getFile("TestFile", "folder_123", "dummyToken");
@@ -154,16 +163,18 @@ class GoogleDriveTest {
     @Test
     void testGetFileNotFound() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -172,7 +183,7 @@ class GoogleDriveTest {
         
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", Collections.emptyList());
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> file = googleDrive.getFile("NonExistentFile", "folder_123", "dummyToken");
@@ -184,27 +195,28 @@ class GoogleDriveTest {
     @Test
     void testCreateFolderError() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
         
         Map<String, Object> fakeResponse = new HashMap<>();
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.createFolder("NewFolder", "dummyToken"))
@@ -215,43 +227,45 @@ class GoogleDriveTest {
     @Test
     void testUpdateFileSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
-        WebClient mockUploadClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
+        RestClient mockUploadClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
-        WebClient.RequestBodyUriSpec mockUploadBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockUploadReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockUploadHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockUploadResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.patch()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(new HashMap<>()));
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(new HashMap<>());
 
         when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
         when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.bodyValue(anyString())).thenReturn(mockUploadHeadersSpec);
-        when(mockUploadHeadersSpec.retrieve()).thenReturn(mockUploadResponseSpec);
+        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
+        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
         
         Map<String, Object> updateResponse = new HashMap<>();
         updateResponse.put("id", "file_123");
-        when(mockUploadResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(updateResponse));
+        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(updateResponse);
 
         GoogleDrive.Item testFile = new GoogleDrive.Item("file_123", "test.yaml");
 
@@ -265,42 +279,44 @@ class GoogleDriveTest {
     @Test
     void testUpdateFileError() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
-        WebClient mockUploadClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
+        RestClient mockUploadClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
-        WebClient.RequestBodyUriSpec mockUploadBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockUploadReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockUploadHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockUploadResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.patch()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(new HashMap<>()));
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(new HashMap<>());
 
         when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
         when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.bodyValue(anyString())).thenReturn(mockUploadHeadersSpec);
-        when(mockUploadHeadersSpec.retrieve()).thenReturn(mockUploadResponseSpec);
+        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
+        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
         
         Map<String, Object> updateResponse = new HashMap<>();
-        when(mockUploadResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(updateResponse));
+        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(updateResponse);
 
         GoogleDrive.Item testFile = new GoogleDrive.Item("file_123", "test.yaml");
 
@@ -313,46 +329,48 @@ class GoogleDriveTest {
     @Test
     void testCreateFileSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
-        WebClient mockUploadClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
+        RestClient mockUploadClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
-        WebClient.RequestBodyUriSpec mockUploadBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockUploadReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockUploadHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockUploadResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
         
         Map<String, Object> createResponse = new HashMap<>();
         createResponse.put("id", "new_file_123");
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(createResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(createResponse);
 
         when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
         when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.bodyValue(anyString())).thenReturn(mockUploadHeadersSpec);
-        when(mockUploadHeadersSpec.retrieve()).thenReturn(mockUploadResponseSpec);
+        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
+        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
         
         Map<String, Object> uploadResponse = new HashMap<>();
         uploadResponse.put("id", "new_file_123");
-        when(mockUploadResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(uploadResponse));
+        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(uploadResponse);
 
         // Execute
         GoogleDrive.Item result = googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken");
@@ -366,27 +384,28 @@ class GoogleDriveTest {
     @Test
     void testCreateFileErrorOnCreate() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
         
         Map<String, Object> createResponse = new HashMap<>();
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(createResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(createResponse);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))
@@ -397,45 +416,47 @@ class GoogleDriveTest {
     @Test
     void testCreateFileErrorOnUpload() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
         
-        WebClient mockDriveClient = mock(WebClient.class);
-        WebClient mockUploadClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
+        RestClient mockUploadClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
         ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
         
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
         
-        WebClient.RequestBodyUriSpec mockUploadBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockUploadReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockUploadHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockUploadResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
         
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
         
         Map<String, Object> createResponse = new HashMap<>();
         createResponse.put("id", "new_file_123");
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(createResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(createResponse);
 
         when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
         when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.bodyValue(anyString())).thenReturn(mockUploadHeadersSpec);
-        when(mockUploadHeadersSpec.retrieve()).thenReturn(mockUploadResponseSpec);
+        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
+        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
         
         Map<String, Object> uploadResponse = new HashMap<>();
-        when(mockUploadResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(uploadResponse));
+        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(uploadResponse);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))
@@ -452,16 +473,18 @@ class GoogleDriveTest {
     @Test
     void testListFilesSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -475,7 +498,7 @@ class GoogleDriveTest {
         );
         fakeResponse.put("files", files);
         fakeResponse.put("nextPageToken", "next-page-token");
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         GoogleDrive.DriveFileListResult result = googleDrive.listFiles("dummyToken", "folder123", 10, null);
@@ -492,16 +515,18 @@ class GoogleDriveTest {
     @Test
     void testListFilesWithPageToken() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -514,7 +539,7 @@ class GoogleDriveTest {
         );
         fakeResponse.put("files", files);
         fakeResponse.put("nextPageToken", null);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         GoogleDrive.DriveFileListResult result = googleDrive.listFiles("dummyToken", "folder123", 10, "page-token-123");
@@ -528,16 +553,18 @@ class GoogleDriveTest {
     @Test
     void testListFilesEmptyResult() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -546,7 +573,7 @@ class GoogleDriveTest {
 
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", null);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         GoogleDrive.DriveFileListResult result = googleDrive.listFiles("dummyToken", "folder123", 10, null);
@@ -559,22 +586,24 @@ class GoogleDriveTest {
     @Test
     void testListFilesNullResponse() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.empty());
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(null);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.listFiles("dummyToken", "folder123", 10, null))
@@ -585,16 +614,18 @@ class GoogleDriveTest {
     @Test
     void testDownloadFileAsStringSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -602,7 +633,7 @@ class GoogleDriveTest {
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
 
         String fileContent = "title: Test Recipe\nservings: 4";
-        when(mockResponseSpec.bodyToMono(String.class)).thenReturn(Mono.just(fileContent));
+        when(mockResponseSpec.body(String.class)).thenReturn(fileContent);
 
         // Execute
         String result = googleDrive.downloadFileAsString("dummyToken", "file123");
@@ -614,22 +645,24 @@ class GoogleDriveTest {
     @Test
     void testDownloadFileAsStringNullContent() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(String.class)).thenReturn(Mono.empty());
+        when(mockResponseSpec.body(String.class)).thenReturn(null);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.downloadFileAsString("dummyToken", "file123"))
@@ -640,16 +673,18 @@ class GoogleDriveTest {
     @Test
     void testDownloadFileAsBytesSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -657,7 +692,7 @@ class GoogleDriveTest {
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
 
         byte[] fileContent = new byte[]{1, 2, 3, 4, 5};
-        when(mockResponseSpec.bodyToMono(byte[].class)).thenReturn(Mono.just(fileContent));
+        when(mockResponseSpec.body(byte[].class)).thenReturn(fileContent);
 
         // Execute
         byte[] result = googleDrive.downloadFileAsBytes("dummyToken", "file123");
@@ -670,22 +705,24 @@ class GoogleDriveTest {
     @Test
     void testDownloadFileAsBytesNullContent() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(byte[].class)).thenReturn(Mono.empty());
+        when(mockResponseSpec.body(byte[].class)).thenReturn(null);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.downloadFileAsBytes("dummyToken", "file123"))
@@ -696,16 +733,18 @@ class GoogleDriveTest {
     @Test
     void testGetFileMetadataSuccess() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -718,7 +757,7 @@ class GoogleDriveTest {
             "mimeType", "application/x-yaml",
             "modifiedTime", "2023-01-01T00:00:00Z"
         );
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(metadata));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(metadata);
 
         // Execute
         GoogleDrive.DriveFileMetadata result = googleDrive.getFileMetadata("dummyToken", "file123");
@@ -734,22 +773,24 @@ class GoogleDriveTest {
     @Test
     void testGetFileMetadataNullResponse() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.empty());
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(null);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.getFileMetadata("dummyToken", "file123"))
@@ -760,16 +801,18 @@ class GoogleDriveTest {
     @Test
     void testGetFolderWithNullFiles() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -778,7 +821,7 @@ class GoogleDriveTest {
 
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", null);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> folder = googleDrive.getFolder("TestFolder", "dummyToken");
@@ -790,16 +833,18 @@ class GoogleDriveTest {
     @Test
     void testGetFolderWithNullToken() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -808,7 +853,7 @@ class GoogleDriveTest {
 
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", List.of(Map.of("id", "folder_id_123")));
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute - test logging with null token
         Optional<GoogleDrive.Item> folder = googleDrive.getFolder("TestFolder", null);
@@ -820,16 +865,18 @@ class GoogleDriveTest {
     @Test
     void testGetFolderWithShortToken() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -838,7 +885,7 @@ class GoogleDriveTest {
 
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", List.of(Map.of("id", "folder_id_123")));
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute - test logging with short token
         Optional<GoogleDrive.Item> folder = googleDrive.getFolder("TestFolder", "short");
@@ -850,16 +897,18 @@ class GoogleDriveTest {
     @Test
     void testGetFileWithNullFiles() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestHeadersUriSpec mockHeadersSpec = mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec mockSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
@@ -868,7 +917,7 @@ class GoogleDriveTest {
 
         Map<String, Object> fakeResponse = new HashMap<>();
         fakeResponse.put("files", null);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(fakeResponse));
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(fakeResponse);
 
         // Execute
         Optional<GoogleDrive.Item> file = googleDrive.getFile("TestFile", "folder_123", "dummyToken");
@@ -880,25 +929,26 @@ class GoogleDriveTest {
     @Test
     void testCreateFolderGenericException() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenThrow(new RuntimeException("Network error"));
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenThrow(new RuntimeException("Network error"));
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.createFolder("NewFolder", "dummyToken"))
@@ -909,25 +959,26 @@ class GoogleDriveTest {
     @Test
     void testUpdateFileGenericException() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.patch()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenThrow(new RuntimeException("Network error"));
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenThrow(new RuntimeException("Network error"));
 
         GoogleDrive.Item testFile = new GoogleDrive.Item("file_123", "test.yaml");
 
@@ -940,25 +991,26 @@ class GoogleDriveTest {
     @Test
     void testCreateFileGenericException() {
         // Setup
-        WebClient driveWebClient = WebClient.builder().baseUrl("http://dummy-base").build();
-        WebClient uploadWebClient = WebClient.builder().baseUrl("http://dummy-upload").build();
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
         GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
 
-        WebClient mockDriveClient = mock(WebClient.class);
+        RestClient mockDriveClient = mock(RestClient.class);
         ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
 
-        WebClient.RequestBodyUriSpec mockBodySpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec mockReqBodySpec = mock(WebClient.RequestBodySpec.class);
-        WebClient.RequestHeadersSpec mockHeadersSpec = mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec mockResponseSpec = mock(WebClient.ResponseSpec.class);
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
 
         when(mockDriveClient.post()).thenReturn(mockBodySpec);
         when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
         when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.bodyValue(any())).thenReturn(mockHeadersSpec);
-        when(mockHeadersSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.bodyToMono(Map.class)).thenThrow(new RuntimeException("Network error"));
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenThrow(new RuntimeException("Network error"));
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))

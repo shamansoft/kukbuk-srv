@@ -16,6 +16,28 @@ spring:
     # Default: kukbuk-srv
     name: kukbuk-srv
 
+  # Virtual Threads (Java 21+)
+  # Enables virtual threads for efficient concurrency without reactive complexity
+  # Used by: Spring Boot auto-configuration
+  threads:
+    virtual:
+      # Enable virtual threads for all @Async tasks and servlet requests
+      # Default: false
+      enabled: true
+
+# ------------------------------------------------------------------------------
+# TOMCAT SERVER CONFIGURATION
+# ------------------------------------------------------------------------------
+server:
+  tomcat:
+    threads:
+      # Low thread count forces virtual thread usage for all requests
+      # With virtual threads enabled, each request runs on a lightweight virtual thread
+      # Default: 200 platform threads
+      max: 10
+      min-spare: 2
+    accept-count: 100
+
 # ------------------------------------------------------------------------------
 # GOOGLE CLOUD PLATFORM (GCP) CONFIGURATION
 # ------------------------------------------------------------------------------
@@ -115,7 +137,7 @@ logging:
     net.shamansoft: DEBUG
     net.shamansoft.cookbook: DEBUG
     com.google.cloud: INFO
-    org.springframework.web.reactive.function.client.WebClient: DEBUG
+    org.springframework.web.client.RestClient: DEBUG
 
 # ------------------------------------------------------------------------------
 # COOKBOOK APPLICATION-SPECIFIC CONFIGURATION
