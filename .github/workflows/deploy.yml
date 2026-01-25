@@ -9,21 +9,26 @@ on:
       - '.github/deployment-setup.md'
   workflow_dispatch:  # Allow manual trigger on any branch
     inputs:
-      skip_build:
-        description: 'Skip build and push (test finalize only)'
+      include_test:
+        description: 'Include test phase'
         required: false
         type: boolean
-        default: false
-      skip_deploy:
-        description: 'Skip deployment (build and push only)'
+        default: true
+      include_build:
+        description: 'Include build and push phase'
         required: false
         type: boolean
-        default: false
-      skip_finalize:
-        description: 'Skip version finalization (no tag, no version bump)'
+        default: true
+      include_deploy:
+        description: 'Include deployment phase'
         required: false
         type: boolean
-        default: false
+        default: true
+      include_finalize:
+        description: 'Include version finalization phase'
+        required: false
+        type: boolean
+        default: true
 
 # Ensure only one deployment runs at a time per branch
 concurrency:
@@ -42,6 +47,8 @@ jobs:
   test:
     name: Test & Validate
     runs-on: ubuntu-latest
+    # Include test phase by default, can be excluded via workflow_dispatch
+    if: ${{ inputs.include_test != false }}
     outputs:
       release-version: ${{ steps.version.outputs.RELEASE_VERSION }}
 
@@ -67,8 +74,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    # PHASE 0: Prepare release version (remove -SNAPSHOT)
-    - name: Prepare release version
+    # PHASE 0: Prepare version based on branch
+    - name: Prepare version
       id: version
       working-directory: extractor/scripts
       run: |
@@ -78,13 +85,28 @@ jobs:
         CURRENT=$(extract_version)
         echo "Current version: $CURRENT"
 
-        # Prepare release version (remove -SNAPSHOT -> 0.5.5)
-        RELEASE=$(prepare_release | tail -n 1)
-        echo "Release version: $RELEASE"
+        # Get short commit SHA
+        SHORT_SHA=$(git rev-parse --short HEAD)
+        echo "Commit SHA: $SHORT_SHA"
+
+        # Determine version based on branch
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # Main branch: Remove -SNAPSHOT for release (0.5.5-SNAPSHOT -> 0.5.5)
+          echo "Main branch detected - preparing release version"
+          RELEASE=$(prepare_release | tail -n 1)
+          echo "Release version: $RELEASE"
+        else
+          # Feature/PR branch: Keep -SNAPSHOT and add commit SHA (0.5.5-SNAPSHOT -> 0.5.5-SNAPSHOT-abc1234)
+          echo "Non-main branch detected - using snapshot version with commit SHA"
+          RELEASE="${CURRENT}-${SHORT_SHA}"
+          echo "Snapshot version: $RELEASE"
+          echo "Note: build.gradle.kts will not be modified for non-main branches"
+        fi
 
         # Export for other jobs
         echo "RELEASE_VERSION=$RELEASE" >> $GITHUB_OUTPUT
         echo "CURRENT_VERSION=$CURRENT" >> $GITHUB_OUTPUT
+        echo "IS_MAIN_BRANCH=${{ github.ref == 'refs/heads/main' }}" >> $GITHUB_OUTPUT
 
     # PHASE 1: Code Validation
     - name: Run unit tests
@@ -114,7 +136,13 @@ jobs:
       run: |
         echo "## Test Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.version.outputs.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "- **Type**: Release build (SNAPSHOT removed)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Type**: Snapshot build (with commit SHA)" >> $GITHUB_STEP_SUMMARY
+        fi
         echo "- **Tests**: ✅ Completed" >> $GITHUB_STEP_SUMMARY
 
   # Phase 2: Build & Push Docker Image
@@ -122,8 +150,8 @@ jobs:
     name: Build & Push Native Image
     needs: test
     runs-on: ubuntu-latest  # Standard runner (free tier)
-    # Skip build if requested via workflow_dispatch
-    if: ${{ !inputs.skip_build }}
+    # Include build phase by default, can be excluded via workflow_dispatch
+    if: ${{ inputs.include_build != false }}
 
     steps:
     - name: Checkout code
@@ -145,13 +173,21 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    # Apply release version to build.gradle.kts (prepared in test job)
+    # Apply release version to build.gradle.kts (only for main branch)
     - name: Apply release version
+      if: github.ref == 'refs/heads/main'
       working-directory: extractor/scripts
       run: |
         source ./version-updater.sh
         prepare_release
         echo "Build will use version: ${{ needs.test.outputs.release-version }}"
+
+    # For non-main branches, show version without modifying build.gradle.kts
+    - name: Show snapshot version
+      if: github.ref != 'refs/heads/main'
+      run: |
+        echo "Build will use version: ${{ needs.test.outputs.release-version }}"
+        echo "Note: This is a snapshot build - build.gradle.kts is not modified"
 
     # Build native image (simplified for AMD64 GHA runners - no buildx needed)
     - name: Build native Docker image
@@ -204,14 +240,28 @@ jobs:
         gcloud container images describe "$IMAGE"
         echo "✅ Image verified in registry"
 
+    # Build summary
+    - name: Build summary
+      run: |
+        echo "## 🏗️ Build Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Type**: Native image (GraalVM)" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "- **Branch**: main (release build)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Branch**: ${{ github.ref_name }} (snapshot build)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Note**: Finalize phase will be skipped (non-main branch)" >> $GITHUB_STEP_SUMMARY
+        fi
+
   # Phase 3: Deploy to Cloud Run
   deploy:
     name: Deploy to Cloud Run
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
     environment: production  # Require manual approval if configured
-    # Skip deployment if requested via workflow_dispatch OR if build was skipped
-    if: ${{ !inputs.skip_deploy && !inputs.skip_build }}
+    # Include deployment phase by default, requires build phase to be included
+    if: ${{ inputs.include_deploy != false && inputs.include_build != false }}
 
     steps:
     - name: Checkout code
@@ -300,20 +350,20 @@ jobs:
       if: always()
       run: rm -f terraform/no-git/kukbuk-sa-tf-key.json
 
-  # Phase 4: Finalize Release
+  # Phase 4: Finalize Release (MAIN BRANCH ONLY)
   finalize:
     name: Finalize Release
     needs: [test, build-and-push, deploy]
     runs-on: ubuntu-latest
-    # Allow finalize to run even if build/deploy are skipped (for testing)
-    # Only skip if explicitly requested, test failed, build/deploy failed, or not on main branch
+    # CRITICAL: Only run on main branch - this creates tags, bumps versions, and updates README
+    # Feature branches should NOT run finalize as they don't modify version or create releases
     if: |
+      github.ref == 'refs/heads/main' &&
       always() &&
+      inputs.include_finalize != false &&
       needs.test.result == 'success' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
-      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped') &&
-      github.ref == 'refs/heads/main' &&
-      !inputs.skip_finalize
+      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     permissions:
       contents: write  # Required to push tags, commits, and create releases
 
@@ -512,13 +562,14 @@ jobs:
     - name: Deployment summary
       run: |
         if [[ "${{ needs.deploy.result }}" == "success" ]]; then
-          echo "## 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 Release Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Next Dev**: ${{ env.NEXT_SNAPSHOT }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
         else
