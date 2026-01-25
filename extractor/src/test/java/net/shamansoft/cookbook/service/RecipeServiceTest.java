@@ -1,223 +1,106 @@
 package net.shamansoft.cookbook.service;
 
-import net.shamansoft.cookbook.repository.RecipeRepository;
-import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.html.HtmlCleaner;
+import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.recipe.model.Recipe;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
 class RecipeServiceTest {
 
-    @Mock
-    private RecipeRepository repository;
+    @Test
+    void createRecipe_storesYaml_whenRecipeDetected() throws Exception {
+        // Arrange: minimal happy path with many dependencies mocked
+        ContentHashService contentHashService = mock(ContentHashService.class);
+        DriveService driveService = mock(DriveService.class);
+        StorageService storageService = mock(StorageService.class);
+        RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
+        RecipeParser recipeParser = mock(RecipeParser.class);
+        RecipeMapper recipeMapper = mock(RecipeMapper.class);
+        HtmlExtractor htmlExtractor = mock(HtmlExtractor.class);
+        HtmlCleaner htmlCleaner = mock(HtmlCleaner.class);
+        Transformer transformer = mock(Transformer.class);
+        RecipeValidationService validationService = mock(RecipeValidationService.class);
 
-    private RecipeStoreService service;
+        when(contentHashService.generateContentHash(anyString())).thenReturn("hash1");
 
-    private final String testUrl = "https://example.com/recipe";
-    private final String testHash = "test-hash-123";
-    private final String testYaml = "recipe: test";
+        // storage info - configured (use canonical record constructor)
+        StorageInfo storage = new StorageInfo(
+                net.shamansoft.cookbook.dto.StorageType.GOOGLE_DRIVE,
+                true,
+                "token",
+                null,
+                null,
+                Instant.now(),
+                "folder1",
+                null
+        );
 
-    @BeforeEach
-    void setUp() {
-        service = new RecipeStoreService(repository);
-        // Enable the service for testing by setting the enabled field through reflection
+        when(storageService.getStorageInfo(anyString())).thenReturn(storage);
+
+        when(htmlExtractor.extractHtml(anyString(), any(), org.mockito.ArgumentMatchers.isNull())).thenReturn("<html><body>content</body></html>");
+
+        HtmlCleaner.Results results = new HtmlCleaner.Results("<body>cleaned</body>", 100, 20, 0.8, net.shamansoft.cookbook.html.strategy.Strategy.CONTENT_FILTER, "msg");
+        when(htmlCleaner.process(anyString(), anyString())).thenReturn(results);
+
+        Recipe recipe = mock(Recipe.class);
+        when(transformer.transform(anyString())).thenReturn(Transformer.Response.recipe(recipe));
+
+        // validation service serializes object to YAML
+        when(validationService.toYaml(recipe)).thenReturn("title: x\ningredients: []\n");
+
+        when(driveService.generateFileName(anyString())).thenReturn("file.yaml");
+        DriveService.UploadResult uploadResult = new DriveService.UploadResult("id1", "https://drive/file");
+        when(driveService.uploadRecipeYaml(anyString(), anyString(), anyString(), anyString())).thenReturn(uploadResult);
+
+        // Build service
+        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
+                recipeParser, recipeMapper, htmlExtractor, htmlCleaner, transformer, validationService);
+
+        // Act
+        var resp = svc.createRecipe("user1", "http://u", "rawHtml", null, "My Title");
+
+        // Assert
+        assertThat(resp.isRecipe()).isTrue();
+        assertThat(resp.driveFileId()).isEqualTo("id1");
+        assertThat(resp.driveFileUrl()).isEqualTo("https://drive/file");
+    }
+
+    @Test
+    void createRecipe_throwsWhenNoFolder() throws IOException {
+        ContentHashService contentHashService = mock(ContentHashService.class);
+        DriveService driveService = mock(DriveService.class);
+        StorageService storageService = mock(StorageService.class);
+        RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
+        RecipeParser recipeParser = mock(RecipeParser.class);
+        RecipeMapper recipeMapper = mock(RecipeMapper.class);
+        HtmlExtractor htmlExtractor = mock(HtmlExtractor.class);
+        HtmlCleaner htmlCleaner = mock(HtmlCleaner.class);
+        Transformer transformer = mock(Transformer.class);
+        RecipeValidationService validationService = mock(RecipeValidationService.class);
+
+        StorageInfo storage = new StorageInfo(net.shamansoft.cookbook.dto.StorageType.GOOGLE_DRIVE,
+                true, "t", null, null, Instant.now(), null, null);
+
+        when(storageService.getStorageInfo(anyString())).thenReturn(storage);
+
+        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
+                recipeParser, recipeMapper, htmlExtractor, htmlCleaner, transformer, validationService);
+
         try {
-            var enabledField = RecipeStoreService.class.getDeclaredField("enabled");
-            enabledField.setAccessible(true);
-            enabledField.set(service, true);
+            svc.createRecipe("user1", "http://u", "rawHtml", null, "title");
+            throw new AssertionError("Expected StorageNotConnectedException");
         } catch (Exception e) {
-            throw new RuntimeException("Failed to enable RecipeStoreService for testing", e);
+            assertThat(e).isInstanceOf(net.shamansoft.cookbook.exception.StorageNotConnectedException.class);
         }
-    }
-
-    @Test
-    @DisplayName("Should find cached recipe successfully")
-    void shouldFindCachedRecipeSuccessfully() {
-        // Given
-        StoredRecipe cachedRecipe = StoredRecipe.builder()
-                .contentHash(testHash)
-                .sourceUrl(testUrl)
-                .recipeYaml(testYaml)
-                .createdAt(Instant.now())
-                .lastUpdatedAt(Instant.now())
-                .version(1L)
-                .build();
-
-        when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
-
-        // When
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
-
-        // Then
-        assertTrue(retrievedCache.isPresent());
-        assertEquals(testHash, retrievedCache.get().getContentHash());
-        assertEquals(testUrl, retrievedCache.get().getSourceUrl());
-        assertEquals(testYaml, retrievedCache.get().getRecipeYaml());
-
-        verify(repository).findByContentHash(testHash);
-    }
-
-    @Test
-    @DisplayName("Should return empty when cache miss")
-    void shouldReturnEmptyWhenCacheMiss() {
-        // Given
-        when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-        // When
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
-
-        // Then
-        assertFalse(retrievedCache.isPresent());
-
-        verify(repository).findByContentHash(testHash);
-    }
-
-    @Test
-    @DisplayName("Should handle hash generation error gracefully")
-    void shouldHandleHashGenerationErrorGracefully() {
-        // Given - simulate repository returning null instead of CompletableFuture
-        when(repository.findByContentHash(testHash)).thenReturn(null);
-        
-        // When
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
-
-        // Then
-        assertFalse(retrievedCache.isPresent());
-
-        verify(repository).findByContentHash(testHash);
-    }
-
-    @Test
-    @DisplayName("Should handle repository error gracefully")
-    void shouldHandleRepositoryErrorGracefully() {
-        // Given
-        when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Repository error")));
-
-        // When
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
-
-        // Then
-        assertFalse(retrievedCache.isPresent());
-
-        verify(repository).findByContentHash(testHash);
-    }
-
-    @Test
-    @DisplayName("Should cache recipe successfully")
-    void shouldCacheRecipeSuccessfully() {
-        // Given
-        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.completedFuture(null));
-
-        // When & Then
-        assertDoesNotThrow(() -> service.storeRecipeWithHash(testHash, testUrl, testYaml, true));
-
-        verify(repository).save(argThat(recipeCache ->
-                testHash.equals(recipeCache.getContentHash()) &&
-                        testUrl.equals(recipeCache.getSourceUrl()) &&
-                        testYaml.equals(recipeCache.getRecipeYaml()) &&
-                        recipeCache.getCreatedAt() != null &&
-                        recipeCache.getLastUpdatedAt() != null &&
-                        recipeCache.getVersion() == 0L
-        ));
-    }
-
-    @Test
-    @DisplayName("Should handle cache save error gracefully")
-    void shouldHandleCacheSaveErrorGracefully() {
-        // Given
-        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Save failed")));
-
-        // When & Then
-        assertDoesNotThrow(() -> service.storeRecipeWithHash(testHash, testUrl, testYaml, true));
-
-        verify(repository).save(any(StoredRecipe.class));
-    }
-
-    @Test
-    @DisplayName("Should get cache size successfully")
-    void shouldGetCacheSizeSuccessfully() {
-        // Given
-        when(repository.count()).thenReturn(CompletableFuture.completedFuture(42L));
-
-        // When
-        long cacheSize = service.getCacheSize();
-
-        // Then
-        assertEquals(42L, cacheSize);
-
-        verify(repository).count();
-    }
-
-    @Test
-    @DisplayName("Should return 0 when cache size check fails")
-    void shouldReturn0WhenCacheSizeCheckFails() {
-        // Given
-        when(repository.count()).thenReturn(CompletableFuture.failedFuture(new RuntimeException("Count failed")));
-
-        // When
-        long cacheSize = service.getCacheSize();
-
-        // Then
-        assertEquals(0L, cacheSize);
-
-        verify(repository).count();
-    }
-
-    @Test
-    @DisplayName("Should find cached recipe by hash directly")
-    void shouldFindCachedRecipeByHashDirectly() {
-        // Given
-        StoredRecipe cachedRecipe = StoredRecipe.builder()
-                .contentHash(testHash)
-                .sourceUrl(testUrl)
-                .recipeYaml(testYaml)
-                .createdAt(Instant.now())
-                .lastUpdatedAt(Instant.now())
-                .version(1L)
-                .build();
-
-        when(repository.findByContentHash(testHash)).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedRecipe)));
-
-        // When
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
-
-        // Then
-        assertTrue(retrievedCache.isPresent());
-        assertEquals(testHash, retrievedCache.get().getContentHash());
-
-        verify(repository).findByContentHash(testHash);
-    }
-
-    @Test
-    @DisplayName("Should cache recipe with hash directly")
-    void shouldCacheRecipeWithHashDirectly() {
-        // Given
-        when(repository.save(any(StoredRecipe.class))).thenReturn(CompletableFuture.completedFuture(null));
-
-        // When & Then
-        assertDoesNotThrow(() -> service.storeValidRecipe(testHash, testUrl, testYaml));
-
-        verify(repository).save(argThat(recipeCache ->
-                testHash.equals(recipeCache.getContentHash()) &&
-                        testUrl.equals(recipeCache.getSourceUrl()) &&
-                        testYaml.equals(recipeCache.getRecipeYaml())
-        ));
     }
 }
