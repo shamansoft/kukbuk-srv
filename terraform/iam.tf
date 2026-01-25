@@ -60,6 +60,15 @@ resource "google_project_iam_member" "cookbook_service_usage_consumer" {
   depends_on = [google_service_account.cookbook_cloudrun_service_account]
 }
 
+# # Grant Monitoring Metric Writer role (for Stackdriver metrics)
+# resource "google_project_iam_member" "cloudrun_metric_writer" {
+#   project = var.project_id
+#   role    = "roles/monitoring.metricWriter"
+#   member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+#
+#   depends_on = [google_service_account.cookbook_cloudrun_service_account]
+# }
+
 # Output service account email
 output "service_account_email" {
   description = "Service account email for Cookbook service"
