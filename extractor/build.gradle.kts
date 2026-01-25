@@ -46,6 +46,8 @@ dependencies {
 
     // Apache HttpClient 5 for RestClient connection pooling
     implementation(libs.apache.httpclient5)
+    implementation(libs.apache.httpcore5)
+    implementation(libs.apache.httpcore5.h2)
 
     // TODO: Re-enable Stackdriver metrics for GCP monitoring
     // implementation(libs.micrometer.registry.stackdriver)

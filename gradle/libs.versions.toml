@@ -10,6 +10,7 @@ owasp-dependency-check = "10.0.4"
 
 # HTTP Client
 httpclient5 = "5.4.1"
+httpcore5 = "5.3.1"
 
 # Main Dependencies
 jsoup = "1.17.2"
@@ -17,7 +18,6 @@ google-cloud-firestore = "3.33.4"
 google-cloud-storage = "2.60.0"
 firebase-admin = "9.7.0"
 google-cloud-kms = "2.30.0"
-httpclient5 = "5.4.1"
 
 # Testing
 junit-jupiter = "5.10.1"
@@ -42,7 +42,6 @@ hibernate-validator = "8.0.1.Final"
 [libraries]
 # Spring Boot Starters
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
-spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
@@ -50,6 +49,8 @@ micrometer-registry-stackdriver = { module = "io.micrometer:micrometer-registry-
 
 # HTTP Client (for RestClient connection pooling)
 apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
+apache-httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref = "httpcore5" }
+apache-httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", version.ref = "httpcore5" }
 
 # Google Cloud
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
@@ -59,9 +60,6 @@ google-cloud-kms = { module = "com.google.cloud:google-cloud-kms", version.ref =
 
 # Web Scraping
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
-
-# HTTP Client
-apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
