@@ -1,11 +1,11 @@
 [versions]
 # Spring Boot and Framework
-spring-boot = "3.4.2"
+spring-boot = "3.5.9"
 spring-dependency-management = "1.1.7"
 
 # Java and Build Tools
 graalvm-buildtools = "0.10.5"
-jacoco = "0.8.11"
+jacoco = "0.8.14"
 owasp-dependency-check = "10.0.4"
 
 # HTTP Client
@@ -26,7 +26,7 @@ testcontainers = "1.19.3"
 wiremock = "3.3.1"
 
 # Annotation Processing
-lombok = "1.18.30"
+lombok = "1.18.40"
 
 # Logging
 slf4j = "2.0.16"
