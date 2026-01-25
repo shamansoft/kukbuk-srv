@@ -157,7 +157,7 @@ cookbook:
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.max-output-tokens}"))
     # Default: 4096
     # Range: 1 to 8192 (model-dependent)
-    max-output-tokens: 4096
+    max-output-tokens: 6000
 
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
@@ -222,6 +222,52 @@ cookbook:
     # Note: This is separate from cookbook.drive.oauth-secret (duplicate/legacy configuration)
     # TODO: Consolidate with cookbook.drive.oauth-secret to use single OAuth config
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
+
+  # ---------------------------------------------------------------------------
+  # HTML CLEANUP CONFIGURATION
+  # ---------------------------------------------------------------------------
+  html-cleanup:
+    # Enable/disable HTML preprocessing before sending to LLM
+    # Used by: HtmlPreprocessorService.java (reduces token usage by 60-80%)
+    # Default: true
+    enabled: ${HTML_PREPROCESSING_ENABLED:true}
+
+    structured-data:
+      # Enable/disable JSON-LD structured data extraction
+      # Default: true
+      enabled: true
+      # Minimum completeness score (0-100) to use structured data directly
+      # Default: 70
+      min-completeness: 70
+
+    section-based:
+      # Enable/disable section-based extraction using keyword scoring
+      # Default: true
+      enabled: true
+      # Minimum section score (0-100) to trust section extraction
+      # Default: 70
+      min-confidence: 70
+      # Recipe-related keywords for scoring
+      keywords:
+        - ingredients
+        - instructions
+        - directions
+        - preparation
+        - method
+        - recipe
+        - steps
+        - cook
+        - bake
+
+    content-filter:
+      # Minimum output size (chars) - fallback to raw HTML if smaller
+      # Default: 500
+      min-output-size: 500
+
+    fallback:
+      # Always use raw HTML if preprocessing produces output smaller than this
+      # Default: 300
+      min-safe-size: 300
 
 # ------------------------------------------------------------------------------
 # SPRING BOOT ACTUATOR ENDPOINTS

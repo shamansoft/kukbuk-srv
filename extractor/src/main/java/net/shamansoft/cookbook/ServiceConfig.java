@@ -16,31 +16,19 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class ServiceConfig {
 
-
-    static String hideKey(ClientRequest clientRequest) {
-        if (clientRequest.url().getQuery() != null && clientRequest.url().getQuery().contains("key=")) {
-            return clientRequest.url().getPath()
-                    + "?"
-                    + clientRequest.url()
-                    .getQuery()
-                    .replaceAll("key=([^&]{2})[^&]+", "key=$1***");
-        }
-        return clientRequest.url().getPath();
-    }
-
-    // shows first 3 chars of the key and last 3 chars, e.g. "abc***xyz"
-    static String hideKey(String apiKey) {
-        if (apiKey.length() < 6) {
-            return apiKey;
-        }
-        return apiKey.substring(0, 3) + "***" + apiKey.substring(apiKey.length() - 3);
-    }
-
     @Bean
     ExchangeFilterFunction loggingFilter() {
         return ExchangeFilterFunction.ofRequestProcessor(
                 clientRequest -> {
-                    log.info("Request: {} {}", clientRequest.method(), hideKey(clientRequest));
+                    // build masked path+query without using ClientRequest in other signatures
+                    String path = clientRequest.url().getPath();
+                    String query = clientRequest.url().getQuery();
+                    String masked = "";
+                    if (query != null) {
+                        masked = query.replaceAll("key=([^&]{2})[^&]+", "key=$1***");
+                        masked = "?" + masked;
+                    }
+                    log.info("Request: {} {}", clientRequest.method(), path + masked);
                     return Mono.just(clientRequest);
                 });
     }

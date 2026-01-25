@@ -72,7 +72,7 @@ jobs:
 
     - name: Check code coverage
       run: |
-        echo "::group::Code Coverage Check (40% minimum)"
+        echo "::group::Code Coverage Check (50% minimum)"
         ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
@@ -101,8 +101,8 @@ jobs:
         paths: |
           ${{ github.workspace }}/extractor/build/reports/jacoco/test/jacocoTestReport.xml
         token: ${{ secrets.GITHUB_TOKEN }}
-        min-coverage-overall: 40
-        min-coverage-changed-files: 60
+        min-coverage-overall: 50
+        min-coverage-changed-files: 75
         title: Code Coverage Report
         update-comment: true
 
@@ -118,7 +118,7 @@ jobs:
           ### Test Results
           - ✅ Unit Tests: **Passed**
           - ✅ Integration Tests: **Passed**
-          - ✅ Code Coverage: **≥ 40%** (See coverage report below)
+          - ✅ Code Coverage: **≥ 50%** (See coverage report below)
 
           ### Build Information
           - **Java Version**: ${{ env.JAVA_VERSION }}

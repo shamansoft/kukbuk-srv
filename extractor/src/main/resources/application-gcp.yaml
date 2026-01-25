@@ -27,6 +27,15 @@ cookbook:
     oauth-id: "${COOKBOOK_GOOGLE_OAUTH_ID:REMOVE_LATER}"
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 
+# TODO: Re-enable Stackdriver metrics for Cloud Run monitoring
+# management:
+#   metrics:
+#     export:
+#       stackdriver:
+#         enabled: true
+#         project-id: "${FIRESTORE_PROJECT_ID}"
+#         step: 1m
+
 # Logging configuration for GCP
 logging:
   level:

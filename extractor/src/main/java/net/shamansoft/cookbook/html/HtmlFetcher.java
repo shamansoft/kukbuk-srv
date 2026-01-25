@@ -1,4 +1,4 @@
-package net.shamansoft.cookbook.service;
+package net.shamansoft.cookbook.html;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 
 @Service
-public class RawContentService {
+public class HtmlFetcher {
 
     public String fetch(String url) throws IOException {
         Document doc = Jsoup.connect(url).get();
