@@ -48,7 +48,7 @@ jobs:
     name: Test & Validate
     runs-on: ubuntu-latest
     # Include test phase by default, can be excluded via workflow_dispatch
-    if: ${{ inputs.include_test != false }}
+    if: ${{ github.event_name == 'push' || inputs.include_test != false }}
     outputs:
       release-version: ${{ steps.version.outputs.RELEASE_VERSION }}
 
@@ -151,7 +151,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest  # Standard runner (free tier)
     # Include build phase by default, can be excluded via workflow_dispatch
-    if: ${{ inputs.include_build != false }}
+    if: ${{ github.event_name == 'push' || inputs.include_build != false }}
 
     steps:
     - name: Checkout code
@@ -261,7 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production  # Require manual approval if configured
     # Include deployment phase by default, requires build phase to be included
-    if: ${{ inputs.include_deploy != false && inputs.include_build != false }}
+    if: ${{ github.event_name == 'push' || (inputs.include_deploy != false && inputs.include_build != false) }}
 
     steps:
     - name: Checkout code
