@@ -16,19 +16,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class ServiceConfig {
 
-
-    // Hide API key in URL query (keeps first 2 chars)
-    // We avoid referencing ClientRequest in a method signature to prevent
-    // classloading issues when reactive classes are not present at runtime.
-
-    // shows first 3 chars of the key and last 3 chars, e.g. "abc***xyz"
-    static String hideKey(String apiKey) {
-        if (apiKey.length() < 6) {
-            return apiKey;
-        }
-        return apiKey.substring(0, 3) + "***" + apiKey.substring(apiKey.length() - 3);
-    }
-
     @Bean
     ExchangeFilterFunction loggingFilter() {
         return ExchangeFilterFunction.ofRequestProcessor(
