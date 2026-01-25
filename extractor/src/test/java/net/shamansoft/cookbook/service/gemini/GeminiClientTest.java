@@ -9,9 +9,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 
@@ -25,19 +24,19 @@ import static org.mockito.Mockito.*;
 class GeminiClientTest {
 
     @Mock
-    private WebClient webClient;
+    private RestClient restClient;
 
     @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
+    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
 
     @Mock
-    private WebClient.RequestBodySpec requestBodySpec;
+    private RestClient.RequestBodySpec requestBodySpec;
 
     @Mock
-    private WebClient.RequestHeadersSpec requestHeadersSpec;
+    private RestClient.RequestHeadersSpec<?> requestHeadersSpec;
 
     @Mock
-    private WebClient.ResponseSpec responseSpec;
+    private RestClient.ResponseSpec responseSpec;
 
     private ObjectMapper objectMapper;
     private GeminiClient geminiClient;
@@ -45,7 +44,7 @@ class GeminiClientTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        geminiClient = new GeminiClient(webClient, objectMapper);
+        geminiClient = new GeminiClient(restClient, objectMapper);
 
         // Set private fields using reflection
         ReflectionTestUtils.setField(geminiClient, "apiKey", "test-api-key");
@@ -76,7 +75,7 @@ class GeminiClientTest {
                 }
                 """;
 
-        setupSuccessfulWebClientMock(geminiResponseJson);
+        setupSuccessfulRestClientMock(geminiResponseJson);
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -112,7 +111,7 @@ class GeminiClientTest {
                 }
                 """;
 
-        setupSuccessfulWebClientMock(geminiResponseJson);
+        setupSuccessfulRestClientMock(geminiResponseJson);
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -147,7 +146,7 @@ class GeminiClientTest {
                 }
                 """;
 
-        setupSuccessfulWebClientMock(geminiResponseJson);
+        setupSuccessfulRestClientMock(geminiResponseJson);
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -168,7 +167,7 @@ class GeminiClientTest {
                 }
                 """;
 
-        setupSuccessfulWebClientMock(geminiResponseJson);
+        setupSuccessfulRestClientMock(geminiResponseJson);
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -180,23 +179,23 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestHandlesWebClientResponseException() throws JsonProcessingException {
+    void requestHandlesRestClientResponseException() throws JsonProcessingException {
         // Given
         GeminiRequest request = createSampleRequest();
 
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(JsonNode.class))
-                .thenReturn(Mono.error(WebClientResponseException.create(
+        doReturn(requestBodySpec).when(requestBodySpec).body(any(String.class));
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(JsonNode.class))
+                .thenThrow(new RestClientResponseException(
+                        "Internal Server Error",
                         500,
                         "Internal Server Error",
                         null,
                         "Server error".getBytes(),
-                        null)));
+                        null));
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -212,14 +211,13 @@ class GeminiClientTest {
         // Given
         GeminiRequest request = createSampleRequest();
 
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(JsonNode.class))
-                .thenReturn(Mono.error(new RuntimeException("Network failure")));
+        doReturn(requestBodySpec).when(requestBodySpec).body(any(String.class));
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(JsonNode.class))
+                .thenThrow(new RuntimeException("Network failure"));
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -270,7 +268,7 @@ class GeminiClientTest {
                 }
                 """;
 
-        setupSuccessfulWebClientMock(geminiResponseJson);
+        setupSuccessfulRestClientMock(geminiResponseJson);
 
         // When
         GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class);
@@ -292,16 +290,15 @@ class GeminiClientTest {
                 .build();
     }
 
-    private void setupSuccessfulWebClientMock(String responseJson) throws JsonProcessingException {
+    private void setupSuccessfulRestClientMock(String responseJson) throws JsonProcessingException {
         JsonNode responseNode = objectMapper.readTree(responseJson);
 
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(JsonNode.class)).thenReturn(Mono.just(responseNode));
+        doReturn(requestBodySpec).when(requestBodySpec).body(any(String.class));
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(JsonNode.class)).thenReturn(responseNode);
     }
 
     // Test data class

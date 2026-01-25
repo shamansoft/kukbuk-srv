@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import javax.naming.AuthenticationException;
 import java.util.Map;
@@ -15,7 +15,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TokenRestService implements TokenService {
 
-    private final WebClient authWebClient;
+    private final RestClient authRestClient;
 
     @Override
     public boolean verifyToken(String authToken) {
@@ -24,9 +24,9 @@ public class TokenRestService implements TokenService {
             return false;
         }
         try {
-            Map<?, ?> tokenInfo = authWebClient.get().uri(uriBuilder -> uriBuilder.path("/tokeninfo").queryParam("access_token", authToken).build()).retrieve().bodyToMono(Map.class).block();
+            Map<?, ?> tokenInfo = authRestClient.get().uri(uriBuilder -> uriBuilder.path("/tokeninfo").queryParam("access_token", authToken).build()).retrieve().body(Map.class);
             return tokenInfo != null && tokenInfo.containsKey("aud");
-        } catch (WebClientResponseException e) {
+        } catch (RestClientResponseException e) {
             log.warn("Token verification failed: {}", e.getResponseBodyAsString());
             return false;
         } catch (Exception e) {

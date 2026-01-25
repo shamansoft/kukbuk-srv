@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import javax.annotation.PostConstruct;
 import java.util.Objects;
@@ -18,7 +18,7 @@ import java.util.Objects;
 @Slf4j
 public class GeminiClient {
 
-    private final WebClient geminiWebClient;
+    private final RestClient geminiRestClient;
     private final ObjectMapper objectMapper;
     @Value("${cookbook.gemini.api-key}")
     private String apiKey;
@@ -39,20 +39,14 @@ public class GeminiClient {
 
         JsonNode response;
         try {
-            response = geminiWebClient.post()
+            response = geminiRestClient.post()
                     .uri(url)
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
-                    .bodyValue(objectMapper.writeValueAsString(geminiRequest))
+                    .body(objectMapper.writeValueAsString(geminiRequest))
                     .retrieve()
-                    .onStatus(
-                            status -> status.is4xxClientError() || status.is5xxServerError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .map(body -> new RuntimeException("Gemini API error: " + body))
-                    )
-                    .bodyToMono(JsonNode.class)
-                    .block();
-        } catch (WebClientResponseException e) {
+                    .body(JsonNode.class);
+        } catch (RestClientResponseException e) {
             log.error("Gemini API HTTP error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
             return GeminiResponse.failure(GeminiResponse.Code.OTHER,
                     "Gemini API error: " + e.getStatusCode() + " - " + e.getMessage());

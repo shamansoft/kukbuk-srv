@@ -17,6 +17,7 @@ google-cloud-firestore = "3.33.4"
 google-cloud-storage = "2.60.0"
 firebase-admin = "9.7.0"
 google-cloud-kms = "2.30.0"
+httpclient5 = "5.4.1"
 
 # Testing
 junit-jupiter = "5.10.1"
@@ -59,6 +60,9 @@ google-cloud-kms = { module = "com.google.cloud:google-cloud-kms", version.ref =
 # Web Scraping
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
+# HTTP Client
+apache-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version.ref = "httpclient5" }
+
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
@@ -92,7 +96,6 @@ hibernate-validator = { module = "org.hibernate.validator:hibernate-validator", 
 [bundles]
 spring-boot-starters = [
     "spring-boot-starter-web",
-    "spring-boot-starter-webflux",
     "spring-boot-starter-actuator",
     "spring-boot-starter-validation"
 ]

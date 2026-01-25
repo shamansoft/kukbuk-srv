@@ -11,9 +11,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestClient;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,19 +41,20 @@ class UserProfileServiceTest {
     private TokenEncryptionService tokenEncryptionService;
 
     @Mock
-    private WebClient webClient;
+    private RestClient webClient;
 
     @Mock
-    private WebClient.RequestBodyUriSpec requestBodyUriSpec;
+    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
 
     @Mock
-    private WebClient.RequestBodySpec requestBodySpec;
+    private RestClient.RequestBodySpec requestBodySpec;
 
     @Mock
-    private WebClient.RequestHeadersSpec<?> requestHeadersSpec;
+    @SuppressWarnings("rawtypes")
+    private RestClient.RequestHeadersSpec requestHeadersSpec;
 
     @Mock
-    private WebClient.ResponseSpec responseSpec;
+    private RestClient.ResponseSpec responseSpec;
 
     private UserProfileService userProfileService;
 
@@ -183,9 +184,9 @@ class UserProfileServiceTest {
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(oauthResponse);
 
         when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -293,9 +294,9 @@ class UserProfileServiceTest {
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.error(new RuntimeException("OAuth refresh failed")));
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenThrow(new RuntimeException("OAuth refresh failed"));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -329,9 +330,9 @@ class UserProfileServiceTest {
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).body(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(Map.class)).thenReturn(Mono.just(oauthResponse));
+        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(oauthResponse);
 
         when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));

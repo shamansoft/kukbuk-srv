@@ -3,13 +3,14 @@ package net.shamansoft.cookbook.client;
 import com.google.cloud.Timestamp;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 
@@ -23,14 +24,14 @@ public class GoogleAuthClient {
 
     // Refresh token if it expires within this window (5 minutes)
     private static final long TOKEN_BUFFER_SECONDS = 300;
-    private final WebClient webClient;
+    private final RestClient restClient;
     @Value("${cookbook.drive.oauth-id}")
     private String googleClientId;
     @Value("${cookbook.drive.oauth-secret}")
     private String googleClientSecret;
 
-    public GoogleAuthClient(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
+    public GoogleAuthClient(@Qualifier("genericRestClient") RestClient restClient) {
+        this.restClient = restClient;
     }
 
     /**
@@ -57,13 +58,12 @@ public class GoogleAuthClient {
             params.add("grant_type", "authorization_code");
             params.add("prompt", "consent");
 
-            Map<String, Object> response = webClient.post()
+            Map<String, Object> response = restClient.post()
                     .uri("https://oauth2.googleapis.com/token")
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData(params))
+                    .body(params)
                     .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new IllegalArgumentException("Invalid response from Google OAuth: " + response);
@@ -89,7 +89,7 @@ public class GoogleAuthClient {
 
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw e;
-        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+        } catch (org.springframework.web.client.RestClientResponseException e) {
             String errorBody = e.getResponseBodyAsString();
             log.error("OAuth token exchange failed with status {}: {}", e.getStatusCode(), errorBody);
 
@@ -133,13 +133,12 @@ public class GoogleAuthClient {
             params.add("refresh_token", refreshToken);
             params.add("grant_type", "refresh_token");
 
-            Map<String, Object> response = webClient.post()
+            Map<String, Object> response = restClient.post()
                     .uri("https://oauth2.googleapis.com/token")
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromFormData(params))
+                    .body(params)
                     .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new RuntimeException("Invalid response from Google OAuth: " + response);
