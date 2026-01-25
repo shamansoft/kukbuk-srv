@@ -362,7 +362,7 @@ class AddRecipeIT {
                 </html>
                 """;
 
-        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/cookies");
+        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/chocolate-chip-cookies");
         HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
 
         // When: Making a request to create recipe
@@ -386,7 +386,7 @@ class AddRecipeIT {
                         RecipeResponse::isRecipe
                 )
                 .containsExactly(
-                        "https://example.com/cookies",
+                        "https://example.com/chocolate-chip-cookies",
                         "Chocolate Chip Cookies",
                         "file-456",
                         "https://drive.google.com/file/d/file-456/view",

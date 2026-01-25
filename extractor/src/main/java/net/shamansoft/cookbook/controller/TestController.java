@@ -3,7 +3,7 @@ package net.shamansoft.cookbook.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.TestTransformRequest;
-import net.shamansoft.cookbook.service.HtmlExtractor;
+import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Recipe;

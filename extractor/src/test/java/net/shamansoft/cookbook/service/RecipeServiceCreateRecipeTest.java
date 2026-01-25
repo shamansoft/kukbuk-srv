@@ -105,7 +105,8 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
@@ -140,7 +141,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(false, "raw text"));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.notRecipe());
 
         // When
         RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
@@ -202,7 +203,6 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
         when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -281,13 +281,12 @@ class RecipeServiceCreateRecipeTest {
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
-        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(new Transformer.Response(true, YAML));
+        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenThrow(new RuntimeException("Drive upload failed"));

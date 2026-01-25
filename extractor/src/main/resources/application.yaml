@@ -157,7 +157,7 @@ cookbook:
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.max-output-tokens}"))
     # Default: 4096
     # Range: 1 to 8192 (model-dependent)
-    max-output-tokens: 4096
+    max-output-tokens: 6000
 
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
