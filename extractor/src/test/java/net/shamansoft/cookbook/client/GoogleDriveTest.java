@@ -633,7 +633,7 @@ class GoogleDriveTest {
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
 
         String fileContent = "title: Test Recipe\nservings: 4";
-        when(mockResponseSpec.body(String.class)).thenReturn(fileContent);
+        when(mockResponseSpec.body(byte[].class)).thenReturn(fileContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         // Execute
         String result = googleDrive.downloadFileAsString("dummyToken", "file123");
@@ -662,12 +662,45 @@ class GoogleDriveTest {
         when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
         when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
         when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.body(String.class)).thenReturn(null);
+        when(mockResponseSpec.body(byte[].class)).thenReturn(null);
 
         // Execute & Verify
         assertThatThrownBy(() -> googleDrive.downloadFileAsString("dummyToken", "file123"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to download file from Drive: file123");
+    }
+
+    @Test
+    void testDownloadFileAsStringWithUtf8() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
+        when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
+        when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
+        when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Test with Russian text to verify UTF-8 encoding
+        String russianContent = "title: Хачапури с сулугуни\nservings: 5";
+        when(mockResponseSpec.body(byte[].class)).thenReturn(russianContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        // Execute
+        String result = googleDrive.downloadFileAsString("dummyToken", "file123");
+
+        // Verify - should preserve Cyrillic characters
+        assertThat(result).isEqualTo(russianContent);
+        assertThat(result).contains("Хачапури");
     }
 
     @Test
