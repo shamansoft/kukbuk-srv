@@ -253,4 +253,48 @@ class RequestBuilderTest {
         // Should contain a date in YYYY-MM-DD format
         assertThat(promptText).containsPattern("Date: \\d{4}-\\d{2}-\\d{2}");
     }
+
+    @Test
+    void postConstructLoadsPromptAndSchemaResources() throws IOException {
+        // Given
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        ReflectionTestUtils.setField(builder, "temperature", 0.7f);
+        ReflectionTestUtils.setField(builder, "topP", 0.9f);
+        ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
+        ReflectionTestUtils.setField(builder, "safetyThreshold", "BLOCK_NONE");
+
+        // When
+        builder.init();
+
+        // Then
+        String prompt = (String) ReflectionTestUtils.getField(builder, "prompt");
+        String validationPrompt = (String) ReflectionTestUtils.getField(builder, "validationPrompt");
+        Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
+
+        assertThat(prompt).isNotNull();
+        assertThat(validationPrompt).isNotNull();
+        assertThat(parsedJsonSchema).isNotNull();
+    }
+
+    @Test
+    void postConstructRemovesIdAndSchemaFromJsonSchema() throws IOException {
+        // Given
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        ReflectionTestUtils.setField(builder, "temperature", 0.7f);
+        ReflectionTestUtils.setField(builder, "topP", 0.9f);
+        ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
+        ReflectionTestUtils.setField(builder, "safetyThreshold", "BLOCK_NONE");
+
+        // When
+        builder.init();
+
+        // Then
+        Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
+        String schemaJson = objectMapper.writeValueAsString(parsedJsonSchema);
+
+        // Verify $id and $schema are removed during initialization
+        assertThat(schemaJson).doesNotContain("$id");
+        assertThat(schemaJson).doesNotContain("$schema");
+        assertThat(schemaJson).contains("\"type\"");
+    }
 }

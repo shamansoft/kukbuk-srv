@@ -247,11 +247,11 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 9.8 All integration tests must pass before Phase 6
 
 ### Phase 6: Application Code Migration
-- [ ] 10. Fix deprecated javax.annotation imports
-  - [ ] 10.1 Update GeminiClient.java: javax.annotation.PostConstruct → jakarta.annotation.PostConstruct
-  - [ ] 10.2 Search for other javax.annotation usages
-  - [ ] 10.3 Write tests for @PostConstruct bean initialization
-  - [ ] 10.4 Run tests - must pass
+- [x] 10. Fix deprecated javax.annotation imports
+  - [x] 10.1 Update GeminiClient.java: javax.annotation.PostConstruct → jakarta.annotation.PostConstruct
+  - [x] 10.2 Search for other javax.annotation usages
+  - [x] 10.3 Write tests for @PostConstruct bean initialization
+  - [x] 10.4 Run tests - must pass
 - [ ] 11. Update package relocations
   - [ ] 11.1 Check for BootstrapRegistry usage (org.springframework.boot → org.springframework.boot.bootstrap)
   - [ ] 11.2 Check for EnvironmentPostProcessor usage (org.springframework.boot.env → org.springframework.boot)

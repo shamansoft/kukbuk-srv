@@ -278,6 +278,31 @@ class GeminiClientTest {
         // Note: We would need a log capture library to verify the warning was logged
     }
 
+    @Test
+    void initSetsUrlFromModelName() {
+        // Given
+        GeminiClient client = new GeminiClient(restClient, objectMapper);
+        ReflectionTestUtils.setField(client, "model", "gemini-2.5-flash-lite");
+
+        // When
+        client.init();
+
+        // Then
+        String url = (String) ReflectionTestUtils.getField(client, "url");
+        assertThat(url).isEqualTo("/models/gemini-2.5-flash-lite:generateContent");
+    }
+
+    @Test
+    void postConstructInitializesUrlCorrectly() {
+        // Given/When
+        // setUp already calls init() via @PostConstruct simulation
+
+        // Then
+        String url = (String) ReflectionTestUtils.getField(geminiClient, "url");
+        assertThat(url).isNotNull();
+        assertThat(url).isEqualTo("/models/gemini-2.0-flash:generateContent");
+    }
+
     private GeminiRequest createSampleRequest() {
         return GeminiRequest.builder()
                 .contents(List.of(
