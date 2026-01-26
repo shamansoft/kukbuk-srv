@@ -598,4 +598,20 @@ class RecipeParserTest {
                 .hasMessageContaining("Failed to parse recipe YAML")
                 .hasCauseInstanceOf(Exception.class);
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("Should include YAML preview in exception for long input")
+    void shouldIncludeYamlPreviewInExceptionMessageForLongInput() {
+        // Given - invalid YAML but long enough to trigger preview truncation
+        StringBuilder sb = new StringBuilder();
+        sb.append("schema_version: \"invalid\"\n");
+        for (int i = 0; i < 300; i++) sb.append('x');
+        String longInvalid = sb.toString();
+
+        // When & Then
+        assertThatThrownBy(() -> recipeParser.parse(longInvalid))
+                .isInstanceOf(InvalidRecipeFormatException.class)
+                .hasMessageContaining("YAML preview:")
+                .hasMessageContaining("...");
+    }
 }

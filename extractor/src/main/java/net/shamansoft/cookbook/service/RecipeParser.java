@@ -29,9 +29,18 @@ public class RecipeParser {
             log.debug("Successfully parsed recipe: {}", recipe.metadata().title());
             return recipe;
         } catch (Exception e) {
+            // Log detailed error information for debugging
             log.error("Failed to parse recipe YAML: {}", e.getMessage());
+
+            // Include a compact preview in the exception message to aid debugging
+            int previewLength = Math.min(200, yamlContent == null ? 0 : yamlContent.length());
+            String preview = previewLength > 0 ? yamlContent.substring(0, previewLength) : "";
+            if (previewLength < (yamlContent == null ? 0 : yamlContent.length())) {
+                preview += "...";
+            }
+
             throw new InvalidRecipeFormatException(
-                    "Failed to parse recipe YAML: " + e.getMessage(), e);
+                    "Failed to parse recipe YAML: " + e.getMessage() + "\nYAML preview: " + preview, e);
         }
     }
 }

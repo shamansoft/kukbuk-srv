@@ -6,6 +6,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
@@ -131,7 +132,7 @@ public class GoogleDrive {
                             .queryParam("fields", "id")
                             .build())
                     .header("Authorization", "Bearer " + authToken)
-                    .contentType(org.springframework.http.MediaType.parseMediaType("application/x-yaml"))
+                    .contentType(new org.springframework.http.MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))
                     .body(content)
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {});
@@ -263,26 +264,31 @@ public class GoogleDrive {
     }
 
     /**
-     * Download file content as string (for YAML files)
+     * Download file content as string (for YAML files).
+     * Downloads as bytes and converts to UTF-8 string to ensure proper encoding.
      *
      * @param authToken User's OAuth access token
      * @param fileId    Google Drive file ID
-     * @return File content as string
+     * @return File content as UTF-8 string
      */
     public String downloadFileAsString(String authToken, String fileId) {
         log.debug("Downloading file as string: {}", fileId);
 
-        String content = driveClient.get()
+        // Download as bytes to ensure proper encoding handling
+        byte[] bytes = driveClient.get()
                 .uri(uri -> uri.path("/files/" + fileId)
                         .queryParam("alt", "media")
                         .build())
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
-                .body(String.class);
+                .body(byte[].class);
 
-        if (content == null) {
+        if (bytes == null) {
             throw new ClientException("Failed to download file from Drive: " + fileId);
         }
+
+        // Convert bytes to UTF-8 string explicitly to handle international characters
+        String content = new String(bytes, StandardCharsets.UTF_8);
 
         log.debug("Downloaded file: {} ({} bytes)", fileId, content.length());
         return content;
