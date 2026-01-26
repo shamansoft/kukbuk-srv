@@ -24,8 +24,9 @@ import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -47,6 +48,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureTestRestTemplate
 @Import(TestFirebaseConfig.class)
 class RecipeControllerSBTest {
 
@@ -328,6 +330,14 @@ class RecipeControllerSBTest {
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+    }
+
+    @Test
+    void testRestTemplate_isConfigured_withAutoConfigureTestRestTemplate() {
+        // Verify that TestRestTemplate is properly autowired with Spring Boot 4
+        // using @AutoConfigureTestRestTemplate annotation
+        assertThat(restTemplate).isNotNull();
+        assertThat(restTemplate.getRestTemplate()).isNotNull();
     }
 
     private Recipe createTestRecipe() {

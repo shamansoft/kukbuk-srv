@@ -226,15 +226,16 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 7.2 Add spring-boot-restclient test dependency
   - [x] 7.3 Verify Mockito, JUnit 5, Testcontainers versions
   - [x] 7.4 Run `./gradlew test` - document failures
-- [ ] 8. Migrate unit test annotations and configurations
-  - [ ] 8.1 Replace @MockBean → @MockitoBean in all test files
-  - [ ] 8.2 Replace @SpyBean → @MockitoSpyBean in all test files
-  - [ ] 8.3 Add @AutoConfigureMockMvc to tests using MockMVC
-  - [ ] 8.4 Add @AutoConfigureRestTestClient to tests using RestTestClient
-  - [ ] 8.5 Update @PropertyMapping imports (package relocation)
-  - [ ] 8.6 Run `./gradlew :cookbook:test` - fix failures
-  - [ ] 8.7 Write tests for updated test configurations
-  - [ ] 8.8 All unit tests must pass before Phase 6
+- [x] 8. Migrate unit test annotations and configurations
+  - [x] 8.1 Replace @MockBean → @MockitoBean in all test files (already using @MockitoBean)
+  - [x] 8.2 Replace @SpyBean → @MockitoSpyBean in all test files (not used in codebase)
+  - [x] 8.3 Add @AutoConfigureMockMvc to tests using MockMVC (no MockMvc usage found)
+  - [x] 8.4 Add @AutoConfigureTestRestTemplate to tests using TestRestTemplate (RecipeControllerSBTest)
+  - [x] 8.5 Update TestRestTemplate import to org.springframework.boot.resttestclient.TestRestTemplate
+  - [x] 8.6 Add spring-boot-starter-restclient to testing bundle
+  - [x] 8.7 Run `./gradlew :cookbook:test` - all tests pass
+  - [x] 8.8 Write tests for updated test configurations (testRestTemplate_isConfigured_withAutoConfigureTestRestTemplate)
+  - [x] 8.9 All unit tests must pass before Phase 6
 - [ ] 9. Migrate integration tests
   - [ ] 9.1 Verify Testcontainers 1.19.3 compatibility with Spring Boot 4
   - [ ] 9.2 Update WireMock test configurations if needed
