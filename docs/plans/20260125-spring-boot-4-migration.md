@@ -151,9 +151,9 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 1.1 Run build with deprecation warnings enabled
   - [x] 1.2 Document all deprecation warnings in this plan
   - [x] 1.3 Verify javax.annotation.PostConstruct usage (1 file)
-- [ ] 2. Create feature branch for migration
-  - [ ] 2.1 Create branch: `spring-boot-4-migration`
-  - [ ] 2.2 Document rollback strategy in this plan
+- [x] 2. Create feature branch for migration
+  - [x] 2.1 Create branch: `spring-4` (equivalent to spring-boot-4-migration)
+  - [x] 2.2 Document rollback strategy in this plan (lines 396-421)
 
 ### Phase 2: Dependency Version Updates
 - [ ] 3. Update Spring Boot and core dependencies in version catalog
