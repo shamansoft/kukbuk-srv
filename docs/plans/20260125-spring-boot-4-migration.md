@@ -252,12 +252,12 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 10.2 Search for other javax.annotation usages
   - [x] 10.3 Write tests for @PostConstruct bean initialization
   - [x] 10.4 Run tests - must pass
-- [ ] 11. Update package relocations
-  - [ ] 11.1 Check for BootstrapRegistry usage (org.springframework.boot → org.springframework.boot.bootstrap)
-  - [ ] 11.2 Check for EnvironmentPostProcessor usage (org.springframework.boot.env → org.springframework.boot)
-  - [ ] 11.3 Update spring.factories files if present
-  - [ ] 11.4 Write tests for custom EnvironmentPostProcessor if present
-  - [ ] 11.5 Run tests - must pass
+- [x] 11. Update package relocations
+  - [x] 11.1 Check for BootstrapRegistry usage (org.springframework.boot → org.springframework.boot.bootstrap)
+  - [x] 11.2 Check for EnvironmentPostProcessor usage (org.springframework.boot.env → org.springframework.boot)
+  - [x] 11.3 Update spring.factories files if present
+  - [x] 11.4 Write tests for custom EnvironmentPostProcessor if present
+  - [x] 11.5 Run tests - must pass
 - [ ] 12. Update Spring configuration properties
   - [ ] 12.1 Review application.yaml for Jackson property changes
   - [ ] 12.2 Review application-gcp.yaml for property changes
