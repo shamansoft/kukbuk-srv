@@ -351,12 +351,12 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 23.4 Update deployment documentation if needed
 
 ### Phase 10: Merge and Deploy
-- [ ] 24. Prepare for merge
-  - [ ] 24.1 Rebase feature branch on main
-  - [ ] 24.2 Resolve any conflicts
-  - [ ] 24.3 Run full test suite again
-  - [ ] 24.4 Update version in extractor/build.gradle.kts (bump minor version)
-  - [ ] 24.5 Create PR with detailed description
+- [x] 24. Prepare for merge
+  - [x] 24.1 Rebase feature branch on main
+  - [x] 24.2 Resolve any conflicts
+  - [x] 24.3 Run full test suite again
+  - [x] 24.4 Update version in extractor/build.gradle.kts (bump minor version to 0.12.0-SNAPSHOT)
+  - [x] 24.5 Create PR with detailed description
 - [ ] 25. Monitor deployment
   - [ ] 25.1 Merge PR to main (triggers automated deployment)
   - [ ] 25.2 Monitor GitHub Actions deployment pipeline
