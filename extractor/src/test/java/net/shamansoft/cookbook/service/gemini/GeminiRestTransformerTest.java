@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Ingredient;
@@ -78,7 +78,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformSuccessfullyReturnsRecipe() throws JsonProcessingException {
+    void transformSuccessfullyReturnsRecipe() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
@@ -102,7 +102,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformReturnsNonRecipeWhenIsRecipeIsFalse() throws JsonProcessingException {
+    void transformReturnsNonRecipeWhenIsRecipeIsFalse() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Not a recipe</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
@@ -122,7 +122,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformWithFeedbackUsesCorrectRequestBuilder() throws JsonProcessingException {
+    void transformWithFeedbackUsesCorrectRequestBuilder() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe previousRecipe = createTestRecipe("Previous Recipe", true);
@@ -150,7 +150,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformThrowsExceptionWhenGeminiReturnsBlockedCode() throws JsonProcessingException {
+    void transformThrowsExceptionWhenGeminiReturnsBlockedCode() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
@@ -169,7 +169,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformThrowsExceptionWhenGeminiReturnsOtherErrorCode() throws JsonProcessingException {
+    void transformThrowsExceptionWhenGeminiReturnsOtherErrorCode() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
@@ -185,32 +185,32 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformThrowsExceptionWhenRequestBuilderFailsWithJsonProcessingException() throws JsonProcessingException {
+    void transformThrowsExceptionWhenRequestBuilderFailsWithJacksonException() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
 
         when(requestBuilder.buildRequest(eq(htmlContent)))
-                .thenThrow(new JsonProcessingException("Failed to serialize request") {});
+                .thenThrow(new JacksonException("Failed to serialize request") {});
 
         // When/Then
         assertThatThrownBy(() -> transformer.transform(htmlContent))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to transform content via Gemini API")
-                .hasCauseInstanceOf(JsonProcessingException.class);
+                .hasCauseInstanceOf(JacksonException.class);
 
         verify(requestBuilder).buildRequest(eq(htmlContent));
         verify(geminiClient, never()).request(any(), any());
     }
 
     @Test
-    void transformWithFeedbackThrowsExceptionWhenRequestBuilderFails() throws JsonProcessingException {
+    void transformWithFeedbackThrowsExceptionWhenRequestBuilderFails() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe previousRecipe = createTestRecipe("Test", true);
         String validationError = "Error";
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
-                .thenThrow(new JsonProcessingException("Failed to serialize") {});
+                .thenThrow(new JacksonException("Failed to serialize") {});
 
         // When/Then
         assertThatThrownBy(() -> transformer.transformWithFeedback(htmlContent, previousRecipe, validationError))
@@ -221,7 +221,7 @@ class GeminiRestTransformerTest {
     }
 
     @Test
-    void transformHandlesComplexRecipe() throws JsonProcessingException {
+    void transformHandlesComplexRecipe() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Complex recipe</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);

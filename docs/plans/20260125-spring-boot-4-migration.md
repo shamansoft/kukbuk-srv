@@ -199,11 +199,11 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 3.7 Run `./gradlew dependencies` - documented conflicts (see Dependency Conflicts section below)
 
 ### Phase 3: Modular Starter Migration
-- [ ] 4. Replace spring-boot-starter-web with spring-boot-starter-webmvc
-  - [ ] 4.1 Update extractor/build.gradle.kts starter dependency
-  - [ ] 4.2 Verify Tomcat embedded dependency still included
-  - [ ] 4.3 Check for missing transitive dependencies
-  - [ ] 4.4 Update build and resolve any compilation errors
+- [x] 4. Replace spring-boot-starter-web with spring-boot-starter-webmvc
+  - [x] 4.1 Update extractor/build.gradle.kts starter dependency
+  - [x] 4.2 Verify Tomcat embedded dependency still included
+  - [x] 4.3 Check for missing transitive dependencies
+  - [x] 4.4 Update build and resolve any compilation errors (Jackson 3 imports updated)
 
 ### Phase 4: Jackson 3 Migration
 - [ ] 5. Update Jackson group IDs and package names

@@ -41,7 +41,7 @@ hibernate-validator = "8.0.1.Final"
 
 [libraries]
 # Spring Boot Starters
-spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
@@ -92,7 +92,7 @@ hibernate-validator = { module = "org.hibernate.validator:hibernate-validator", 
 
 [bundles]
 spring-boot-starters = [
-    "spring-boot-starter-web",
+    "spring-boot-starter-webmvc",
     "spring-boot-starter-actuator",
     "spring-boot-starter-validation"
 ]

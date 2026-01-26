@@ -1,11 +1,9 @@
 package net.shamansoft.recipe.parser;
 
-import com.fasterxml.jackson.core.JsonLocation;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import net.shamansoft.recipe.model.Recipe;
 
 import java.io.File;
@@ -48,19 +46,16 @@ public class YamlRecipeParser {
      * @return configured ObjectMapper
      */
     private static ObjectMapper createDefaultMapper() {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        mapper.registerModule(new JavaTimeModule());
-
-        // Make the parser more lenient - ignore unknown properties
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        // Accept empty strings as null
-        mapper.configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true);
-
-        // Accept empty arrays as null for non-collection properties
-        mapper.configure(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT, true);
-
-        return mapper;
+        // Jackson 3.x uses immutable builder pattern
+        // JavaTimeModule is integrated in Jackson 3.x, no need to register
+        return YAMLMapper.builder()
+                // Make the parser more lenient - ignore unknown properties
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                // Accept empty strings as null
+                .enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
+                // Accept empty arrays as null for non-collection properties
+                .enable(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT)
+                .build();
     }
 
     /**
@@ -73,7 +68,7 @@ public class YamlRecipeParser {
     public Recipe parse(String yaml) throws RecipeParseException {
         try {
             return mapper.readValue(yaml, Recipe.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw createDetailedParseException("Failed to parse YAML content", e, yaml);
         }
     }
@@ -99,11 +94,8 @@ public class YamlRecipeParser {
     public Recipe parse(File file) throws RecipeParseException {
         try {
             return mapper.readValue(file, Recipe.class);
-        } catch (IOException e) {
-            if (e instanceof JsonProcessingException jpe) {
-                throw createDetailedParseException("Failed to parse YAML file: " + file.getAbsolutePath(), jpe, null);
-            }
-            throw new RecipeParseException("Failed to read YAML file: " + file.getAbsolutePath() + " - " + e.getMessage(), e);
+        } catch (JacksonException e) {
+            throw createDetailedParseException("Failed to parse YAML file: " + file.getAbsolutePath(), e, null);
         }
     }
 
@@ -117,11 +109,8 @@ public class YamlRecipeParser {
     public Recipe parse(InputStream inputStream) throws RecipeParseException {
         try {
             return mapper.readValue(inputStream, Recipe.class);
-        } catch (IOException e) {
-            if (e instanceof JsonProcessingException jpe) {
-                throw createDetailedParseException("Failed to parse YAML from input stream", jpe, null);
-            }
-            throw new RecipeParseException("Failed to read YAML from input stream: " + e.getMessage(), e);
+        } catch (JacksonException e) {
+            throw createDetailedParseException("Failed to parse YAML from input stream", e, null);
         }
     }
 
@@ -133,17 +122,16 @@ public class YamlRecipeParser {
      * @param yamlContent the YAML content (optional, for context)
      * @return a detailed RecipeParseException
      */
-    private RecipeParseException createDetailedParseException(String baseMessage, JsonProcessingException e, String yamlContent) {
+    private RecipeParseException createDetailedParseException(String baseMessage, JacksonException e, String yamlContent) {
         StringBuilder message = new StringBuilder(baseMessage);
 
         // Add specific error details
-        message.append(": ").append(e.getOriginalMessage());
+        message.append(": ").append(e.getMessage());
 
-        // Add location information if available
-        JsonLocation location = e.getLocation();
-        if (location != null) {
-            message.append(" at line ").append(location.getLineNr())
-                    .append(", column ").append(location.getColumnNr());
+        // Add location information if available (JacksonException provides location via getLocation())
+        if (e.getLocation() != null) {
+            message.append(" at line ").append(e.getLocation().getLineNr())
+                    .append(", column ").append(e.getLocation().getColumnNr());
         }
 
         // Add content context if available (first 500 chars or around error location)

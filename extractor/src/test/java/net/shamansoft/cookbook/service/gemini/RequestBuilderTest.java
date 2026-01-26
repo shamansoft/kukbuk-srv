@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -104,7 +104,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestWithHtmlContentCreatesValidRequest() throws JsonProcessingException {
+    void buildRequestWithHtmlContentCreatesValidRequest() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
 
@@ -134,7 +134,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestWithFeedbackIncludesValidationInfo() throws JsonProcessingException {
+    void buildRequestWithFeedbackIncludesValidationInfo() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe previousRecipe = createTestRecipe("Test Recipe");
@@ -214,7 +214,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestIncludesAllSafetyCategories() throws JsonProcessingException {
+    void buildRequestIncludesAllSafetyCategories() throws JacksonException {
         // Given
         String htmlContent = "<html></html>";
 
@@ -241,7 +241,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestIncludesCurrentDate() throws JsonProcessingException {
+    void buildRequestIncludesCurrentDate() throws JacksonException {
         // Given
         String htmlContent = "<html></html>";
 
