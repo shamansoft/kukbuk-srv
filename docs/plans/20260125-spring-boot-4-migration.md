@@ -144,6 +144,39 @@ This migration modernizes the application while maintaining GraalVM native image
 
 ---
 
+## Dependency Conflicts (Task 3)
+
+**Status**: Dependencies resolve successfully. Jackson 3 package changes require import updates.
+
+**Jackson Version Conflicts**:
+- Application uses: Jackson 3.0.3 (tools.jackson.*)
+- Google Cloud Firestore 3.33.4 brings: Jackson 2.20.1 (com.fasterxml.jackson.*)
+  - jackson-dataformat-xml:2.20.1
+  - jackson-datatype-jsr310:2.20.1
+  - jackson-databind:2.20.1
+  - jackson-annotations:2.20
+
+**Impact**:
+- Both Jackson 2.x and 3.x dependencies present in classpath (different group IDs)
+- No runtime conflicts expected (tools.jackson vs com.fasterxml.jackson)
+- Compilation requires updating all imports from com.fasterxml.jackson.* to tools.jackson.*
+- JavaTimeModule no longer needed in Jackson 3 (integrated into jackson-databind)
+
+**Resolution Strategy**:
+- Keep both Jackson versions (different group IDs, no conflicts)
+- Update application code to use Jackson 3.x (tools.jackson.*)
+- Google Cloud libraries continue using Jackson 2.x until they upgrade
+- Removed jackson-datatype-jsr310 from dependencies (integrated in Jackson 3)
+
+**Versions Updated**:
+- Spring Boot: 3.5.9 → 4.0.1
+- Spring Dependency Management: 1.1.7 (unchanged, no 1.2.x exists)
+- GraalVM Build Tools: 0.10.5 → 0.11.3
+- Jackson: 2.18.2 → 3.0.3
+- Google Cloud libraries: unchanged (compatible)
+
+---
+
 ## 📋 Table of Contents
 
 ### Phase 1: Pre-Migration Preparation
@@ -156,14 +189,14 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 2.2 Document rollback strategy in this plan (lines 396-421)
 
 ### Phase 2: Dependency Version Updates
-- [ ] 3. Update Spring Boot and core dependencies in version catalog
-  - [ ] 3.1 Update Spring Boot: 3.5.9 → 4.0.x (latest stable)
-  - [ ] 3.2 Update Spring Dependency Management: 1.1.7 → 1.2.x
-  - [ ] 3.3 Update GraalVM Build Tools: 0.10.5 → 0.11.x (for GraalVM 25+)
-  - [ ] 3.4 Update Jackson: 2.18.2 → 3.x.x (latest Jackson 3)
-  - [ ] 3.5 Verify Google Cloud library versions (Firestore, Firebase, Storage)
-  - [ ] 3.6 Sync Gradle wrapper and refresh dependencies
-  - [ ] 3.7 Run `./gradlew dependencies` - document conflicts
+- [x] 3. Update Spring Boot and core dependencies in version catalog
+  - [x] 3.1 Update Spring Boot: 3.5.9 → 4.0.1 (latest stable)
+  - [x] 3.2 Update Spring Dependency Management: 1.1.7 (unchanged, no 1.2.x exists yet)
+  - [x] 3.3 Update GraalVM Build Tools: 0.10.5 → 0.11.3 (for GraalVM 25+)
+  - [x] 3.4 Update Jackson: 2.18.2 → 3.0.3 (latest stable Jackson 3)
+  - [x] 3.5 Verify Google Cloud library versions (kept at 3.33.4/9.7.0/2.60.0 - compatible)
+  - [x] 3.6 Sync Gradle wrapper (Gradle 9.2.0) and refresh dependencies
+  - [x] 3.7 Run `./gradlew dependencies` - documented conflicts (see Dependency Conflicts section below)
 
 ### Phase 3: Modular Starter Migration
 - [ ] 4. Replace spring-boot-starter-web with spring-boot-starter-webmvc
