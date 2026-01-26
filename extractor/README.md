@@ -2,8 +2,8 @@
 
 [![PR Validation](https://github.com/username/kukbuk-srv/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/username/kukbuk-srv/actions/workflows/pr-validation.yml)
 [![codecov](https://codecov.io/gh/username/kukbuk-srv/branch/main/graph/badge.svg)](https://codecov.io/gh/username/kukbuk-srv)
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.java.net/projects/jdk/21/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.java.net/projects/jdk/25/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
 A Spring Boot service that extracts recipe data from web pages using AI (Google Gemini) and stores them in Firestore.
 
@@ -87,9 +87,10 @@ Retrieves a single recipe by its Drive file ID.
 
 ### Prerequisites
 
-- Java 21+
+- Java 25+ (required for Spring Boot 4)
 - Docker (for integration tests)
 - Google Cloud Project with Gemini API and Drive API enabled
+- GraalVM 25+ (for native image builds)
 
 ### Configuration
 
@@ -322,6 +323,38 @@ All PRs must:
 - ✅ Meet code coverage requirements (40% overall, 60% new code)
 - ✅ Pass security vulnerability scanning
 - ✅ Receive code review approval
+
+## Spring Boot 4 Migration
+
+This application has been migrated from Spring Boot 3.5.9 to Spring Boot 4.0.1.
+
+### Key Changes
+
+- Spring Boot: 3.5.9 → 4.0.1
+- Java: 21 → 25 (toolchain enforced)
+- Jackson: 2.18.2 → 3.0.3 (new group IDs: tools.jackson.*)
+- GraalVM Build Tools: 0.10.5 → 0.11.3
+- Modular Starters: spring-boot-starter-web → spring-boot-starter-webmvc
+- Spring Framework: 6.x → 7.x
+
+### Migration Impact
+
+- Jakarta EE 11 baseline with Servlet 6.1
+- javax.annotation.PostConstruct → jakarta.annotation.PostConstruct
+- Testing: @MockBean/@SpyBean → @MockitoBean/@MockitoSpyBean
+- TestRestTemplate requires @AutoConfigureTestRestTemplate
+- Health probes (liveness/readiness) enabled by default
+- GraalVM 25+ required for native images
+
+### Native Image Build
+
+GraalVM 25+ native image builds require x86-64-v3 CPU support:
+- Apple Silicon/ARM Macs cannot build native images locally via Docker
+- Native image builds run in CI/CD pipeline on x86-64-v3 hardware
+- Local development uses JVM builds only (./gradlew :cookbook:bootRun)
+- Production uses native images deployed via GitHub Actions
+
+For detailed migration documentation, see `docs/plans/20260125-spring-boot-4-migration.md`.
 
 ## License
 

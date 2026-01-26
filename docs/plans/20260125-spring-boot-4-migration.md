@@ -344,11 +344,11 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 22.6 Created NativeImageConfigurationTest to validate native build config
   - [x] 22.7 Created docs/native-image-verification.md with metrics and verification plan
   - [x] 22.8 ✅ Configuration tests pass, native image build deferred to CI/CD
-- [ ] 23. Document migration changes
-  - [ ] 23.1 Update extractor/README.md with Spring Boot 4 notes
-  - [ ] 23.2 Update CLAUDE.md with new versions
-  - [ ] 23.3 Document any breaking changes or new patterns
-  - [ ] 23.4 Update deployment documentation if needed
+- [x] 23. Document migration changes
+  - [x] 23.1 Update extractor/README.md with Spring Boot 4 notes
+  - [x] 23.2 Update CLAUDE.md with new versions
+  - [x] 23.3 Document any breaking changes or new patterns
+  - [x] 23.4 Update deployment documentation if needed
 
 ### Phase 10: Merge and Deploy
 - [ ] 24. Prepare for merge
