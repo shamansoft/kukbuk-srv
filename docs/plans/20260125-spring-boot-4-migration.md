@@ -296,13 +296,13 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 16.4 Test resource autodetection
   - [x] 16.5 Write tests for native image configuration validation
   - [x] 16.6 Run tests - must pass
-- [ ] 17. Test native image compilation (JVM build first)
-  - [ ] 17.1 Run `./gradlew :cookbook:build` - must succeed
-  - [ ] 17.2 Run `./gradlew :cookbook:bootRun` locally - verify startup
-  - [ ] 17.3 Test recipe extraction endpoint locally
-  - [ ] 17.4 Test Firestore CRUD operations locally
-  - [ ] 17.5 Test Actuator endpoints locally
-  - [ ] 17.6 All JVM tests must pass before native build
+- [x] 17. Test native image compilation (JVM build first)
+  - [x] 17.1 Run `./gradlew :cookbook:build` - must succeed
+  - [x] 17.2 Run `./gradlew :cookbook:bootRun` locally - verify startup
+  - [x] 17.3 Test recipe extraction endpoint locally
+  - [x] 17.4 Test Firestore CRUD operations locally
+  - [x] 17.5 Test Actuator endpoints locally
+  - [x] 17.6 All JVM tests must pass before native build
 - [ ] 18. Build and test GraalVM 25+ native image
   - [ ] 18.1 Run `./gradlew :cookbook:nativeCompile` (expect 10-15 min)
   - [ ] 18.2 Verify native image binary created
