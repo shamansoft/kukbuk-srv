@@ -258,13 +258,13 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 11.3 Update spring.factories files if present
   - [x] 11.4 Write tests for custom EnvironmentPostProcessor if present
   - [x] 11.5 Run tests - must pass
-- [ ] 12. Update Spring configuration properties
-  - [ ] 12.1 Review application.yaml for Jackson property changes
-  - [ ] 12.2 Review application-gcp.yaml for property changes
-  - [ ] 12.3 Verify spring.threads.virtual.enabled still supported
-  - [ ] 12.4 Check Actuator health probe defaults (now enabled by default)
-  - [ ] 12.5 Write tests for configuration property bindings
-  - [ ] 12.6 Run tests - must pass
+- [x] 12. Update Spring configuration properties
+  - [x] 12.1 Review application.yaml for Jackson property changes
+  - [x] 12.2 Review application-gcp.yaml for property changes
+  - [x] 12.3 Verify spring.threads.virtual.enabled still supported
+  - [x] 12.4 Check Actuator health probe defaults (now enabled by default)
+  - [x] 12.5 Write tests for configuration property bindings
+  - [x] 12.6 Run tests - must pass
 - [ ] 13. Verify RestClient configuration
   - [ ] 13.1 Test geminiRestClient bean initialization
   - [ ] 13.2 Test authRestClient bean initialization
