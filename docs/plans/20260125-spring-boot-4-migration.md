@@ -280,13 +280,13 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 14.4 Test ServiceConfig Actuator beans
   - [x] 14.5 Write tests for conditional bean scenarios
   - [x] 14.6 Run tests - must pass
-- [ ] 15. Update security filter for Spring Boot 4
-  - [ ] 15.1 Verify FirebaseAuthFilter extends OncePerRequestFilter
-  - [ ] 15.2 Test authentication filter with valid token
-  - [ ] 15.3 Test authentication filter with invalid token
-  - [ ] 15.4 Test public path exclusions (/actuator/**)
-  - [ ] 15.5 Write tests for filter chain integration
-  - [ ] 15.6 Run tests - must pass
+- [x] 15. Update security filter for Spring Boot 4
+  - [x] 15.1 Verify FirebaseAuthFilter extends OncePerRequestFilter
+  - [x] 15.2 Test authentication filter with valid token
+  - [x] 15.3 Test authentication filter with invalid token
+  - [x] 15.4 Test public path exclusions (/actuator/**)
+  - [x] 15.5 Write tests for filter chain integration
+  - [x] 15.6 Run tests - must pass
 
 ### Phase 7: GraalVM Native Image Update
 - [ ] 16. Update GraalVM build configuration
