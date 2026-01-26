@@ -221,11 +221,11 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 6.7 Run tests - must pass before Phase 5 (all Jackson-related tests pass)
 
 ### Phase 5: Testing Framework Migration (TDD - Tests First)
-- [ ] 7. Update test dependencies for Spring Boot 4
-  - [ ] 7.1 Add spring-boot-resttestclient test dependency
-  - [ ] 7.2 Add spring-boot-restclient test dependency
-  - [ ] 7.3 Verify Mockito, JUnit 5, Testcontainers versions
-  - [ ] 7.4 Run `./gradlew test` - document failures
+- [x] 7. Update test dependencies for Spring Boot 4
+  - [x] 7.1 Add spring-boot-resttestclient test dependency
+  - [x] 7.2 Add spring-boot-restclient test dependency
+  - [x] 7.3 Verify Mockito, JUnit 5, Testcontainers versions
+  - [x] 7.4 Run `./gradlew test` - document failures
 - [ ] 8. Migrate unit test annotations and configurations
   - [ ] 8.1 Replace @MockBean → @MockitoBean in all test files
   - [ ] 8.2 Replace @SpyBean → @MockitoSpyBean in all test files

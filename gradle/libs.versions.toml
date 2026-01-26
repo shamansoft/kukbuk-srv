@@ -45,6 +45,8 @@ spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-st
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-resttestclient = { module = "org.springframework.boot:spring-boot-resttestclient" }
+spring-boot-restclient = { module = "org.springframework.boot:spring-boot-restclient" }
 micrometer-registry-stackdriver = { module = "io.micrometer:micrometer-registry-stackdriver" }
 
 # HTTP Client (for RestClient connection pooling)
@@ -113,6 +115,7 @@ testcontainers = [
 
 testing = [
     "spring-boot-starter-test",
+    "spring-boot-resttestclient",
     "assertj-core",
     "mockito-core"
 ]
