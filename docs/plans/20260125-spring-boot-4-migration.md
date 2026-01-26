@@ -289,13 +289,13 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 15.6 Run tests - must pass
 
 ### Phase 7: GraalVM Native Image Update
-- [ ] 16. Update GraalVM build configuration
-  - [ ] 16.1 Update graalvmNative block in extractor/build.gradle.kts
-  - [ ] 16.2 Verify reflection config files still valid
-  - [ ] 16.3 Update SLF4J initialization settings if needed
-  - [ ] 16.4 Test resource autodetection
-  - [ ] 16.5 Write tests for native image configuration validation
-  - [ ] 16.6 Run tests - must pass
+- [x] 16. Update GraalVM build configuration
+  - [x] 16.1 Update graalvmNative block in extractor/build.gradle.kts
+  - [x] 16.2 Verify reflection config files still valid
+  - [x] 16.3 Update SLF4J initialization settings if needed
+  - [x] 16.4 Test resource autodetection
+  - [x] 16.5 Write tests for native image configuration validation
+  - [x] 16.6 Run tests - must pass
 - [ ] 17. Test native image compilation (JVM build first)
   - [ ] 17.1 Run `./gradlew :cookbook:build` - must succeed
   - [ ] 17.2 Run `./gradlew :cookbook:bootRun` locally - verify startup

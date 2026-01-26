@@ -36,12 +36,6 @@
     "allDeclaredConstructors": true
   },
   {
-    "name": "net.shamansoft.cookbook.model.Recipe$RecipeBuilder",
-    "allDeclaredFields": true,
-    "allDeclaredMethods": true,
-    "allDeclaredConstructors": true
-  },
-  {
     "name": "java.time.Instant",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
