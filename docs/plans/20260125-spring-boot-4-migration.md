@@ -273,13 +273,13 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 13.5 Test genericRestClient bean initialization
   - [x] 13.6 Write tests for RestClient configurations (success + error cases)
   - [x] 13.7 Run tests - must pass
-- [ ] 14. Verify conditional beans and custom configurations
-  - [ ] 14.1 Test FirestoreConfig conditional bean loading
-  - [ ] 14.2 Test FirebaseConfig conditional bean loading
-  - [ ] 14.3 Test WebConfig CORS configuration
-  - [ ] 14.4 Test ServiceConfig Actuator beans
-  - [ ] 14.5 Write tests for conditional bean scenarios
-  - [ ] 14.6 Run tests - must pass
+- [x] 14. Verify conditional beans and custom configurations
+  - [x] 14.1 Test FirestoreConfig conditional bean loading
+  - [x] 14.2 Test FirebaseConfig conditional bean loading
+  - [x] 14.3 Test WebConfig CORS configuration
+  - [x] 14.4 Test ServiceConfig Actuator beans
+  - [x] 14.5 Write tests for conditional bean scenarios
+  - [x] 14.6 Run tests - must pass
 - [ ] 15. Update security filter for Spring Boot 4
   - [ ] 15.1 Verify FirebaseAuthFilter extends OncePerRequestFilter
   - [ ] 15.2 Test authentication filter with valid token
