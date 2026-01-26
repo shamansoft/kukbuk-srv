@@ -236,15 +236,15 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 8.7 Run `./gradlew :cookbook:test` - all tests pass
   - [x] 8.8 Write tests for updated test configurations (testRestTemplate_isConfigured_withAutoConfigureTestRestTemplate)
   - [x] 8.9 All unit tests must pass before Phase 6
-- [ ] 9. Migrate integration tests
-  - [ ] 9.1 Verify Testcontainers 1.19.3 compatibility with Spring Boot 4
-  - [ ] 9.2 Update WireMock test configurations if needed
-  - [ ] 9.3 Test Gemini API mock behavior
-  - [ ] 9.4 Test Google Auth mock behavior
-  - [ ] 9.5 Test Drive API mock behavior
-  - [ ] 9.6 Run `./gradlew :cookbook:intTest` - fix failures
-  - [ ] 9.7 Write tests for integration test configurations
-  - [ ] 9.8 All integration tests must pass before Phase 6
+- [x] 9. Migrate integration tests
+  - [x] 9.1 Verify Testcontainers 1.19.3 compatibility with Spring Boot 4
+  - [x] 9.2 Update WireMock test configurations if needed
+  - [x] 9.3 Test Gemini API mock behavior
+  - [x] 9.4 Test Google Auth mock behavior
+  - [x] 9.5 Test Drive API mock behavior
+  - [x] 9.6 Run `./gradlew :cookbook:intTest` - fix failures
+  - [x] 9.7 Write tests for integration test configurations
+  - [x] 9.8 All integration tests must pass before Phase 6
 
 ### Phase 6: Application Code Migration
 - [ ] 10. Fix deprecated javax.annotation imports

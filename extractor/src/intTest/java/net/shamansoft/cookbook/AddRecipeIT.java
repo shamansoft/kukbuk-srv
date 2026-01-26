@@ -14,9 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -52,6 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "spring.main.allow-bean-definition-overriding=true"
 )
+@AutoConfigureTestRestTemplate
 class AddRecipeIT {
 
     public static final String RECIPE_PATH = "/v1/recipes";
@@ -649,5 +651,34 @@ class AddRecipeIT {
         // The preprocessed HTML should not contain scripts, styles, nav, footer, ads
         // This is validated by the fact that the request succeeded and was processed
         // In a real test, we could capture the request body and verify its size/content
+    }
+
+    @Test
+    @DisplayName("Should have properly configured integration test environment with Spring Boot 4")
+    void shouldHaveProperlyConfiguredIntegrationTestEnvironment() {
+        // Given: Integration test environment with Testcontainers and WireMock
+
+        // Then: Verify test infrastructure is running
+        assertThat(wiremockContainer.isRunning())
+                .as("WireMock container should be running")
+                .isTrue();
+        assertThat(firestoreEmulator.isRunning())
+                .as("Firestore emulator container should be running")
+                .isTrue();
+
+        // Verify TestRestTemplate is configured with @AutoConfigureTestRestTemplate
+        assertThat(restTemplate)
+                .as("TestRestTemplate should be autowired from Spring Boot 4 test configuration")
+                .isNotNull();
+
+        // Verify Firestore bean is properly configured from TestConfiguration
+        assertThat(firestore)
+                .as("Firestore should be configured to use emulator")
+                .isNotNull();
+
+        // Verify port is assigned
+        assertThat(port)
+                .as("Random port should be assigned for web environment")
+                .isGreaterThan(0);
     }
 }
