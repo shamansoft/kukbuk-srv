@@ -32,21 +32,15 @@ public class RecipeParser {
             // Log detailed error information for debugging
             log.error("Failed to parse recipe YAML: {}", e.getMessage());
 
-            // Log the exception stack trace for more details
-            if (log.isDebugEnabled()) {
-                log.debug("Parse error stack trace:", e);
-
-                // Log a preview of the YAML content
-                int previewLength = Math.min(500, yamlContent.length());
-                String preview = yamlContent.substring(0, previewLength);
-                if (previewLength < yamlContent.length()) {
-                    preview += "...";
-                }
-                log.debug("YAML content preview: {}", preview);
+            // Include a compact preview in the exception message to aid debugging
+            int previewLength = Math.min(200, yamlContent == null ? 0 : yamlContent.length());
+            String preview = previewLength > 0 ? yamlContent.substring(0, previewLength) : "";
+            if (previewLength < (yamlContent == null ? 0 : yamlContent.length())) {
+                preview += "...";
             }
 
             throw new InvalidRecipeFormatException(
-                    "Failed to parse recipe YAML: " + e.getMessage(), e);
+                    "Failed to parse recipe YAML: " + e.getMessage() + "\nYAML preview: " + preview, e);
         }
     }
 }
