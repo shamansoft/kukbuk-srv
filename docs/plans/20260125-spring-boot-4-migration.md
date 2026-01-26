@@ -265,14 +265,14 @@ This migration modernizes the application while maintaining GraalVM native image
   - [x] 12.4 Check Actuator health probe defaults (now enabled by default)
   - [x] 12.5 Write tests for configuration property bindings
   - [x] 12.6 Run tests - must pass
-- [ ] 13. Verify RestClient configuration
-  - [ ] 13.1 Test geminiRestClient bean initialization
-  - [ ] 13.2 Test authRestClient bean initialization
-  - [ ] 13.3 Test driveRestClient bean initialization
-  - [ ] 13.4 Test uploadRestClient bean initialization
-  - [ ] 13.5 Test genericRestClient bean initialization
-  - [ ] 13.6 Write tests for RestClient configurations (success + error cases)
-  - [ ] 13.7 Run tests - must pass
+- [x] 13. Verify RestClient configuration
+  - [x] 13.1 Test geminiRestClient bean initialization
+  - [x] 13.2 Test authRestClient bean initialization
+  - [x] 13.3 Test driveRestClient bean initialization
+  - [x] 13.4 Test uploadRestClient bean initialization
+  - [x] 13.5 Test genericRestClient bean initialization
+  - [x] 13.6 Write tests for RestClient configurations (success + error cases)
+  - [x] 13.7 Run tests - must pass
 - [ ] 14. Verify conditional beans and custom configurations
   - [ ] 14.1 Test FirestoreConfig conditional bean loading
   - [ ] 14.2 Test FirebaseConfig conditional bean loading
