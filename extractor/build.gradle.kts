@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.owasp.dependency.check)
 }
 
-version = "0.12.0-SNAPSHOT"
+version = "0.12.1-SNAPSHOT"
 
 springBoot {
     buildInfo()   // This will generate a build-info.properties file with accurate values
