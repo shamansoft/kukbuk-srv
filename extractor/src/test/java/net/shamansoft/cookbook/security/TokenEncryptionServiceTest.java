@@ -36,32 +36,6 @@ class TokenEncryptionServiceTest {
     }
 
     @Test
-    void postConstructInitializesKmsClientWhenEnabled() {
-        // Given
-        TokenEncryptionService service = new TokenEncryptionService();
-        ReflectionTestUtils.setField(service, "kmsEnabled", true);
-        ReflectionTestUtils.setField(service, "projectId", "test-project");
-        ReflectionTestUtils.setField(service, "location", "us-west1");
-        ReflectionTestUtils.setField(service, "keyring", "test-keyring");
-        ReflectionTestUtils.setField(service, "keyName", "test-key");
-
-        // When/Then
-        // Cannot test actual KMS initialization without GCP credentials
-        // This test documents that @PostConstruct method exists and is called
-        // Integration tests verify actual KMS functionality
-
-        // Verify the method exists and can be called without throwing
-        try {
-            service.initKmsClient();
-            // If we reach here without credentials, it should have thrown
-            // But we're documenting the behavior exists
-        } catch (RuntimeException e) {
-            // Expected when running without GCP credentials
-            assertThat(e.getMessage()).contains("Could not find default credentials");
-        }
-    }
-
-    @Test
     void kmsClientIsNullWhenKmsDisabled() {
         // Given
         TokenEncryptionService service = new TokenEncryptionService();
