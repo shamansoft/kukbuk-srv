@@ -50,3 +50,6 @@ crash.log
 
 # ralphex progress logs
 progress*.txt
+
+.DS_Store
+Thumbs.db
