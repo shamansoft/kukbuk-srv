@@ -1,8 +1,9 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -50,7 +51,7 @@ public class RequestBuilder {
         String jsonSchemaString = resourceLoader.loadTextFile("classpath:recipe-schema-1.0.0.json");
         // Parse JSON schema and remove $id and $schema fields as they're not needed for Gemini API
         JsonNode schemaNode = objectMapper.readTree(jsonSchemaString);
-        if (schemaNode instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
+        if (schemaNode instanceof ObjectNode objectNode) {
             objectNode.remove("$id");
             objectNode.remove("$schema");
             return objectMapper.writeValueAsString(objectNode);
@@ -68,18 +69,18 @@ public class RequestBuilder {
         return prompt.formatted(withDate(), html);
     }
 
-    private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError) throws JsonProcessingException {
+    private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError) throws JacksonException {
         String basePrompt = withHtml(html);
         return basePrompt + validationPrompt.formatted(validationError, objectMapper.writeValueAsString(previousRecipe));
     }
 
-    public GeminiRequest buildRequest(String htmlContent) throws JsonProcessingException {
+    public GeminiRequest buildRequest(String htmlContent) throws JacksonException {
         Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
         String fullPrompt = withHtml(htmlContent);
         return buildRequestBodyWithSchema(fullPrompt);
     }
 
-    public GeminiRequest buildRequest(String htmlContent, Recipe feedback, String validationError) throws JsonProcessingException {
+    public GeminiRequest buildRequest(String htmlContent, Recipe feedback, String validationError) throws JacksonException {
         Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
         Objects.requireNonNull(feedback, "feedback cannot be null");
         Objects.requireNonNull(validationError, "validationError cannot be null");
@@ -87,7 +88,7 @@ public class RequestBuilder {
         return buildRequestBodyWithSchema(fullPrompt);
     }
 
-    private GeminiRequest buildRequestBodyWithSchema(String fullPrompt) throws JsonProcessingException {
+    private GeminiRequest buildRequestBodyWithSchema(String fullPrompt) throws JacksonException {
         return GeminiRequest.builder()
                 .contents(List.of(
                         GeminiRequest.Content.builder()

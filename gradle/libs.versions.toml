@@ -1,10 +1,10 @@
 [versions]
 # Spring Boot and Framework
-spring-boot = "3.5.9"
+spring-boot = "4.0.1"
 spring-dependency-management = "1.1.7"
 
 # Java and Build Tools
-graalvm-buildtools = "0.10.5"
+graalvm-buildtools = "0.11.3"
 jacoco = "0.8.14"
 owasp-dependency-check = "10.0.4"
 
@@ -33,7 +33,7 @@ lombok = "1.18.40"
 slf4j = "2.0.16"
 
 # Serialization
-jackson = "2.18.2"
+jackson = "3.0.3"
 
 # Validation
 jakarta-validation = "3.1.0"
@@ -41,10 +41,13 @@ hibernate-validator = "8.0.1.Final"
 
 [libraries]
 # Spring Boot Starters
-spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-restclient = { module = "org.springframework.boot:spring-boot-starter-restclient" }
+spring-boot-resttestclient = { module = "org.springframework.boot:spring-boot-resttestclient" }
+spring-boot-restclient = { module = "org.springframework.boot:spring-boot-restclient" }
 micrometer-registry-stackdriver = { module = "io.micrometer:micrometer-registry-stackdriver" }
 
 # HTTP Client (for RestClient connection pooling)
@@ -82,10 +85,9 @@ lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 
-# Jackson
-jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+# Jackson (JSR310 support is now integrated into jackson-databind in Jackson 3.0)
+jackson-dataformat-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
 
 # Validation
 jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation" }
@@ -93,7 +95,7 @@ hibernate-validator = { module = "org.hibernate.validator:hibernate-validator", 
 
 [bundles]
 spring-boot-starters = [
-    "spring-boot-starter-web",
+    "spring-boot-starter-webmvc",
     "spring-boot-starter-actuator",
     "spring-boot-starter-validation"
 ]
@@ -114,14 +116,15 @@ testcontainers = [
 
 testing = [
     "spring-boot-starter-test",
+    "spring-boot-starter-restclient",
+    "spring-boot-resttestclient",
     "assertj-core",
     "mockito-core"
 ]
 
 jackson = [
     "jackson-dataformat-yaml",
-    "jackson-databind",
-    "jackson-datatype-jsr310"
+    "jackson-databind"
 ]
 
 [plugins]

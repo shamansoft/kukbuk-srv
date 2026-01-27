@@ -1,8 +1,8 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +55,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestSuccessfullyReturnsRecipeData() throws JsonProcessingException {
+    void requestSuccessfullyReturnsRecipeData() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
         String geminiResponseJson = """
@@ -88,7 +88,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestHandlesMultiplePartsInResponse() throws JsonProcessingException {
+    void requestHandlesMultiplePartsInResponse() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
         String geminiResponseJson = """
@@ -123,7 +123,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestReturnsBlockedWhenContentIsBlocked() throws JsonProcessingException {
+    void requestReturnsBlockedWhenContentIsBlocked() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
         String geminiResponseJson = """
@@ -158,7 +158,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestHandlesNoCandidatesInResponse() throws JsonProcessingException {
+    void requestHandlesNoCandidatesInResponse() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
         String geminiResponseJson = """
@@ -179,7 +179,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestHandlesRestClientResponseException() throws JsonProcessingException {
+    void requestHandlesRestClientResponseException() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
 
@@ -207,7 +207,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestHandlesGenericException() throws JsonProcessingException {
+    void requestHandlesGenericException() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
 
@@ -248,7 +248,7 @@ class GeminiClientTest {
     }
 
     @Test
-    void requestLogsWarningWhenFinishReasonIsNotStop() throws JsonProcessingException {
+    void requestLogsWarningWhenFinishReasonIsNotStop() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();
         String geminiResponseJson = """
@@ -278,6 +278,31 @@ class GeminiClientTest {
         // Note: We would need a log capture library to verify the warning was logged
     }
 
+    @Test
+    void initSetsUrlFromModelName() {
+        // Given
+        GeminiClient client = new GeminiClient(restClient, objectMapper);
+        ReflectionTestUtils.setField(client, "model", "gemini-2.5-flash-lite");
+
+        // When
+        client.init();
+
+        // Then
+        String url = (String) ReflectionTestUtils.getField(client, "url");
+        assertThat(url).isEqualTo("/models/gemini-2.5-flash-lite:generateContent");
+    }
+
+    @Test
+    void postConstructInitializesUrlCorrectly() {
+        // Given/When
+        // setUp already calls init() via @PostConstruct simulation
+
+        // Then
+        String url = (String) ReflectionTestUtils.getField(geminiClient, "url");
+        assertThat(url).isNotNull();
+        assertThat(url).isEqualTo("/models/gemini-2.0-flash:generateContent");
+    }
+
     private GeminiRequest createSampleRequest() {
         return GeminiRequest.builder()
                 .contents(List.of(
@@ -290,7 +315,7 @@ class GeminiClientTest {
                 .build();
     }
 
-    private void setupSuccessfulRestClientMock(String responseJson) throws JsonProcessingException {
+    private void setupSuccessfulRestClientMock(String responseJson) throws JacksonException {
         JsonNode responseNode = objectMapper.readTree(responseJson);
 
         when(restClient.post()).thenReturn(requestBodyUriSpec);

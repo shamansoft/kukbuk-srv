@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
@@ -52,7 +52,7 @@ public class GeminiRestTransformer implements Transformer {
                         htmlContent.length());
                 throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
             }
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("Failed to prepare request for Gemini API. HTML length: {}, Error: {}",
                 htmlContent.length(),
                 e.getMessage(),

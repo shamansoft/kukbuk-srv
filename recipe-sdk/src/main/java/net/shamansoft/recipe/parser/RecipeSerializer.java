@@ -1,10 +1,9 @@
 package net.shamansoft.recipe.parser;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import net.shamansoft.recipe.model.Recipe;
 
 import java.io.File;
@@ -47,7 +46,7 @@ public class RecipeSerializer {
     public String serialize(Recipe recipe) throws RecipeSerializeException {
         try {
             return mapper.writeValueAsString(recipe);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RecipeSerializeException("Failed to serialize recipe to YAML", e);
         }
     }
@@ -62,7 +61,7 @@ public class RecipeSerializer {
     public void serialize(Recipe recipe, File file) throws RecipeSerializeException {
         try {
             mapper.writeValue(file, recipe);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RecipeSerializeException("Failed to serialize recipe to file: " + file.getAbsolutePath(), e);
         }
     }
@@ -88,7 +87,7 @@ public class RecipeSerializer {
     public void serialize(Recipe recipe, OutputStream outputStream) throws RecipeSerializeException {
         try {
             mapper.writeValue(outputStream, recipe);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RecipeSerializeException("Failed to serialize recipe to output stream", e);
         }
     }
@@ -103,7 +102,7 @@ public class RecipeSerializer {
     public void serialize(Recipe recipe, Writer writer) throws RecipeSerializeException {
         try {
             mapper.writeValue(writer, recipe);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new RecipeSerializeException("Failed to serialize recipe to writer", e);
         }
     }
@@ -114,14 +113,12 @@ public class RecipeSerializer {
      * @return configured ObjectMapper
      */
     private static ObjectMapper createDefaultMapper() {
-        YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)  // Don't write "---" at the start
+        // Jackson 3.x uses immutable builder pattern
+        // JavaTimeModule is integrated in Jackson 3.x, no need to register
+        // WRITE_DATES_AS_TIMESTAMPS is false by default in Jackson 3.x
+        return YAMLMapper.builder()
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)  // Don't write "---" at the start
                 .build();
-
-        ObjectMapper mapper = new ObjectMapper(yamlFactory);
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);  // Write dates as strings
-        return mapper;
     }
 
     /**

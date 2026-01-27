@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.owasp.dependency.check)
 }
 
-version = "0.11.3-SNAPSHOT"
+version = "0.12.0-SNAPSHOT"
 
 springBoot {
     buildInfo()   // This will generate a build-info.properties file with accurate values
@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.bundles.spring.boot.starters) {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
+    implementation(libs.spring.boot.restclient)
 
     // Apache HttpClient 5 for RestClient connection pooling
     implementation(libs.apache.httpclient5)

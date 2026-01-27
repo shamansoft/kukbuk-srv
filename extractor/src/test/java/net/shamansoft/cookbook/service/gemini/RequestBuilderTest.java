@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -104,7 +104,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestWithHtmlContentCreatesValidRequest() throws JsonProcessingException {
+    void buildRequestWithHtmlContentCreatesValidRequest() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
 
@@ -134,7 +134,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestWithFeedbackIncludesValidationInfo() throws JsonProcessingException {
+    void buildRequestWithFeedbackIncludesValidationInfo() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe previousRecipe = createTestRecipe("Test Recipe");
@@ -214,7 +214,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestIncludesAllSafetyCategories() throws JsonProcessingException {
+    void buildRequestIncludesAllSafetyCategories() throws JacksonException {
         // Given
         String htmlContent = "<html></html>";
 
@@ -241,7 +241,7 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestIncludesCurrentDate() throws JsonProcessingException {
+    void buildRequestIncludesCurrentDate() throws JacksonException {
         // Given
         String htmlContent = "<html></html>";
 
@@ -252,5 +252,49 @@ class RequestBuilderTest {
         String promptText = request.getContents().get(0).getParts().get(0).getText();
         // Should contain a date in YYYY-MM-DD format
         assertThat(promptText).containsPattern("Date: \\d{4}-\\d{2}-\\d{2}");
+    }
+
+    @Test
+    void postConstructLoadsPromptAndSchemaResources() throws IOException {
+        // Given
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        ReflectionTestUtils.setField(builder, "temperature", 0.7f);
+        ReflectionTestUtils.setField(builder, "topP", 0.9f);
+        ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
+        ReflectionTestUtils.setField(builder, "safetyThreshold", "BLOCK_NONE");
+
+        // When
+        builder.init();
+
+        // Then
+        String prompt = (String) ReflectionTestUtils.getField(builder, "prompt");
+        String validationPrompt = (String) ReflectionTestUtils.getField(builder, "validationPrompt");
+        Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
+
+        assertThat(prompt).isNotNull();
+        assertThat(validationPrompt).isNotNull();
+        assertThat(parsedJsonSchema).isNotNull();
+    }
+
+    @Test
+    void postConstructRemovesIdAndSchemaFromJsonSchema() throws IOException {
+        // Given
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        ReflectionTestUtils.setField(builder, "temperature", 0.7f);
+        ReflectionTestUtils.setField(builder, "topP", 0.9f);
+        ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
+        ReflectionTestUtils.setField(builder, "safetyThreshold", "BLOCK_NONE");
+
+        // When
+        builder.init();
+
+        // Then
+        Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
+        String schemaJson = objectMapper.writeValueAsString(parsedJsonSchema);
+
+        // Verify $id and $schema are removed during initialization
+        assertThat(schemaJson).doesNotContain("$id");
+        assertThat(schemaJson).doesNotContain("$schema");
+        assertThat(schemaJson).contains("\"type\"");
     }
 }

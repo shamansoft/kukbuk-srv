@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.html.strategy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import org.jsoup.Jsoup;
