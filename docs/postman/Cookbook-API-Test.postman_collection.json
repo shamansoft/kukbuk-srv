@@ -1,0 +1,318 @@
+{
+	"info": {
+		"_postman_id": "cookbook-test-api-v1",
+		"name": "Cookbook API - Test Endpoints",
+		"description": "Collection for testing Cookbook API endpoints (local/dev environments only)\n\n⚠️ **IMPORTANT**: These endpoints are ONLY available in local/dev environments, NOT in production.\n\nTo use this collection:\n1. Ensure your local server is running with profile `local` or `dev`\n2. Set the `baseUrl` variable to your local server (default: http://localhost:8080)\n3. Run the server with: `./gradlew :cookbook:bootRun --args='--spring.profiles.active=local'`",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "cookbook-api"
+	},
+	"item": [
+		{
+			"name": "Test Transform Recipe",
+			"item": [
+				{
+					"name": "Transform from URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is YAML format\", function () {",
+									"    pm.expect(pm.response.text()).to.include('metadata:');",
+									"});",
+									"",
+									"pm.test(\"X-Is-Recipe header is true\", function () {",
+									"    pm.response.to.have.header(\"X-Is-Recipe\");",
+									"    pm.expect(pm.response.headers.get(\"X-Is-Recipe\")).to.eql(\"true\");",
+									"});",
+									"",
+									"pm.test(\"X-Recipe-Title header exists\", function () {",
+									"    pm.response.to.have.header(\"X-Recipe-Title\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"https://www.allrecipes.com/recipe/24074/alysias-basic-meat-lasagna/\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/recipes/test-transform",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"recipes",
+								"test-transform"
+							]
+						},
+						"description": "Test the Gemini transformation by providing a URL to a recipe page.\n\nThe server will:\n1. Fetch HTML from the URL\n2. Transform it using Gemini AI\n3. Return YAML representation of the recipe\n\n**Example URLs to try:**\n- https://www.allrecipes.com/recipe/24074/alysias-basic-meat-lasagna/\n- https://www.bbcgoodfood.com/recipes/classic-lasagne\n- https://www.bonappetit.com/recipe/bas-best-bolognese"
+					},
+					"response": []
+				},
+				{
+					"name": "Transform from HTML Text",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains YAML\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('is_recipe:');",
+									"    pm.expect(responseText).to.include('metadata:');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"<html><body><h1>Chocolate Chip Cookies</h1><h2>Ingredients</h2><ul><li>2 cups flour</li><li>1 cup butter</li><li>1 cup sugar</li><li>2 eggs</li><li>2 cups chocolate chips</li></ul><h2>Instructions</h2><ol><li>Preheat oven to 375°F</li><li>Mix butter and sugar</li><li>Add eggs and flour</li><li>Stir in chocolate chips</li><li>Bake for 10-12 minutes</li></ol></body></html>\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/recipes/test-transform",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"recipes",
+								"test-transform"
+							]
+						},
+						"description": "Test the Gemini transformation by providing raw HTML text.\n\nThe server will:\n1. Use the provided HTML directly\n2. Transform it using Gemini AI\n3. Return YAML representation of the recipe\n\nThis is useful for:\n- Testing with custom HTML\n- Testing edge cases\n- Testing specific HTML structures"
+					},
+					"response": []
+				},
+				{
+					"name": "Transform Non-Recipe Content",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"X-Is-Recipe header is false\", function () {",
+									"    pm.response.to.have.header(\"X-Is-Recipe\");",
+									"    pm.expect(pm.response.headers.get(\"X-Is-Recipe\")).to.eql(\"false\");",
+									"});",
+									"",
+									"pm.test(\"Response indicates not a recipe\", function () {",
+									"    pm.expect(pm.response.text()).to.include('is_recipe: false');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"<html><body><h1>About Our Company</h1><p>We are a leading provider of kitchen appliances. Founded in 2020, we specialize in innovative cooking solutions.</p><p>Contact us at info@example.com</p></body></html>\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/recipes/test-transform",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"recipes",
+								"test-transform"
+							]
+						},
+						"description": "Test Gemini's ability to detect non-recipe content.\n\nExpected behavior:\n- Gemini should return `is_recipe: false`\n- Response header `X-Is-Recipe` should be `false`\n- No recipe data should be extracted"
+					},
+					"response": []
+				},
+				{
+					"name": "Transform Complex Recipe",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains detailed recipe structure\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('ingredients:');",
+									"    pm.expect(responseText).to.include('instructions:');",
+									"    pm.expect(responseText).to.include('metadata:');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"<html><body><article><h1>Homemade Lasagna</h1><div class='meta'><span>By Chef Mario</span><span>Servings: 8</span><span>Prep: 30 min</span><span>Cook: 1 hour</span></div><section><h2>Ingredients</h2><h3>For the sauce:</h3><ul><li>2 lbs ground beef</li><li>1 onion, diced</li><li>28 oz crushed tomatoes</li><li>2 cloves garlic, minced</li><li>1 tbsp Italian seasoning</li></ul><h3>For the layers:</h3><ul><li>12 lasagna noodles</li><li>15 oz ricotta cheese</li><li>2 cups mozzarella, shredded</li><li>1/2 cup parmesan, grated</li><li>2 eggs</li></ul></section><section><h2>Instructions</h2><ol><li>Brown the ground beef with onions and garlic in a large skillet over medium-high heat, about 8-10 minutes.</li><li>Add crushed tomatoes and Italian seasoning. Simmer for 20 minutes.</li><li>Cook lasagna noodles according to package directions. Drain and set aside.</li><li>Mix ricotta, eggs, and 1 cup mozzarella in a bowl.</li><li>Preheat oven to 375°F (190°C).</li><li>In a 9x13 baking dish, layer: sauce, noodles, ricotta mixture. Repeat twice.</li><li>Top with remaining mozzarella and parmesan.</li><li>Cover with foil and bake 25 minutes. Remove foil, bake 25 more minutes until golden.</li><li>Let rest 15 minutes before serving.</li></ol></section><section><h2>Notes</h2><p>Can be made ahead and refrigerated up to 2 days. Freezes well for up to 3 months.</p></section></article></body></html>\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/recipes/test-transform",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"recipes",
+								"test-transform"
+							]
+						},
+						"description": "Test Gemini with a complex recipe containing:\n- Multiple ingredient sections\n- Detailed instructions with timing\n- Recipe metadata (servings, prep time, cook time)\n- Additional notes\n\nThis tests Gemini's ability to handle:\n- Structured HTML\n- Multiple sections\n- Detailed timing information\n- Recipe notes and tips"
+					},
+					"response": []
+				},
+				{
+					"name": "Error - Missing Both URL and Text",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error message indicates missing fields\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"Either 'url' or 'text' field is required\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/recipes/test-transform",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"recipes",
+								"test-transform"
+							]
+						},
+						"description": "Test validation that either URL or text is required.\n\nExpected behavior:\n- Returns 400 Bad Request\n- Error message indicates missing required fields"
+					},
+					"response": []
+				}
+			],
+			"description": "Test endpoints for the Gemini AI recipe transformation.\n\n**⚠️ These endpoints are only available in local/dev profiles.**\n\nTo activate:\n```bash\n./gradlew :cookbook:bootRun --args='--spring.profiles.active=local'\n```\n\nThe `/test-transform` endpoint accepts either:\n- `url`: A URL to fetch and transform\n- `text`: Raw HTML text to transform\n\nIt returns YAML representation of the extracted recipe."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}
