@@ -25,7 +25,12 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     }
 
     // Public endpoints that don't require authentication
-    private static final List<String> PUBLIC_PATHS = List.of("/", "/hello", "/actuator");
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/",
+            "/hello",
+            "/actuator",
+            "/debug"  // Debug/test endpoints (only active in non-prod profiles)
+    );
 
     private boolean isPublicPath(String path) {
         return PUBLIC_PATHS.stream().anyMatch(publicPath -> {

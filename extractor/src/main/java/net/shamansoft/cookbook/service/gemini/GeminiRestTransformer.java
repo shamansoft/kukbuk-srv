@@ -1,12 +1,12 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import tools.jackson.core.JacksonException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
 
 @Service("geminiTransformer")
 @Slf4j
@@ -45,7 +45,11 @@ public class GeminiRestTransformer implements Transformer {
             }
             GeminiResponse<Recipe> geminiResponse = geminiClient.request(request, Recipe.class);
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
-                return new Transformer.Response(geminiResponse.data().isRecipe(), geminiResponse.data());
+                return Transformer.Response.withRawResponse(
+                        geminiResponse.data().isRecipe(),
+                        geminiResponse.data(),
+                        geminiResponse.rawResponse()
+                );
             } else {
                 log.error("Gemini Client returned error code: {}, input html length: {}",
                         geminiResponse.code(),

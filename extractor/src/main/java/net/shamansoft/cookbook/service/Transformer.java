@@ -18,14 +18,15 @@ public interface Transformer {
      *
      * @param isRecipe whether the content is a cooking recipe
      * @param recipe the parsed Recipe object (null if isRecipe is false)
+     * @param rawLlmResponse raw response text from the LLM (optional, for debugging)
      */
-    record Response(boolean isRecipe, Recipe recipe) {
+    record Response(boolean isRecipe, Recipe recipe, String rawLlmResponse) {
 
         /**
          * Creates a Response indicating the content is not a recipe.
          */
         public static Response notRecipe() {
-            return new Response(false, null);
+            return new Response(false, null, null);
         }
 
         /**
@@ -37,7 +38,18 @@ public interface Transformer {
             if (recipe == null) {
                 throw new IllegalArgumentException("Recipe cannot be null when isRecipe is true");
             }
-            return new Response(true, recipe);
+            return new Response(true, recipe, null);
+        }
+
+        /**
+         * Creates a Response with raw LLM response included (for debugging).
+         *
+         * @param isRecipe       whether the content is a cooking recipe
+         * @param recipe         the Recipe object
+         * @param rawLlmResponse raw response text from the LLM
+         */
+        public static Response withRawResponse(boolean isRecipe, Recipe recipe, String rawLlmResponse) {
+            return new Response(isRecipe, recipe, rawLlmResponse);
         }
     }
 }

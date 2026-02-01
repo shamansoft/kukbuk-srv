@@ -179,6 +179,7 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 2. If IS a recipe, extract data per rules below.
 
 **Required Fields (always include):**
+
 - `schema_version`: "1.0.0"
 - `recipe_version`: "1.0.0" (or extract from HTML if present)
 - `is_recipe`: true (if it's a recipe) or false (if not a recipe)
@@ -225,6 +226,7 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 Return ONLY valid JSON conforming to the provided schema. No text before or after.
 
 **HTML Content to Process:**
+
 ```html
 %s
 ```

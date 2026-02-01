@@ -1,6 +1,5 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import tools.jackson.core.JacksonException;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Ingredient;
@@ -12,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.JacksonException;
 
 import java.util.List;
 
@@ -19,7 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class GeminiRestTransformerTest {
@@ -86,7 +90,7 @@ class GeminiRestTransformerTest {
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
         when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(expectedRecipe));
+                .thenReturn(GeminiResponse.success(expectedRecipe, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent);
@@ -110,7 +114,7 @@ class GeminiRestTransformerTest {
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
         when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(nonRecipe));
+                .thenReturn(GeminiResponse.success(nonRecipe, "{\"is_recipe\": false}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent);
@@ -134,7 +138,7 @@ class GeminiRestTransformerTest {
         when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
                 .thenReturn(mockRequest);
         when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(correctedRecipe));
+                .thenReturn(GeminiResponse.success(correctedRecipe, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transformWithFeedback(htmlContent, previousRecipe, validationError);
@@ -268,7 +272,7 @@ class GeminiRestTransformerTest {
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
         when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(complexRecipe));
+                .thenReturn(GeminiResponse.success(complexRecipe, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent);

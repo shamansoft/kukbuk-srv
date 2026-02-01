@@ -64,12 +64,13 @@ public class ValidatingTransformerService implements Transformer {
 
     private Response validateWithRetry(String htmlContent, Response initialResponse) {
         Recipe currentRecipe = initialResponse.recipe();
+        String rawLlmResponse = initialResponse.rawLlmResponse(); // Preserve raw response
         RecipeValidationService.ValidationResult validationResult = validationService.validate(currentRecipe);
 
         if (validationResult.isValid()) {
             log.info("Recipe validated successfully on first attempt - Title: '{}'",
                     currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
-            return Response.recipe(validationResult.getRecipe());
+            return Response.withRawResponse(true, validationResult.getRecipe(), rawLlmResponse);
         }
 
         log.warn("Initial Recipe failed validation - Will retry up to {} times. Error:\n{}", 
@@ -109,7 +110,8 @@ public class ValidatingTransformerService implements Transformer {
                 log.info("Recipe validated successfully after {} retry attempt(s) - Title: '{}'",
                         attempt,
                         currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
-                return Response.recipe(validationResult.getRecipe());
+                // Preserve raw response from the retry attempt
+                return Response.withRawResponse(true, validationResult.getRecipe(), retryResponse.rawLlmResponse());
             }
 
             log.warn("Retry attempt {}/{} failed validation:\n{}", attempt, maxRetries, validationResult.getErrorMessage());
