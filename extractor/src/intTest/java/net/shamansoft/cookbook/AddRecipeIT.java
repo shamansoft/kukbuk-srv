@@ -654,6 +654,55 @@ class AddRecipeIT {
     }
 
     @Test
+    @DisplayName("Should populate post-processing fields (source, dateCreated, schemaVersion, recipeVersion)")
+    void shouldPopulatePostProcessingFields() throws Exception {
+        // Given: User has Google Drive storage configured
+        setupStorageInfoInFirestore("test-user-123", "valid-drive-token");
+
+        String sampleHtml = """
+                <html>
+                <body>
+                    <h1>Test Recipe for Post-Processing</h1>
+                    <p>Testing deterministic fields</p>
+                    <h2>Ingredients:</h2>
+                    <ul><li>1 cup flour</li></ul>
+                    <h2>Instructions:</h2>
+                    <ol><li>Mix and bake</li></ol>
+                </body>
+                </html>
+                """;
+
+        String testUrl = "https://example.com/post-processing-test";
+        Request request = new Request(sampleHtml, "Post-Processing Test", testUrl);
+        HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
+
+        // When: Making a request to create recipe
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
+                entity,
+                RecipeResponse.class
+        );
+
+        // Then: Recipe is created successfully
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isRecipe()).isTrue();
+
+        // Get the recipe from Firestore to verify post-processing fields
+        String contentHash = contentHashService.generateContentHash(testUrl);
+        Optional<StoredRecipe> storedRecipe = recipeRepository.findByContentHash(contentHash).join();
+        assertThat(storedRecipe).isPresent();
+
+        // Verify the stored YAML contains post-processing fields
+        String yaml = storedRecipe.get().getRecipeYaml();
+        assertThat(yaml)
+                .contains("source: \"" + testUrl + "\"")
+                .contains("date_created: \"" + java.time.LocalDate.now() + "\"")
+                .contains("schema_version: \"1.0.0\"")
+                .contains("recipe_version: \"1.0.0\"");
+    }
+
+    @Test
     @DisplayName("Should have properly configured integration test environment with Spring Boot 4")
     void shouldHaveProperlyConfiguredIntegrationTestEnvironment() {
         // Given: Integration test environment with Testcontainers and WireMock

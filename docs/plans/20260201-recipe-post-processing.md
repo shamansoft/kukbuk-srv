@@ -115,11 +115,11 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 ## Task 6: Integration Testing
 
 **Files:**
-- Modify: `extractor/src/intTest/java/net/shamansoft/cookbook/controller/RecipeControllerTest.java` (if exists)
+- Modify: `extractor/src/intTest/java/net/shamansoft/cookbook/AddRecipeIT.java`
 
-- [ ] Run integration tests: `./gradlew :cookbook:intTest`
-- [ ] Verify end-to-end flow populates all deterministic fields correctly
-- [ ] Check that cached recipes also have post-processed fields
+- [x] Run integration tests: `./gradlew :cookbook:intTest`
+- [x] Verify end-to-end flow populates all deterministic fields correctly
+- [x] Check that cached recipes also have post-processed fields
 
 ---
 
