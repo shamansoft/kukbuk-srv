@@ -2,11 +2,11 @@
 
 ## Summary
 
-- **Total iterations**: 4
+- **Total iterations**: 5
 - **Best score**: 8.0/10 (iteration 1)
-- **Final score**: 7.6/10
-- **Overall improvement**: -0.4 points
-- **Exit reason**: [Pending]
+- **Final score**: 7.0/10
+- **Overall improvement**: -1.0 points
+- **Exit reason**: [Manual Stop - Stagnation]
 
 ## Iteration Template
 
@@ -184,6 +184,50 @@
 1. **Components**: Use a ONE-SHOT example in the prompt showing exactly how to map the HTML structure `<p>Name</p> <ul>` to components.
 2. **Storage**: Remove the "Look for storage" instruction entirely? Or say "Storage field is DEPRECATED. Return null." (Extreme measure to test compliance).
 3. **Servings**: "If you find a number for servings, extract it. If not, return null. Do not count ingredients."
+
+
+### Iteration 5
+
+- **Timestamp**: 2026-02-01 22:30:00
+- **Session ID**: 5129a7b8-e4ae-4afa-93c6-122410a28940
+- **Prompt Version**: prompt_v20260201-iter5.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 7.0/10 (Unit=null rules working, but failed amount parsing)
+4. Data Loss: 9.0/10 (Missed amount "1" for lemon)
+5. Hallucinations: 3.0/10 (Storage hallucination AND Servings hallucination "8")
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 5.0/10 (Guessed servings "8")
+
+**Overall Score**: 7.0/10
+
+**What was good**:
+
+- Unit handling "to taste" -> null is consistent.
+
+**What was bad**:
+
+- **Regressed on Amount Parsing**: "1 lemon" -> amount null.
+- **Components**: The pattern matching instruction failed.
+- **Hallucinations**: "DEPRECATED" instruction for storage was IGNORED.
+
+**Comparison to previous iteration**:
+
+- Degradation: -0.6 points.
+- Attempting to give "One-Shot" examples for components seems to have consumed token attention or confused the model regarding simple extraction (amounts).
+
+**Conclusion**:
+
+- The baseline prompt (Iteration 1) was actually the most robust for *extraction accuracy*, even if it hallucinated some metadata.
+- Attempts to fix hallucinations via strict negative constraints ("Return null") often fail or cause regressions in other areas.
+- Component extraction from this specific HTML structure ("p" tag before "ul") is resistant to prompt-based fixes without visual/DOM clues.
+
 
 
 

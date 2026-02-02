@@ -93,11 +93,12 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 4. **COMPONENT GROUPING - MANDATORY SECTION DETECTION:**
     * **STEP 1 - SCAN FOR SECTIONS:** Before extracting ANY ingredients, scan the entire HTML for section
       headers/separators
-    * **STEP 2 - COMPONENT MAPPING (Example Pattern):**
-        - *Pattern:* Text Block -> List of Ingredients
-        - *HTML:* `<p><strong>Bacon Gravy</strong></p> <ul><li>Bacon</li>...</ul>`
-        - *Action:* The text "**Bacon Gravy**" is the component name for the list following it.
-        - *Instruction:* Identify the text element (p, h3, h4, div, strong) immediately preceding the ingredient list. Use its content as the component name.
+    * **STEP 2 - COMPONENT MAPPING:**
+        1. Find every list (`<ul>` or `<ol>`) containing ingredients.
+        2. Look at the text IMMEDIATELY before that list.
+        3. That text is the COMPONENT NAME.
+        4. *Example:* If HTML has `<p>Sauce</p> <ul>...</ul>`, the component is "Sauce".
+        5. *Example:* If HTML has `<h3>Chicken</h3> <ul>...</ul>`, the component is "Chicken".
     * **STEP 3 - ASSIGN COMPONENTS:** Assign the identified component name to every ingredient in that list.
     * **VALIDATION:** If you have multiple lists but all components are "main", you FAILED. Go back and check the text before each list.
         - "For the Sauce:" → `"component": "Sauce"`
@@ -187,7 +188,7 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 - `metadata.title`: Extract from HTML (use original capitalization, don't add fluff)
 - `metadata.description`: 1-sentence objective summary (no fluff, no emotions)
 - `metadata.date_created`: Use current date **%s** if not in HTML
-- `metadata.servings`: Extract ONLY if you see "Servings: X" or "Yield: X" in the text. if not explicit, return `null`.
+- `metadata.servings`: Extract ONLY if explicitly stated in the HTML. Return `null` if not found. DO NOT estimate.
 - `ingredients`: At least one ingredient (if is_recipe is true)
 - `instructions`: At least one instruction (if is_recipe is true)
 
@@ -211,7 +212,7 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 - Parse cooking times to global metadata ONLY if explicitly stated in HTML. Do not sum up step times.
 - Convert relative image paths to absolute URLs
 - Extract nutrition info when available (leave null if not present)
-- `storage`: **DEPRECATED.** Always return `null`. Do not extract storage instructions.
+- Look for storage instructions. **STRICT RULE:** Use `null` unless you find a Heading or Section explicitly titled "Storage", "Leftovers", or similar. **DO NOT INFER FROM GENERAL TEXT.**
 - Identify recipe difficulty from context clues (easy/medium/hard)
 
 **FINAL VALIDATION CHECKLIST (before outputting JSON):**
