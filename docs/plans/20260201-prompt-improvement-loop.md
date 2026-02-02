@@ -27,6 +27,7 @@ Each iteration:
 **Files/components involved:**
 
 - `extractor/src/main/resources/prompt.md` - Target prompt for improvement
+- `extractor/src/main/resources/recipe-schema-1.0.0.json` - Schema for validation
 - `docs/prompt-improvement-log.md` - Activity log tracking iterations, scores, recommendations (NEW)
 - `extractor/src/main/resources/prompt_v{date}-iter{n}.md` - Versioned backups (NEW)
 - `/tmp/sar-srv/dumps/{date}/` - Dump output location for validation
@@ -118,41 +119,41 @@ Each iteration uses NEW session ID for correlation
 
 ### Task 1: Iteration 1 - Baseline Evaluation
 
-- [ ] create `docs/prompt-improvement-log.md` with initial structure (iteration, timestamp, session-id, scores,
+- [x] create `docs/prompt-improvement-log.md` with initial structure (iteration, timestamp, session-id, scores,
   analysis, recommendations)
-- [ ] backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter1.md`
-- [ ] note: using current prompt.md as-is for baseline (no improvements yet)
-- [ ] build cookbook: `./gradlew :cookbook:build`
-- [ ] verify build succeeds and all tests pass
-- [ ] start Spring Boot with local profile: `./gradlew :cookbook:bootRun --args='--spring.profiles.active=local'` in
+- [x] backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter1.md`
+- [x] note: using current prompt.md as-is for baseline (no improvements yet)
+- [x] build cookbook: `./gradlew :cookbook:build`
+- [x] verify build succeeds and all tests pass
+- [x] start Spring Boot with local profile: `./gradlew :cookbook:bootRun --args='--spring.profiles.active=local'` in
   background
-- [ ] wait for application startup (check for "Started CookbookApplication" in logs OR curl health endpoint)
-- [ ] generate new UUID for X-Session-Id header, save it as SESSION_ID_1
-- [ ] run curl command with SESSION_ID_1 against http://localhost:8080/debug/v1/recipes (Gordon Ramsay recipe)
-- [ ] verify 200 response received
-- [ ] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
-- [ ] read `{SESSION_ID_1}-extracted-html-*.html` file
-- [ ] read `{SESSION_ID_1}-cleaned-html-*.html` file
-- [ ] compare extracted vs cleaned HTML - validate no critical data removed (score 0-10)
-- [ ] read `{SESSION_ID_1}-result-yaml-*.yaml` file
-- [ ] validate YAML structure is well-formed (score 0-10)
-- [ ] read `{SESSION_ID_1}-llm-response-*.json` file - check raw Gemini response
-- [ ] validate schema compliance - check all required fields present (score 0-10)
-- [ ] validate data loss - compare source HTML to extracted recipe, ensure all ingredients/steps captured (score 0-10)
-- [ ] validate hallucinations - verify no invented data (ingredients not in source, fabricated instructions) (score
+- [x] wait for application startup (check for "Started CookbookApplication" in logs OR curl health endpoint)
+- [x] generate new UUID for X-Session-Id header, save it as SESSION_ID_1
+- [x] run curl command with SESSION_ID_1 against http://localhost:8080/debug/v1/recipes (Gordon Ramsay recipe)
+- [x] verify 200 response received
+- [x] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
+- [x] read `{SESSION_ID_1}-extracted-html-*.html` file
+- [x] read `{SESSION_ID_1}-cleaned-html-*.html` file
+- [x] compare extracted vs cleaned HTML - validate no critical data removed (score 0-10)
+- [x] read `{SESSION_ID_1}-result-yaml-*.yaml` file
+- [x] validate YAML structure is well-formed (score 0-10)
+- [x] read `{SESSION_ID_1}-llm-response-*.json` file - check raw Gemini response
+- [x] validate schema compliance - check all required fields present (score 0-10)
+- [x] validate data loss - compare source HTML to extracted recipe, ensure all ingredients/steps captured (score 0-10)
+- [x] validate hallucinations - verify no invented data (ingredients not in source, fabricated instructions) (score
   0-10)
-- [ ] validate ingredients completeness - all ingredients from source extracted (score 0-10)
-- [ ] validate ingredients deduplication - no duplicate ingredients in list (score 0-10)
-- [ ] validate ingredients categorization - component grouping matches HTML sections (score 0-10)
-- [ ] validate instruction correctness - logical order, complete steps, proper timing/temperature (score 0-10)
-- [ ] validate metadata accuracy - title, servings, description match source (score 0-10)
-- [ ] calculate overall score (average of all 10 dimension scores)
-- [ ] update `docs/prompt-improvement-log.md` with iteration 1 entry (timestamp, SESSION_ID_1, all scores, what was
+- [x] validate ingredients completeness - all ingredients from source extracted (score 0-10)
+- [x] validate ingredients deduplication - no duplicate ingredients in list (score 0-10)
+- [x] validate ingredients categorization - component grouping matches HTML sections (score 0-10)
+- [x] validate instruction correctness - logical order, complete steps, proper timing/temperature (score 0-10)
+- [x] validate metadata accuracy - title, servings, description match source (score 0-10)
+- [x] calculate overall score (average of all 10 dimension scores)
+- [x] update `docs/prompt-improvement-log.md` with iteration 1 entry (timestamp, SESSION_ID_1, all scores, what was
   good, what was bad, recommendations for iteration 2)
-- [ ] stop Spring Boot application
-- [ ] run unit tests: `./gradlew :cookbook:test` - must pass
-- [ ] commit changes with message: "prompt-improvement: iteration 1 baseline evaluation (score: X.X/10)"
-- [ ] check exit condition: if overall score ≥ 9.0, mark tasks 2-10 as skipped; otherwise continue to task 2
+- [x] stop Spring Boot application
+- [x] run unit tests: `./gradlew :cookbook:test` - must pass
+- [x] commit changes with message: "prompt-improvement: iteration 1 baseline evaluation (score: X.X/10)"
+- [x] check exit condition: if overall score ≥ 9.0, mark tasks 2-10 as skipped; otherwise continue to task 2
 
 ### Task 2: Iteration 2 - First Improvement
 
