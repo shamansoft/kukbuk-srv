@@ -2,11 +2,11 @@
 
 ## Summary
 
-- **Total iterations**: 5
+- **Total iterations**: 6
 - **Best score**: 8.0/10 (iteration 1)
-- **Final score**: 7.0/10
-- **Overall improvement**: -1.0 points
-- **Exit reason**: [Manual Stop - Stagnation]
+- **Final score**: 7.6/10
+- **Overall improvement**: -0.4 points
+- **Exit reason**: [Completed - Reverted to robust baseline + minor fixes]
 
 ## Iteration Template
 
@@ -227,6 +227,57 @@
 - The baseline prompt (Iteration 1) was actually the most robust for *extraction accuracy*, even if it hallucinated some metadata.
 - Attempts to fix hallucinations via strict negative constraints ("Return null") often fail or cause regressions in other areas.
 - Component extraction from this specific HTML structure ("p" tag before "ul") is resistant to prompt-based fixes without visual/DOM clues.
+
+### Iteration 6
+
+- **Timestamp**: 2026-02-01 22:35:00
+- **Session ID**: 5de524e3-fddd-43c3-b527-001883842e7d
+- **Prompt Version**: prompt_v20260201-iter6.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 9.0/10 (Syntax error in line 25: `unit: "each`, "` - broken quoting)
+3. Schema Compliance: 8.0/10 (Unit compliant)
+4. Data Loss: 9.0/10 (Detected salt amount as "3 pound" ?? Completely wrong amount association)
+5. Hallucinations: 8.0/10 (Solved Storage hallucination!)
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 6.0/10 (Guessed servings 8)
+
+**Overall Score**: 7.6/10 (Penalty for broken YAML syntax and bad amounts)
+
+**What was good**:
+
+- **Storage Fixed**: Finally returned `storage: null`!
+- Instructions good.
+
+**What was bad**:
+
+- **CRITICAL**: The LLM Hallucinated the amount for salt/pepper as "3 pound" because it associated the "(about 3-4
+  pounds)" from the chicken thighs line to the salt/pepper lines which had "to taste".
+- **YAML Syntax Error**: It output `unit: "each`, "` which is invalid YAML.
+
+**Comparison to previous iteration**:
+
+- Reverting to baseline + minor fixes was a good strategy for Hallucinations, but it introduced a weird parsing error (
+  Amount association).
+
+**Conclusion**:
+
+- Iteration 6 fixed the storage hallucination but broke data accuracy on ingredients.
+- The safest prompt is likely **Iteration 4** (Score 7.6) which had correct amounts, even if it hallucinated storage.
+- Or **Iteration 1** (Score 8.0) which had correct amounts, Hallucinated storage, but good structure.
+
+**Final Decision**:
+
+- We will stick with **Iteration 1 (Baseline)** as the production candidate for now, or Iteration 4.
+- The tradeoff is: Accurate Ingredients (Iter 1) vs Clean Schema/Nulls (Iter 6). Accurate Ingredients is far more
+  important.
+- **Winner**: Iteration 1 (Original).
+
 
 
 

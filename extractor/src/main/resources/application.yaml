@@ -168,12 +168,12 @@ cookbook:
     # Used by: RequestBuilder.java:31 (@Value("${cookbook.gemini.temperature}"))
     # Lower = more deterministic, Higher = more creative
     # Default: 0.1 (very deterministic for consistent recipe extraction)
-    temperature: 0.1
+    temperature: 0.0
 
     # Top-p (nucleus sampling) parameter for Gemini model (0.0 to 1.0)
     # Used by: RequestBuilder.java:34 (@Value("${cookbook.gemini.top-p}"))
     # Default: 0.8
-    top-p: 0.8
+    top-p: 1.0
 
     # Maximum number of tokens in the model's response
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.max-output-tokens}"))

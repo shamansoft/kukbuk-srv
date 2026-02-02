@@ -41,7 +41,6 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
     * Ranges for "or": "3-4 sprigs" → Use midpoint `"amount": "3.5"` OR note the range
     * Approximations: "about 3-4 pounds" → `"amount": "3-4"`, `"notes": "approximate weight"`
     * Only use `"amount": null` when truly unspecified (e.g., "as needed", "to taste", "pinch of")
-    * **CRITICAL:** "1 lemon" means `"amount": "1"`. "2 cloves" means `"amount": "2"`. NEVER miss these.
     * **DOUBLE-CHECK these common mistakes:**
         - "1 lemon, zested" → MUST have `"amount": "1"` ✓ NOT `"amount": null` ❌
         - "2 garlic cloves" → MUST have `"amount": "2"` ✓ NOT `"amount": null` ❌
@@ -60,13 +59,6 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
         - Volume: ml, l, cup, tablespoon, teaspoon, fl oz, pint, quart, gallon
         - Count: each, clove, slice, sprig, piece, whole, bottle
         - Temperature: °C, °F
-    * **RULE OF LAW:** If the unit you want to use is NOT in the whitelist above:
-        - Set `"unit": null`
-        - Move the descriptive text to `"notes"`
-        - *Example:* "3-4 pounds" -> `"unit": null`, `"notes": "3-4 pounds"`
-        - *Example:* "to taste" -> `"unit": null`, `"notes": "to taste"`
-        - *Example:* "bottle" -> `"unit": "bottle"` (Allowed)
-        - *Example:* "12-ounce bottle" -> `"unit": "bottle"`, `"notes": "12-ounce"`
     * **FORBIDDEN in unit field:** Any parentheses, any commas, any descriptive text, any preparation methods
     * **Notes field:** ALL preparation details, states, qualifiers, and special instructions
     * **VALIDATION CHECK:** Before finalizing, verify every unit field contains ONLY a word from the whitelist above
@@ -93,13 +85,18 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 4. **COMPONENT GROUPING - MANDATORY SECTION DETECTION:**
     * **STEP 1 - SCAN FOR SECTIONS:** Before extracting ANY ingredients, scan the entire HTML for section
       headers/separators
-    * **STEP 2 - COMPONENT MAPPING (Example Pattern):**
-        - *Pattern:* Text Block -> List of Ingredients
-        - *HTML:* `<p><strong>Bacon Gravy</strong></p> <ul><li>Bacon</li>...</ul>`
-        - *Action:* The text "**Bacon Gravy**" is the component name for the list following it.
-        - *Instruction:* Identify the text element (p, h3, h4, div, strong) immediately preceding the ingredient list. Use its content as the component name.
-    * **STEP 3 - ASSIGN COMPONENTS:** Assign the identified component name to every ingredient in that list.
-    * **VALIDATION:** If you have multiple lists but all components are "main", you FAILED. Go back and check the text before each list.
+   * **STEP 2 - IDENTIFY PATTERNS:** Look for:
+      - Headings (H1, H2, H3, H4) before ingredient lists
+      - Bold/strong text before ingredient groups
+      - Text like "For the Sauce:", "Dough:", "Filling:", "Main:", "Topping:"
+      - Named recipe component titles: "Lemon-Herb Chicken Thighs", "Bacon-Apple Cider Gravy", "Pizza Dough", "
+        Marinara Sauce"
+      - Any clear visual separation or grouping in ingredient lists
+   * **STEP 3 - ASSIGN COMPONENTS:** As you extract ingredients, track which section you're in and assign the component
+     name
+   * **VALIDATION:** If your final JSON has more than 3 ingredients and ALL components are "main", you probably missed
+     the section headers. Re-scan the HTML.
+   * **Normalize component names:** Remove "For the", colons, and simplify when appropriate
         - "For the Sauce:" → `"component": "Sauce"`
         - "Lemon-Herb Chicken Thighs" → `"component": "Lemon-Herb Chicken Thighs"` (keep descriptive names)
         - "Bacon-Apple Cider Gravy" → `"component": "Bacon-Apple Cider Gravy"` (keep descriptive names)
@@ -154,11 +151,12 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
     * Look for ALL time mentions in a step: "3-5 minutes", "about 20 minutes", "for 2-3 minutes"
     * Format as: "5m", "20m", "1h 30m"
     * For ranges, use format: "3-5m"
-    * **CRITICAL:** When a step has MULTIPLE sequential time mentions, estimate the TOTAL time for THAT STEP:
+   * **CRITICAL:** When a step has MULTIPLE sequential time mentions, estimate the TOTAL time:
         - "Cook bacon until crisp. Add onions, cook 1 minute. Add lemon, cook 1 minute. Deglaze and reduce by half."
         - This is: bacon (5m) + onions (1m) + lemon (1m) + reduce (3-5m) = roughly 10-12 minutes total
         - Extract as: `"time": "10-12m"` (reasonable estimate) NOT `"time": "1m"` (just one substep)
-    * If a step has NO time mentions, use `null`. Do NOT invent times.
+   * When uncertain about total time, use a reasonable range based on the cooking techniques mentioned
+   * Do NOT add "0m" or null for steps without explicit timing
 
 2. **EXTRACT TEMPERATURES:**
     * Detect both Celsius and Fahrenheit: "425°F", "180°C"
@@ -187,7 +185,8 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 - `metadata.title`: Extract from HTML (use original capitalization, don't add fluff)
 - `metadata.description`: 1-sentence objective summary (no fluff, no emotions)
 - `metadata.date_created`: Use current date **%s** if not in HTML
-- `metadata.servings`: Extract ONLY if you see "Servings: X" or "Yield: X" in the text. if not explicit, return `null`.
+- `metadata.servings`: Extract or estimate based on ingredient quantities (e.g., 8 chicken thighs = 8 servings OR 4
+  servings of 2 pieces)
 - `ingredients`: At least one ingredient (if is_recipe is true)
 - `instructions`: At least one instruction (if is_recipe is true)
 
@@ -208,10 +207,10 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 
 **Additional Extraction Guidelines:**
 
-- Parse cooking times to global metadata ONLY if explicitly stated in HTML. Do not sum up step times.
+- Parse cooking times into "15m", "2h", "1h 30m", or "3-5m" format
 - Convert relative image paths to absolute URLs
 - Extract nutrition info when available (leave null if not present)
-- `storage`: **DEPRECATED.** Always return `null`. Do not extract storage instructions.
+- Look for storage instructions, tips, and notes
 - Identify recipe difficulty from context clues (easy/medium/hard)
 
 **FINAL VALIDATION CHECKLIST (before outputting JSON):**

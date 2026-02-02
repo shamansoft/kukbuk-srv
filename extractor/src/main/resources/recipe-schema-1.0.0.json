@@ -4,6 +4,7 @@
   "title": "Recipe",
   "type": "object",
   "required": [
+    "internal_reasoning",
     "is_recipe",
     "metadata",
     "ingredients",
@@ -12,6 +13,10 @@
     "recipe_version"
   ],
   "properties": {
+    "internal_reasoning": {
+      "type": "string",
+      "description": "Short-hand analysis: [List ingredient groups], [Unit System], [Potential Parsing Pitfalls]. Keep under 15 words."
+    },
     "is_recipe": {
       "type": "boolean",
       "description": "Set to true if this is a cooking recipe, false otherwise. If the HTML content is not a recipe (e.g., blog post, product page, article), set this to false."
