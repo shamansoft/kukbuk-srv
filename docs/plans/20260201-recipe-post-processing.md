@@ -93,10 +93,10 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 - Modify: `extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java`
 - Modify: `extractor/src/main/java/net/shamansoft/cookbook/service/Transformer.java` (interface)
 
-- [ ] Update Transformer interface: add sourceUrl parameter to `transform()` method signature
-- [ ] Update RecipeService.createOrGetCached() to pass url to `transformer.transform(html, url)`
-- [ ] Verify all transformer implementations are updated
-- [ ] Run `./gradlew :cookbook:test` - must pass
+- [x] Update Transformer interface: add sourceUrl parameter to `transform()` method signature
+- [x] Update RecipeService.createOrGetCached() to pass url to `transformer.transform(html, url)`
+- [x] Verify all transformer implementations are updated
+- [x] Run `./gradlew :cookbook:test` - must pass
 
 ---
 

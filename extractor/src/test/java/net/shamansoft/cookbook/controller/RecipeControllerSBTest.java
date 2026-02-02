@@ -6,8 +6,10 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.HtmlFetcher;
+import net.shamansoft.cookbook.html.strategy.Strategy;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DriveService;
@@ -45,6 +47,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -58,6 +61,9 @@ class RecipeControllerSBTest {
 
     @MockitoBean
     private HtmlExtractor htmlExtractor;
+
+    @MockitoBean
+    private HtmlCleaner htmlPreprocessor;
 
     @MockitoBean
     private Transformer transformer;
@@ -122,6 +128,14 @@ class RecipeControllerSBTest {
         // Set up validation service mock
         when(validationService.toYaml(any(Recipe.class)))
                 .thenReturn("transformed content");
+
+        // Set up HtmlCleaner mock to return cleaned HTML
+        when(htmlPreprocessor.process(anyString(), anyString()))
+                .thenAnswer(invocation -> {
+                    String html = invocation.getArgument(0);
+                    int size = html.length();
+                    return new HtmlCleaner.Results(html, size, size, 1.0, Strategy.DISABLED, "Test metrics");
+                });
     }
 
     private HttpHeaders createHeadersWithOAuthToken() {
@@ -152,7 +166,7 @@ class RecipeControllerSBTest {
         Request request = new Request("compressed html", "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", "compressed html", null)).thenReturn("raw html");
-        when(transformer.transform("raw html", anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq("raw html"), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -175,7 +189,7 @@ class RecipeControllerSBTest {
         Request request = new Request(null, "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
-        when(transformer.transform("raw html", anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq("raw html"), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -197,7 +211,7 @@ class RecipeControllerSBTest {
     void createRecipe_returns_500_when_transform_throws_ClientException() throws IOException {
         Request request = new Request("raw html", "Title", "http://example.com");
         when(htmlExtractor.extractHtml("http://example.com", "raw html", null)).thenReturn("raw html");
-        when(transformer.transform("raw html", anyString())).thenThrow(new ClientException("Transformation error"));
+        when(transformer.transform(eq("raw html"), anyString())).thenThrow(new ClientException("Transformation error"));
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -253,7 +267,7 @@ class RecipeControllerSBTest {
         Request request = new Request("raw html", "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
         when(htmlExtractor.extractHtml("http://example.com", "raw html", "none")).thenReturn("raw html");
-        when(transformer.transform("raw html", anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq("raw html"), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
         when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
@@ -276,7 +290,7 @@ class RecipeControllerSBTest {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
         when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
-        when(transformer.transform("raw html", anyString())).thenReturn(Transformer.Response.notRecipe());
+        when(transformer.transform(eq("raw html"), anyString())).thenReturn(Transformer.Response.notRecipe());
 
         // When
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
