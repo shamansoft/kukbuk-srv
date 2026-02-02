@@ -697,7 +697,7 @@ class AddRecipeIT {
         String yaml = storedRecipe.get().getRecipeYaml();
         assertThat(yaml)
                 .contains("source: \"" + testUrl + "\"")
-                .contains("date_created: \"" + java.time.LocalDate.now() + "\"")
+                .contains("date_created: \"" + java.time.LocalDate.now(java.time.Clock.systemUTC()) + "\"")
                 .contains("schema_version: \"1.0.0\"")
                 .contains("recipe_version: \"1.0.0\"");
     }

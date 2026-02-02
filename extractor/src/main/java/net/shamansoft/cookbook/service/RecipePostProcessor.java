@@ -6,6 +6,7 @@ import net.shamansoft.recipe.model.RecipeMetadata;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDate;
 
 /**
@@ -17,9 +18,13 @@ import java.time.LocalDate;
 public class RecipePostProcessor {
 
     private final String schemaVersion;
+    private final Clock clock;
 
-    public RecipePostProcessor(@Value("${recipe.schema.version:1.0.0}") String schemaVersion) {
+    public RecipePostProcessor(
+            @Value("${recipe.schema.version:1.0.0}") String schemaVersion,
+            Clock clock) {
         this.schemaVersion = schemaVersion;
+        this.clock = clock;
     }
 
     /**
@@ -47,7 +52,7 @@ public class RecipePostProcessor {
                     sourceUrl,
                     null, // author
                     null, // language (will default to "en")
-                    LocalDate.now(),
+                    LocalDate.now(clock),
                     null, // category
                     null, // tags
                     null, // servings
@@ -64,7 +69,7 @@ public class RecipePostProcessor {
                     sourceUrl, // Override source
                     originalMetadata.author(),
                     originalMetadata.language(),
-                    LocalDate.now(), // Override dateCreated
+                    LocalDate.now(clock), // Override dateCreated
                     originalMetadata.category(),
                     originalMetadata.tags(),
                     originalMetadata.servings(),

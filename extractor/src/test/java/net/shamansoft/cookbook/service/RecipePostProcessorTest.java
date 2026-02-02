@@ -4,6 +4,7 @@ import net.shamansoft.recipe.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -14,10 +15,12 @@ class RecipePostProcessorTest {
     private RecipePostProcessor postProcessor;
     private static final String SCHEMA_VERSION = "1.0.0";
     private static final String SOURCE_URL = "https://example.com/recipe";
+    private Clock clock;
 
     @BeforeEach
     void setUp() {
-        postProcessor = new RecipePostProcessor(SCHEMA_VERSION);
+        clock = Clock.systemUTC();
+        postProcessor = new RecipePostProcessor(SCHEMA_VERSION, clock);
     }
 
     @Test
@@ -284,7 +287,7 @@ class RecipePostProcessorTest {
     @Test
     void testProcess_customSchemaVersion() {
         // Given
-        RecipePostProcessor customProcessor = new RecipePostProcessor("2.5.0");
+        RecipePostProcessor customProcessor = new RecipePostProcessor("2.5.0", clock);
         Recipe recipe = new Recipe(
                 true,
                 "0.9.0",
