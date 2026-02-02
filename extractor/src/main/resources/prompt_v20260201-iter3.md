@@ -59,13 +59,6 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
         - Volume: ml, l, cup, tablespoon, teaspoon, fl oz, pint, quart, gallon
         - Count: each, clove, slice, sprig, piece, whole, bottle
         - Temperature: °C, °F
-    * **RULE OF LAW:** If the unit you want to use is NOT in the whitelist above:
-        - Set `"unit": null`
-        - Move the descriptive text to `"notes"`
-        - *Example:* "3-4 pounds" -> `"unit": null`, `"notes": "3-4 pounds"`
-        - *Example:* "to taste" -> `"unit": null`, `"notes": "to taste"`
-        - *Example:* "bottle" -> `"unit": "bottle"` (Allowed)
-        - *Example:* "12-ounce bottle" -> `"unit": "bottle"`, `"notes": "12-ounce"`
     * **FORBIDDEN in unit field:** Any parentheses, any commas, any descriptive text, any preparation methods
     * **Notes field:** ALL preparation details, states, qualifiers, and special instructions
     * **VALIDATION CHECK:** Before finalizing, verify every unit field contains ONLY a word from the whitelist above
@@ -94,14 +87,14 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
       headers/separators
     * **STEP 2 - IDENTIFY PATTERNS:** Look for:
         - Headings (H1, H2, H3, H4) before ingredient lists
-        - **ANY text block (p, span, div) immediately preceding a `<ul>` or `<ol>` list of ingredients**
+        - **Paragraphs (<p>) or spans immediately preceding <ul> or <ol> lists**
         - Bold/strong text before ingredient groups
         - Text like "For the Sauce:", "Dough:", "Filling:", "Main:", "Topping:"
         - Named recipe component titles: "Lemon-Herb Chicken Thighs", "Bacon-Apple Cider Gravy", "Pizza Dough", "
           Marinara Sauce"
         - Any clear visual separation or grouping in ingredient lists
     * **STEP 3 - ASSIGN COMPONENTS:** As you extract ingredients, track which section you're in and assign the component
-      name. Use the text found in Step 2 as the component name.
+      name
     * **VALIDATION:** If your final JSON has more than 3 ingredients and ALL components are "main", you probably missed
       the section headers. Re-scan the HTML.
     * **Normalize component names:** Remove "For the", colons, and simplify when appropriate
@@ -216,7 +209,7 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 - Parse cooking times to global metadata ONLY if explicitly stated in HTML. Do not sum up step times.
 - Convert relative image paths to absolute URLs
 - Extract nutrition info when available (leave null if not present)
-- Look for storage instructions. If you find them, you MUST be able to quote the exact text from the source HTML. If you cannot quote it, return `null`. **DO NOT INVENT STORAGE ADVICE.**
+- Look for storage instructions. If NOT present, return `null`. **DO NOT INVENT STORAGE ADVICE.**
 - Identify recipe difficulty from context clues (easy/medium/hard)
 
 **FINAL VALIDATION CHECKLIST (before outputting JSON):**

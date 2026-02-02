@@ -157,76 +157,76 @@ Each iteration uses NEW session ID for correlation
 
 ### Task 2: Iteration 2 - First Improvement
 
-- [ ] read `docs/prompt-improvement-log.md` to get iteration 1 scores and recommendations
-- [ ] check exit condition: if iteration 1 score ≥ 9.0, skip this task and mark remaining tasks skipped
-- [ ] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter2.md`
-- [ ] improve `extractor/src/main/resources/prompt.md` based on iteration 1 recommendations (focus on lowest-scoring
+- [x] read `docs/prompt-improvement-log.md` to get iteration 1 scores and recommendations
+- [x] check exit condition: if iteration 1 score ≥ 9.0, skip this task and mark remaining tasks skipped
+- [x] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter2.md`
+- [x] improve `extractor/src/main/resources/prompt.md` based on iteration 1 recommendations (focus on lowest-scoring
   dimensions)
-- [ ] build cookbook: `./gradlew :cookbook:build`
-- [ ] verify build succeeds and all tests pass
-- [ ] start Spring Boot with local profile in background
-- [ ] wait for application startup
-- [ ] generate new UUID for X-Session-Id header, save it as SESSION_ID_2
-- [ ] run curl command with SESSION_ID_2 against http://localhost:8080/debug/v1/recipes
-- [ ] verify 200 response received
-- [ ] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
-- [ ] read `{SESSION_ID_2}-extracted-html-*.html` file
-- [ ] read `{SESSION_ID_2}-cleaned-html-*.html` file
-- [ ] compare extracted vs cleaned HTML - validate no critical data removed (score 0-10)
-- [ ] read `{SESSION_ID_2}-result-yaml-*.yaml` file
-- [ ] validate YAML structure is well-formed (score 0-10)
-- [ ] read `{SESSION_ID_2}-llm-response-*.json` file
-- [ ] validate schema compliance (score 0-10)
-- [ ] validate data loss (score 0-10)
-- [ ] validate hallucinations (score 0-10)
-- [ ] validate ingredients completeness (score 0-10)
-- [ ] validate ingredients deduplication (score 0-10)
-- [ ] validate ingredients categorization (score 0-10)
-- [ ] validate instruction correctness (score 0-10)
-- [ ] validate metadata accuracy (score 0-10)
-- [ ] calculate overall score (average of all 10 dimension scores)
-- [ ] update `docs/prompt-improvement-log.md` with iteration 2 entry (timestamp, SESSION_ID_2, all scores, comparison to
+- [x] build cookbook: `./gradlew :cookbook:build`
+- [x] verify build succeeds and all tests pass
+- [x] start Spring Boot with local profile in background
+- [x] wait for application startup
+- [x] generate new UUID for X-Session-Id header, save it as SESSION_ID_2
+- [x] run curl command with SESSION_ID_2 against http://localhost:8080/debug/v1/recipes
+- [x] verify 200 response received
+- [x] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
+- [x] read `{SESSION_ID_2}-extracted-html-*.html` file
+- [x] read `{SESSION_ID_2}-cleaned-html-*.html` file
+- [x] compare extracted vs cleaned HTML - validate no critical data removed (score 0-10)
+- [x] read `{SESSION_ID_2}-result-yaml-*.yaml` file
+- [x] validate YAML structure is well-formed (score 0-10)
+- [x] read `{SESSION_ID_2}-llm-response-*.json` file
+- [x] validate schema compliance (score 0-10)
+- [x] validate data loss (score 0-10)
+- [x] validate hallucinations (score 0-10)
+- [x] validate ingredients completeness (score 0-10)
+- [x] validate ingredients deduplication (score 0-10)
+- [x] validate ingredients categorization (score 0-10)
+- [x] validate instruction correctness (score 0-10)
+- [x] validate metadata accuracy (score 0-10)
+- [x] calculate overall score (average of all 10 dimension scores)
+- [x] update `docs/prompt-improvement-log.md` with iteration 2 entry (timestamp, SESSION_ID_2, all scores, comparison to
   iteration 1: improvements/degradations, what was good, what was bad, recommendations for iteration 3)
-- [ ] stop Spring Boot application
-- [ ] run unit tests: `./gradlew :cookbook:test` - must pass
-- [ ] commit changes with message: "prompt-improvement: iteration 2 (score: X.X/10, delta: +/-Y.Y)"
-- [ ] check exit condition: if overall score ≥ 9.0, mark tasks 3-10 as skipped; otherwise continue to task 3
+- [x] stop Spring Boot application
+- [x] run unit tests: `./gradlew :cookbook:test` - must pass
+- [x] commit changes with message: "prompt-improvement: iteration 2 (score: X.X/10, delta: +/-Y.Y)"
+- [x] check exit condition: if overall score ≥ 9.0, mark tasks 3-10 as skipped; otherwise continue to task 3
 
 ### Task 3: Iteration 3 - Second Improvement
 
-- [ ] read `docs/prompt-improvement-log.md` to get iteration 2 scores and recommendations
-- [ ] check exit condition: if iteration 2 score ≥ 9.0, skip this task and mark remaining tasks skipped
-- [ ] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter3.md`
-- [ ] improve `extractor/src/main/resources/prompt.md` based on iteration 2 recommendations
-- [ ] build cookbook: `./gradlew :cookbook:build`
-- [ ] verify build succeeds and all tests pass
-- [ ] start Spring Boot with local profile in background
-- [ ] wait for application startup
-- [ ] generate new UUID for X-Session-Id header, save it as SESSION_ID_3
-- [ ] run curl command with SESSION_ID_3 against http://localhost:8080/debug/v1/recipes
-- [ ] verify 200 response received
-- [ ] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
-- [ ] read `{SESSION_ID_3}-extracted-html-*.html` file
-- [ ] read `{SESSION_ID_3}-cleaned-html-*.html` file
-- [ ] compare extracted vs cleaned HTML (score 0-10)
-- [ ] read `{SESSION_ID_3}-result-yaml-*.yaml` file
-- [ ] validate YAML structure (score 0-10)
-- [ ] read `{SESSION_ID_3}-llm-response-*.json` file
-- [ ] validate schema compliance (score 0-10)
-- [ ] validate data loss (score 0-10)
-- [ ] validate hallucinations (score 0-10)
-- [ ] validate ingredients completeness (score 0-10)
-- [ ] validate ingredients deduplication (score 0-10)
-- [ ] validate ingredients categorization (score 0-10)
-- [ ] validate instruction correctness (score 0-10)
-- [ ] validate metadata accuracy (score 0-10)
-- [ ] calculate overall score
-- [ ] update `docs/prompt-improvement-log.md` with iteration 3 entry (timestamp, SESSION_ID_3, all scores, comparison to
+- [x] read `docs/prompt-improvement-log.md` to get iteration 2 scores and recommendations
+- [x] check exit condition: if iteration 2 score ≥ 9.0, skip this task and mark remaining tasks skipped
+- [x] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter3.md`
+- [x] improve `extractor/src/main/resources/prompt.md` based on iteration 2 recommendations
+- [x] build cookbook: `./gradlew :cookbook:build`
+- [x] verify build succeeds and all tests pass
+- [x] start Spring Boot with local profile in background
+- [x] wait for application startup
+- [x] generate new UUID for X-Session-Id header, save it as SESSION_ID_3
+- [x] run curl command with SESSION_ID_3 against http://localhost:8080/debug/v1/recipes
+- [x] verify 200 response received
+- [x] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
+- [x] read `{SESSION_ID_3}-extracted-html-*.html` file
+- [x] read `{SESSION_ID_3}-cleaned-html-*.html` file
+- [x] compare extracted vs cleaned HTML (score 0-10)
+- [x] read `{SESSION_ID_3}-result-yaml-*.yaml` file
+- [x] validate YAML structure (score 0-10)
+- [x] read `{SESSION_ID_3}-llm-response-*.json` file
+- [x] validate schema compliance (score 0-10)
+- [x] validate data loss (score 0-10)
+- [x] validate hallucinations (score 0-10)
+- [x] validate ingredients completeness (score 0-10)
+- [x] validate ingredients deduplication (score 0-10)
+- [x] validate ingredients categorization (score 0-10)
+- [x] validate instruction correctness (score 0-10)
+- [x] validate metadata accuracy (score 0-10)
+- [x] calculate overall score
+- [x] update `docs/prompt-improvement-log.md` with iteration 3 entry (timestamp, SESSION_ID_3, all scores, comparison to
   iteration 2, recommendations for iteration 4)
-- [ ] stop Spring Boot application
-- [ ] run unit tests: `./gradlew :cookbook:test` - must pass
-- [ ] commit changes with message: "prompt-improvement: iteration 3 (score: X.X/10, delta: +/-Y.Y)"
-- [ ] check exit condition: if overall score ≥ 9.0, mark tasks 4-10 as skipped; otherwise continue to task 4
+- [x] stop Spring Boot application
+- [x] run unit tests: `./gradlew :cookbook:test` - must pass
+- [x] commit changes with message: "prompt-improvement: iteration 3 (score: X.X/10, delta: +/-Y.Y)"
+- [x] check exit condition: if overall score ≥ 9.0, mark tasks 4-10 as skipped; otherwise continue to task 4
 
 ### Task 4: Iteration 4 - Third Improvement
 
