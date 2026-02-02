@@ -41,7 +41,6 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
     * Ranges for "or": "3-4 sprigs" → Use midpoint `"amount": "3.5"` OR note the range
     * Approximations: "about 3-4 pounds" → `"amount": "3-4"`, `"notes": "approximate weight"`
     * Only use `"amount": null` when truly unspecified (e.g., "as needed", "to taste", "pinch of")
-    * **CRITICAL:** "1 lemon" means `"amount": "1"`. "2 cloves" means `"amount": "2"`. NEVER miss these.
     * **DOUBLE-CHECK these common mistakes:**
         - "1 lemon, zested" → MUST have `"amount": "1"` ✓ NOT `"amount": null` ❌
         - "2 garlic cloves" → MUST have `"amount": "2"` ✓ NOT `"amount": null` ❌
@@ -93,14 +92,19 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 4. **COMPONENT GROUPING - MANDATORY SECTION DETECTION:**
     * **STEP 1 - SCAN FOR SECTIONS:** Before extracting ANY ingredients, scan the entire HTML for section
       headers/separators
-    * **STEP 2 - COMPONENT MAPPING:**
-        1. Find every list (`<ul>` or `<ol>`) containing ingredients.
-        2. Look at the text IMMEDIATELY before that list.
-        3. That text is the COMPONENT NAME.
-        4. *Example:* If HTML has `<p>Sauce</p> <ul>...</ul>`, the component is "Sauce".
-        5. *Example:* If HTML has `<h3>Chicken</h3> <ul>...</ul>`, the component is "Chicken".
-    * **STEP 3 - ASSIGN COMPONENTS:** Assign the identified component name to every ingredient in that list.
-    * **VALIDATION:** If you have multiple lists but all components are "main", you FAILED. Go back and check the text before each list.
+    * **STEP 2 - IDENTIFY PATTERNS:** Look for:
+        - Headings (H1, H2, H3, H4) before ingredient lists
+        - **ANY text block (p, span, div) immediately preceding a `<ul>` or `<ol>` list of ingredients**
+        - Bold/strong text before ingredient groups
+        - Text like "For the Sauce:", "Dough:", "Filling:", "Main:", "Topping:"
+        - Named recipe component titles: "Lemon-Herb Chicken Thighs", "Bacon-Apple Cider Gravy", "Pizza Dough", "
+          Marinara Sauce"
+        - Any clear visual separation or grouping in ingredient lists
+    * **STEP 3 - ASSIGN COMPONENTS:** As you extract ingredients, track which section you're in and assign the component
+      name. Use the text found in Step 2 as the component name.
+    * **VALIDATION:** If your final JSON has more than 3 ingredients and ALL components are "main", you probably missed
+      the section headers. Re-scan the HTML.
+    * **Normalize component names:** Remove "For the", colons, and simplify when appropriate
         - "For the Sauce:" → `"component": "Sauce"`
         - "Lemon-Herb Chicken Thighs" → `"component": "Lemon-Herb Chicken Thighs"` (keep descriptive names)
         - "Bacon-Apple Cider Gravy" → `"component": "Bacon-Apple Cider Gravy"` (keep descriptive names)
@@ -212,7 +216,7 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 - Parse cooking times to global metadata ONLY if explicitly stated in HTML. Do not sum up step times.
 - Convert relative image paths to absolute URLs
 - Extract nutrition info when available (leave null if not present)
-- Look for storage instructions. **STRICT RULE:** Use `null` unless you find a Heading or Section explicitly titled "Storage", "Leftovers", or similar. **DO NOT INFER FROM GENERAL TEXT.**
+- Look for storage instructions. If you find them, you MUST be able to quote the exact text from the source HTML. If you cannot quote it, return `null`. **DO NOT INVENT STORAGE ADVICE.**
 - Identify recipe difficulty from context clues (easy/medium/hard)
 
 **FINAL VALIDATION CHECKLIST (before outputting JSON):**

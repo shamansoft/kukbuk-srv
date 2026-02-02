@@ -230,27 +230,27 @@ Each iteration uses NEW session ID for correlation
 
 ### Task 4: Iteration 4 - Third Improvement
 
-- [ ] read `docs/prompt-improvement-log.md` to get iteration 3 scores and recommendations
-- [ ] check exit condition: if iteration 3 score ≥ 9.0, skip this task and mark remaining tasks skipped
-- [ ] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter4.md`
-- [ ] improve `extractor/src/main/resources/prompt.md` based on iteration 3 recommendations
-- [ ] build cookbook: `./gradlew :cookbook:build`
-- [ ] verify build succeeds and all tests pass
-- [ ] start Spring Boot with local profile in background
-- [ ] wait for application startup
-- [ ] generate new UUID for X-Session-Id header, save it as SESSION_ID_4
-- [ ] run curl command with SESSION_ID_4 against http://localhost:8080/debug/v1/recipes
-- [ ] verify 200 response received
-- [ ] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
-- [ ] read all dump files for SESSION_ID_4
-- [ ] perform all 10 validation checks (score each 0-10)
-- [ ] calculate overall score
-- [ ] update `docs/prompt-improvement-log.md` with iteration 4 entry (timestamp, SESSION_ID_4, scores, comparison,
+- [x] read `docs/prompt-improvement-log.md` to get iteration 3 scores and recommendations
+- [x] check exit condition: if iteration 3 score ≥ 9.0, skip this task and mark remaining tasks skipped
+- [x] if continuing: backup current prompt to `extractor/src/main/resources/prompt_v20260201-iter4.md`
+- [x] improve `extractor/src/main/resources/prompt.md` based on iteration 3 recommendations
+- [x] build cookbook: `./gradlew :cookbook:build`
+- [x] verify build succeeds and all tests pass
+- [x] start Spring Boot with local profile in background
+- [x] wait for application startup
+- [x] generate new UUID for X-Session-Id header, save it as SESSION_ID_4
+- [x] run curl command with SESSION_ID_4 against http://localhost:8080/debug/v1/recipes
+- [x] verify 200 response received
+- [x] navigate to `/tmp/sar-srv/dumps/{today-date}/` directory
+- [x] read all dump files for SESSION_ID_4
+- [x] perform all 10 validation checks (score each 0-10)
+- [x] calculate overall score
+- [x] update `docs/prompt-improvement-log.md` with iteration 4 entry (timestamp, SESSION_ID_4, scores, comparison,
   recommendations)
-- [ ] stop Spring Boot application
-- [ ] run unit tests: `./gradlew :cookbook:test` - must pass
-- [ ] commit changes with message: "prompt-improvement: iteration 4 (score: X.X/10, delta: +/-Y.Y)"
-- [ ] check exit condition: if overall score ≥ 9.0, mark tasks 5-10 as skipped; otherwise continue to task 5
+- [x] stop Spring Boot application
+- [x] run unit tests: `./gradlew :cookbook:test` - must pass
+- [x] commit changes with message: "prompt-improvement: iteration 4 (score: X.X/10, delta: +/-Y.Y)"
+- [x] check exit condition: if overall score ≥ 9.0, mark tasks 5-10 as skipped; otherwise continue to task 5
 
 ### Task 5: Iteration 5 - Fourth Improvement
 

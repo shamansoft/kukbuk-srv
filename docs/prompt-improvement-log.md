@@ -2,10 +2,10 @@
 
 ## Summary
 
-- **Total iterations**: 3
+- **Total iterations**: 4
 - **Best score**: 8.0/10 (iteration 1)
-- **Final score**: 6.9/10
-- **Overall improvement**: -1.1 points
+- **Final score**: 7.6/10
+- **Overall improvement**: -0.4 points
 - **Exit reason**: [Pending]
 
 ## Iteration Template
@@ -141,6 +141,50 @@
 1. **Component Strategy**: "Find every `<ul>` inside `ingredients`. The text immediately before it is the component name." using a simpler phrasing.
 2. **Amount Restoration**: Re-emphasize "Extract numbers as amounts".
 3. **Storage Kill Switch**: "If the headers 'Storage', 'Leftovers', or 'Freezing' are NOT present in the HTML, return `null`."
+
+
+### Iteration 4
+
+- **Timestamp**: 2026-02-01 22:15:00
+- **Session ID**: 6dfc0f1c-e94b-41d0-953f-1c7684847bbe
+- **Prompt Version**: prompt_v20260201-iter4.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 8.0/10 (Agile unit/amount parsing restored)
+4. Data Loss: 10.0/10 (Restored lemon amount)
+5. Hallucinations: 3.0/10 (Storage hallucination AND Servings hallucination "8")
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 5.0/10 (Guessed servings "8", though source says "8 thighs", usually 4 servings)
+
+**Overall Score**: 7.6/10
+
+**What was good**:
+
+- **Restored Amounts**: "1 lemon" -> amount 1.
+- **Unit Compliance**: Good.
+
+**What was bad**:
+
+- **Hallucinations**: The model simply refuses to follow "Return null" for storage. It feels compelled to give advice.
+- **Components**: The logic "text immediately preceding" failed.
+
+**Comparison to previous iteration**:
+
+- Improvement: +0.7 points (mostly due to fixing data loss).
+- Still below baseline (8.0).
+
+**Recommendations for next iteration**:
+
+1. **Components**: Use a ONE-SHOT example in the prompt showing exactly how to map the HTML structure `<p>Name</p> <ul>` to components.
+2. **Storage**: Remove the "Look for storage" instruction entirely? Or say "Storage field is DEPRECATED. Return null." (Extreme measure to test compliance).
+3. **Servings**: "If you find a number for servings, extract it. If not, return null. Do not count ingredients."
+
 
 
 
