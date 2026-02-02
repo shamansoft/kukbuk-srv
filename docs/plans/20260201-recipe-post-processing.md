@@ -127,9 +127,9 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 
 - [ ] Manual test: POST /v1/recipes with a real recipe URL
 - [ ] Verify response contains: source URL, dateCreated (today), schemaVersion "1.0.0", recipeVersion "1.0.0"
-- [ ] Run full test suite: `./gradlew test`
-- [ ] Run integration tests: `./gradlew :cookbook:intTest`
-- [ ] Verify all tests pass with 40%+ coverage
+- [x] Run full test suite: `./gradlew test`
+- [ ] Run integration tests: `./gradlew :cookbook:intTest` (NOTE: Testcontainers Docker initialization hangs locally - requires manual verification or CI/CD)
+- [x] Verify all tests pass with 40%+ coverage
 
 ---
 
