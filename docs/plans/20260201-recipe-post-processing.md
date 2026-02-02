@@ -106,9 +106,9 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 - Modify: `extractor/src/main/java/net/shamansoft/cookbook/service/gemini/GeminiRestTransformer.java`
 - Modify: `extractor/src/test/java/net/shamansoft/cookbook/service/gemini/GeminiRestTransformerTest.java` (if exists)
 
-- [ ] Update GeminiRestTransformer.transform() to accept sourceUrl parameter (pass through to ValidatingTransformerService)
-- [ ] Update tests if they exist
-- [ ] Run `./gradlew :cookbook:test` - must pass
+- [x] Update GeminiRestTransformer.transform() to accept sourceUrl parameter (pass through to ValidatingTransformerService)
+- [x] Update tests if they exist
+- [x] Run `./gradlew :cookbook:test` - must pass
 
 ---
 
