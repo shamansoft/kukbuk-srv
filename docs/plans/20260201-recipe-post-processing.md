@@ -67,8 +67,8 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 - Modify: `extractor/src/main/resources/application-local.yaml` (if needed)
 - Modify: `extractor/src/main/resources/application-gcp.yaml` (if needed)
 
-- [ ] Add new config property: `recipe.schema.version: "1.0.0"` in application.yaml
-- [ ] Verify config loads correctly via Spring Boot property injection
+- [x] Add new config property: `recipe.schema.version: "1.0.0"` in application.yaml
+- [x] Verify config loads correctly via Spring Boot property injection
 
 ---
 

@@ -98,6 +98,12 @@ firestore:
 # RECIPE PROCESSING CONFIGURATION
 # ------------------------------------------------------------------------------
 recipe:
+  # Recipe schema version for validation and compatibility tracking
+  # Used by: RecipePostProcessor.java (@Value("${recipe.schema.version:1.0.0}"))
+  # Default: 1.0.0
+  schema:
+    version: "1.0.0"
+
   llm:
     # Number of retry attempts when LLM validation fails
     # Used by: ValidatingTransformerService.java:39 (@Value("${recipe.llm.retry:1}"))
