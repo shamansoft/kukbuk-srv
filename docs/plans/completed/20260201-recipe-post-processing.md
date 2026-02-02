@@ -135,5 +135,5 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 
 ## Documentation
 
-- [ ] Update CLAUDE.md if new patterns or services introduced
-- [ ] Move this plan to `docs/plans/completed/` when done
+- [x] Update CLAUDE.md if new patterns or services introduced
+- [x] Move this plan to `docs/plans/completed/` when done
