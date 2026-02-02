@@ -28,6 +28,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -105,7 +107,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
@@ -124,7 +126,7 @@ class RecipeServiceCreateRecipeTest {
 
         verify(storageService).getStorageInfo(USER_ID);
         verify(htmlExtractor).extractHtml(URL, SOURCE_HTML, null);
-        verify(transformer).transform(EXTRACTED_HTML);
+        verify(transformer).transform(eq(EXTRACTED_HTML), anyString());
         verify(recipeStoreService).storeValidRecipe(HASH, URL, YAML);
         verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
     }
@@ -141,7 +143,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.notRecipe());
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.notRecipe());
 
         // When
         RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
@@ -184,7 +186,7 @@ class RecipeServiceCreateRecipeTest {
 
         // Should NOT extract HTML or transform when cached
         verify(htmlExtractor, never()).extractHtml(any(), any(), any());
-        verify(transformer, never()).transform(any());
+        verify(transformer, never()).transform(anyString(), anyString());
         verify(recipeParser).parse(YAML);
         verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
     }
@@ -203,7 +205,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
@@ -247,7 +249,7 @@ class RecipeServiceCreateRecipeTest {
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Failed to extract HTML");
 
-        verify(transformer, never()).transform(any());
+        verify(transformer, never()).transform(anyString(), anyString());
     }
 
     @Test
@@ -262,7 +264,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenThrow(new RuntimeException("AI transformation failed"));
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenThrow(new RuntimeException("AI transformation failed"));
 
         // When/Then
         assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE))
@@ -285,7 +287,7 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(new HtmlCleaner.Results(
                         EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
                         0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
-        when(transformer.transform(EXTRACTED_HTML)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))

@@ -8,9 +8,10 @@ public interface Transformer {
      * Transforms HTML content to a Recipe object.
      *
      * @param htmlContent the HTML string to transform
+     * @param sourceUrl the source URL of the recipe
      * @return the transformed result containing a Recipe object or non-recipe indicator
      */
-    Response transform(String htmlContent);
+    Response transform(String htmlContent, String sourceUrl);
 
     /**
      * Represents the response of a transformation.

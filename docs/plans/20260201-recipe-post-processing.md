@@ -78,12 +78,12 @@ Add recipe post-processing to populate deterministic fields after successful AI 
 - Modify: `extractor/src/main/java/net/shamansoft/cookbook/service/ValidatingTransformerService.java`
 - Modify: `extractor/src/test/java/net/shamansoft/cookbook/service/ValidatingTransformerServiceTest.java`
 
-- [ ] Add RecipePostProcessor dependency via constructor injection
-- [ ] Add sourceUrl parameter to `transform(String htmlContent, String sourceUrl)` method
-- [ ] Call `postProcessor.process()` after successful validation but before returning Response
-- [ ] Update all call sites in ValidatingTransformerService
-- [ ] Update unit tests to mock RecipePostProcessor and verify it's called
-- [ ] Run `./gradlew :cookbook:test --tests ValidatingTransformerServiceTest` - must pass
+- [x] Add RecipePostProcessor dependency via constructor injection
+- [x] Add sourceUrl parameter to `transform(String htmlContent, String sourceUrl)` method
+- [x] Call `postProcessor.process()` after successful validation but before returning Response
+- [x] Update all call sites in ValidatingTransformerService
+- [x] Update unit tests to mock RecipePostProcessor and verify it's called
+- [x] Run `./gradlew :cookbook:test --tests ValidatingTransformerServiceTest` - must pass
 
 ---
 

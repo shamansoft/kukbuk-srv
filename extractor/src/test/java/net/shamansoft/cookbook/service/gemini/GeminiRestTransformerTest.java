@@ -93,7 +93,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.success(expectedRecipe, "{\"is_recipe\": true}"));
 
         // When
-        Transformer.Response response = transformer.transform(htmlContent);
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
 
         // Then
         assertThat(response).isNotNull();
@@ -117,7 +117,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.success(nonRecipe, "{\"is_recipe\": false}"));
 
         // When
-        Transformer.Response response = transformer.transform(htmlContent);
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
 
         // Then
         assertThat(response).isNotNull();
@@ -164,7 +164,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Content blocked by safety filter"));
 
         // When/Then
-        assertThatThrownBy(() -> transformer.transform(htmlContent))
+        assertThatThrownBy(() -> transformer.transform(htmlContent, "https://example.com"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Gemini Client returned error code: BLOCKED");
 
@@ -183,7 +183,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.failure(GeminiResponse.Code.OTHER, "Network error"));
 
         // When/Then
-        assertThatThrownBy(() -> transformer.transform(htmlContent))
+        assertThatThrownBy(() -> transformer.transform(htmlContent, "https://example.com"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Gemini Client returned error code: OTHER");
     }
@@ -197,7 +197,7 @@ class GeminiRestTransformerTest {
                 .thenThrow(new JacksonException("Failed to serialize request") {});
 
         // When/Then
-        assertThatThrownBy(() -> transformer.transform(htmlContent))
+        assertThatThrownBy(() -> transformer.transform(htmlContent, "https://example.com"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to transform content via Gemini API")
                 .hasCauseInstanceOf(JacksonException.class);
@@ -275,7 +275,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.success(complexRecipe, "{\"is_recipe\": true}"));
 
         // When
-        Transformer.Response response = transformer.transform(htmlContent);
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
 
         // Then
         assertThat(response).isNotNull();

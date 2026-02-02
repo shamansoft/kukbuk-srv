@@ -213,7 +213,7 @@ public class DebugController {
                 }
 
                 // 2c. Transform to Recipe using Gemini
-                transformResponse = transformer.transform(preprocessed.cleanedHtml());
+                transformResponse = transformer.transform(preprocessed.cleanedHtml(), url);
 
                 long transformTime = System.currentTimeMillis() - transformStart;
                 if (request.isVerbose()) {

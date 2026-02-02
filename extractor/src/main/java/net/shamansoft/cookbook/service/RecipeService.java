@@ -81,7 +81,7 @@ public class RecipeService {
             log.info("HTML preprocessing - URL: {}, {}", url, preprocessed.metricsMessage());
 
             // 3. Transform preprocessed HTML to recipe
-            var response = transformer.transform(preprocessed.cleanedHtml());
+            var response = transformer.transform(preprocessed.cleanedHtml(), url);
             if (response.isRecipe()) {
                 // Convert Recipe to YAML for caching
                 String yamlContent = convertRecipeToYaml(response.recipe());

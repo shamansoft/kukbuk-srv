@@ -17,7 +17,8 @@ public class GeminiRestTransformer implements Transformer {
     private final RequestBuilder requestBuilder;
 
     @Override
-    public Response transform(String htmlContent) {
+    public Response transform(String htmlContent, String sourceUrl) {
+        // sourceUrl is not used in GeminiRestTransformer - handled by ValidatingTransformerService
         return transformInternal(htmlContent, null, null);
     }
 
