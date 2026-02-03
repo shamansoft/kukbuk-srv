@@ -45,14 +45,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for the /recipe endpoint using the new StorageService flow.
  * This tests the complete flow where:
  * 1. User authenticates with Firebase ID token
- * 2. Backend retrieves Google Drive OAuth tokens from Firestore via StorageService
+ * 2. Backend retrieves Google Drive OAuth tokens from Firestore via
+ * StorageService
  * 3. Backend uses those tokens to save recipes to Drive
  */
 @Testcontainers
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "spring.main.allow-bean-definition-overriding=true"
-)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "spring.main.allow-bean-definition-overriding=true")
 @AutoConfigureTestRestTemplate
 class AddRecipeIT {
 
@@ -79,8 +77,7 @@ class AddRecipeIT {
 
     @Container
     static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
-            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators")
-    );
+            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"));
 
     @TestConfiguration
     static class FirestoreTestConfig {
@@ -99,11 +96,14 @@ class AddRecipeIT {
         @Bean
         @Primary
         public com.google.firebase.auth.FirebaseAuth firebaseAuth() throws Exception {
-            com.google.firebase.auth.FirebaseAuth mockAuth = org.mockito.Mockito.mock(com.google.firebase.auth.FirebaseAuth.class);
-            com.google.firebase.auth.FirebaseToken mockToken = org.mockito.Mockito.mock(com.google.firebase.auth.FirebaseToken.class);
+            com.google.firebase.auth.FirebaseAuth mockAuth = org.mockito.Mockito
+                    .mock(com.google.firebase.auth.FirebaseAuth.class);
+            com.google.firebase.auth.FirebaseToken mockToken = org.mockito.Mockito
+                    .mock(com.google.firebase.auth.FirebaseToken.class);
             org.mockito.Mockito.when(mockToken.getUid()).thenReturn("test-user-123");
             org.mockito.Mockito.when(mockToken.getEmail()).thenReturn("testuser@example.com");
-            org.mockito.Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString())).thenReturn(mockToken);
+            org.mockito.Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString()))
+                    .thenReturn(mockToken);
             return mockAuth;
         }
 
@@ -126,7 +126,8 @@ class AddRecipeIT {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        // Ensure WireMock container is started so mapped port is available when registering properties
+        // Ensure WireMock container is started so mapped port is available when
+        // registering properties
         if (!wiremockContainer.isRunning()) {
             wiremockContainer.start();
         }
@@ -165,7 +166,8 @@ class AddRecipeIT {
 
     private void clearFirestore() throws Exception {
         // Delete the test user document AND all subcollections
-        // This is critical for test isolation - Firestore doesn't auto-delete subcollections
+        // This is critical for test isolation - Firestore doesn't auto-delete
+        // subcollections
         String userId = "test-user-123";
 
         try {
@@ -180,24 +182,23 @@ class AddRecipeIT {
                     .document(userId)
                     .collection("recipes");
 
-            // Query for all documents (listDocuments() only returns references, not actual documents)
+            // Query for all documents (listDocuments() only returns references, not actual
+            // documents)
             var querySnapshot = recipesCollection.get().get();
             int deletedCount = 0;
             for (var document : querySnapshot.getDocuments()) {
                 try {
-                    System.out.println("Deleting recipe document: " + document.getId());
                     document.getReference().delete().get();
                     deletedCount++;
                 } catch (Exception e) {
-                    System.out.println("Failed to delete document " + document.getId() + ": " + e.getMessage());
+                    // Log error if needed, but don't fail the test setup
                 }
             }
-            System.out.println("Cleared " + deletedCount + " recipe documents from Firestore");
 
             // Then delete the user document itself
             firestore.collection("users").document(userId).delete().get();
         } catch (Exception e) {
-            System.out.println("Error clearing Firestore: " + e.getMessage());
+            // Log error if needed, but don't fail the test setup
         }
     }
 
@@ -207,17 +208,18 @@ class AddRecipeIT {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                                {
-                                    "candidates": [{
-                                        "content": {
-                                            "parts": [{
-                                                "text": "{\\"is_recipe\\": true, \\"metadata\\": {\\"title\\": \\"Chocolate Chip Cookies\\", \\"source\\": \\"https://example.com/recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 24, \\"prep_time\\": \\"15m\\", \\"cook_time\\": \\"12m\\", \\"total_time\\": \\"27m\\"}, \\"description\\": \\"Classic homemade chocolate chip cookies\\", \\"ingredients\\": [{\\"item\\": \\"All-purpose flour\\", \\"amount\\": 2.25, \\"unit\\": \\"cups\\"}, {\\"item\\": \\"Chocolate chips\\", \\"amount\\": 2, \\"unit\\": \\"cups\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"Preheat oven to 375°F\\"}, {\\"step\\": 2, \\"description\\": \\"Mix ingredients and bake for 12 minutes\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                        .withBody(
+                                """
+                                        {
+                                            "candidates": [{
+                                                "content": {
+                                                    "parts": [{
+                                                        "text": "{\\"is_recipe\\": true, \\"metadata\\": {\\"title\\": \\"Chocolate Chip Cookies\\", \\"source\\": \\"https://example.com/recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 24, \\"prep_time\\": \\"15m\\", \\"cook_time\\": \\"12m\\", \\"total_time\\": \\"27m\\"}, \\"description\\": \\"Classic homemade chocolate chip cookies\\", \\"ingredients\\": [{\\"item\\": \\"All-purpose flour\\", \\"amount\\": 2.25, \\"unit\\": \\"cups\\"}, {\\"item\\": \\"Chocolate chips\\", \\"amount\\": 2, \\"unit\\": \\"cups\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"Preheat oven to 375°F\\"}, {\\"step\\": 2, \\"description\\": \\"Mix ingredients and bake for 12 minutes\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                                                    }]
+                                                }
                                             }]
                                         }
-                                    }]
-                                }
-                                """)));
+                                        """)));
     }
 
     private void setupGoogleDriveMocks() {
@@ -279,8 +281,7 @@ class AddRecipeIT {
 
     private void setupStorageInfoInFirestore(String userId, String accessToken) throws Exception {
         Timestamp futureTime = Timestamp.ofTimeSecondsAndNanos(
-                System.currentTimeMillis() / 1000 + 3600, 0
-        );
+                System.currentTimeMillis() / 1000 + 3600, 0);
         Timestamp nowTime = Timestamp.now();
 
         // Store encrypted tokens (TokenEncryptionService mock adds "encrypted-" prefix)
@@ -295,13 +296,12 @@ class AddRecipeIT {
                                 "refreshToken", "encrypted-refresh-token-123",
                                 "expiresAt", futureTime,
                                 "connectedAt", nowTime,
-                                "folderId", "folder-123"
-                        )
-                )
-        ).get();
+                                "folderId", "folder-123")))
+                .get();
     }
 
-    // Helper to print WireMock recorded requests for debugging failing verifications
+    // Helper to print WireMock recorded requests for debugging failing
+    // verifications
     private void dumpWireMockRequests() {
         try {
             var events = WireMock.getAllServeEvents();
@@ -364,15 +364,15 @@ class AddRecipeIT {
                 </html>
                 """;
 
-        Request request = new Request(sampleHtml, "Chocolate Chip Cookies", "https://example.com/chocolate-chip-cookies");
+        Request request = new Request(sampleHtml, "Chocolate Chip Cookies",
+                "https://example.com/chocolate-chip-cookies");
         HttpEntity<Request> entity = new HttpEntity<>(request, createAuthHeaders());
 
         // When: Making a request to create recipe
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                RecipeResponse.class
-        );
+                RecipeResponse.class);
 
         // Then: Recipe is created successfully
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -385,31 +385,26 @@ class AddRecipeIT {
                         RecipeResponse::title,
                         RecipeResponse::driveFileId,
                         RecipeResponse::driveFileUrl,
-                        RecipeResponse::isRecipe
-                )
+                        RecipeResponse::isRecipe)
                 .containsExactly(
                         "https://example.com/chocolate-chip-cookies",
                         "Chocolate Chip Cookies",
                         "file-456",
                         "https://drive.google.com/file/d/file-456/view",
-                        true
-                );
-
-        // Debug: dump WireMock recorded requests to help diagnose mismatches
-        dumpWireMockRequests();
-        // Debug: dump full request bodies to compare with stubbed Gemini payloads
-        dumpWireMockRequestBodies();
+                        true);
 
         // Verify Gemini was called for transformation
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
-        // Verify request body sent to Gemini contains the extraction instruction and page title
+        // Verify request body sent to Gemini contains the extraction instruction and
+        // page title
         verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
-                .withRequestBody(containing("You are an AI specialized in extracting cooking recipes"))
+                .withRequestBody(containing("You are a strict Recipe Data Extractor"))
                 .withRequestBody(containing("Chocolate Chip Cookies")));
 
         // Verify Google Drive operations
-        // The flow now uses the cached folderId from storage, so it searches for the file directly
+        // The flow now uses the cached folderId from storage, so it searches for the
+        // file directly
         verify(getRequestedFor(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("chocolate-chip-cookies.yaml")));
         verify(postRequestedFor(urlPathEqualTo("/files")));
@@ -446,8 +441,7 @@ class AddRecipeIT {
         ResponseEntity<Map> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                Map.class
-        );
+                Map.class);
 
         // Then: Returns HTTP 428 Precondition Required
         assertThat(response.getStatusCode().value()).isEqualTo(428);
@@ -510,8 +504,7 @@ class AddRecipeIT {
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                RecipeResponse.class
-        );
+                RecipeResponse.class);
 
         // Then: Recipe is returned from cache
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -537,17 +530,18 @@ class AddRecipeIT {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                                {
-                                    "candidates": [{
-                                        "content": {
-                                            "parts": [{
-                                                "text": "{\\"is_recipe\\": false, \\"metadata\\": {\\"title\\": \\"Not a Recipe\\", \\"source\\": \\"https://example.com/not-recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 1}, \\"ingredients\\": [{\\"item\\": \\"placeholder\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"placeholder\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                        .withBody(
+                                """
+                                        {
+                                            "candidates": [{
+                                                "content": {
+                                                    "parts": [{
+                                                        "text": "{\\"is_recipe\\": false, \\"metadata\\": {\\"title\\": \\"Not a Recipe\\", \\"source\\": \\"https://example.com/not-recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 1}, \\"ingredients\\": [{\\"item\\": \\"placeholder\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"placeholder\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                                                    }]
+                                                }
                                             }]
                                         }
-                                    }]
-                                }
-                                """)));
+                                        """)));
 
         String sampleHtml = "<html><body><h1>Not a recipe</h1><p>Just some random content</p></body></html>";
         Request request = new Request(sampleHtml, "Not a Recipe", "https://example.com/not-recipe");
@@ -557,8 +551,7 @@ class AddRecipeIT {
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                RecipeResponse.class
-        );
+                RecipeResponse.class);
 
         // Then: Returns success but isRecipe=false
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -636,8 +629,7 @@ class AddRecipeIT {
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                RecipeResponse.class
-        );
+                RecipeResponse.class);
 
         // Then: Recipe is created successfully
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -680,8 +672,7 @@ class AddRecipeIT {
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
                 "http://localhost:" + port + RECIPE_PATH + "?compression=none",
                 entity,
-                RecipeResponse.class
-        );
+                RecipeResponse.class);
 
         // Then: Recipe is created successfully
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
