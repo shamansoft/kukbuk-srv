@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests to verify GraalVM native image configuration.
  * Validates reflection configs and resource availability.
- *
+ * <p>
  * These tests ensure that:
  * 1. Reflection metadata is correctly configured for GraalVM
  * 2. Resources are properly detected and available at runtime
@@ -47,8 +47,8 @@ class NativeImageConfigTest {
         // Verify that resources.autodetect() is working
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("application.yaml")) {
             assertThat(stream)
-                .as("application.yaml should be available via resource autodetection")
-                .isNotNull();
+                    .as("application.yaml should be available via resource autodetection")
+                    .isNotNull();
         }
     }
 
@@ -57,8 +57,8 @@ class NativeImageConfigTest {
         // Verify prompt.md is available
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("prompt.md")) {
             assertThat(stream)
-                .as("prompt.md should be available via resource autodetection")
-                .isNotNull();
+                    .as("prompt.md should be available via resource autodetection")
+                    .isNotNull();
         }
     }
 
@@ -67,8 +67,8 @@ class NativeImageConfigTest {
         // Verify recipe schema is available
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("recipe-schema-1.0.0.json")) {
             assertThat(stream)
-                .as("recipe-schema-1.0.0.json should be available via resource autodetection")
-                .isNotNull();
+                    .as("recipe-schema-1.0.0.json should be available via resource autodetection")
+                    .isNotNull();
         }
     }
 
@@ -77,8 +77,8 @@ class NativeImageConfigTest {
         // Verify SLF4J is initialized (this test would fail in native image if not configured properly)
         org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NativeImageConfigTest.class);
         assertThat(logger)
-            .as("SLF4J logger should be initialized at build time")
-            .isNotNull();
+                .as("SLF4J logger should be initialized at build time")
+                .isNotNull();
 
         // Log a test message to verify logging works
         logger.info("SLF4J initialization test - this should work in native image");
@@ -94,8 +94,8 @@ class NativeImageConfigTest {
 
         String json = mapper.writeValueAsString(content);
         assertThat(json)
-            .as("Jackson should serialize GeminiRequest.Content with reflection")
-            .contains("test text");
+                .as("Jackson should serialize GeminiRequest.Content with reflection")
+                .contains("test text");
 
         GeminiRequest.Content deserialized = mapper.readValue(json, GeminiRequest.Content.class);
         assertThat(deserialized.getParts()).hasSize(1);
@@ -106,10 +106,10 @@ class NativeImageConfigTest {
         // This test validates that the GraalVM configuration is present and accessible
         // The reflect-config.json should be in META-INF/native-image/
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(
-            "META-INF/native-image/reflect-config.json")) {
+                "META-INF/native-image/reflect-config.json")) {
             assertThat(stream)
-                .as("reflect-config.json should be present for GraalVM native image")
-                .isNotNull();
+                    .as("reflect-config.json should be present for GraalVM native image")
+                    .isNotNull();
         } catch (IOException e) {
             throw new RuntimeException("Failed to check reflect-config.json", e);
         }
@@ -122,20 +122,20 @@ class NativeImageConfigTest {
         // Verify constructors are accessible
         Constructor<?>[] constructors = clazz.getDeclaredConstructors();
         assertThat(constructors)
-            .as("Class %s should have accessible constructors", clazz.getName())
-            .isNotEmpty();
+                .as("Class %s should have accessible constructors", clazz.getName())
+                .isNotEmpty();
 
         // Verify methods are accessible
         Method[] methods = clazz.getDeclaredMethods();
         assertThat(methods)
-            .as("Class %s should have accessible methods", clazz.getName())
-            .isNotEmpty();
+                .as("Class %s should have accessible methods", clazz.getName())
+                .isNotEmpty();
 
         // Verify fields are accessible
         Field[] fields = clazz.getDeclaredFields();
         // Note: Some classes may not have fields, so we just verify this doesn't throw
         assertThat(fields)
-            .as("Class %s should have accessible fields array (may be empty)", clazz.getName())
-            .isNotNull();
+                .as("Class %s should have accessible fields array (may be empty)", clazz.getName())
+                .isNotNull();
     }
 }

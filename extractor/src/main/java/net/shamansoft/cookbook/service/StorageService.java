@@ -27,16 +27,14 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 public class StorageService {
 
+    private static final String USERS_COLLECTION = "users";
+    private static final String STORAGE_FIELD = "storage";
     private final Firestore firestore;
     private final TokenEncryptionService tokenEncryptionService;
     private final GoogleAuthClient googleAuthClient;
     private final GoogleDrive googleDrive;
-
     @Value("${cookbook.drive.folder-name}")
     private String defaultFolderName;
-
-    private static final String USERS_COLLECTION = "users";
-    private static final String STORAGE_FIELD = "storage";
 
     public StorageService(Firestore firestore,
                           TokenEncryptionService tokenEncryptionService,
@@ -141,12 +139,12 @@ public class StorageService {
      * Internal method to store OAuth tokens and folder information.
      * Separated for backwards compatibility and testing.
      *
-     * @param userId            Firebase user ID
-     * @param accessToken       OAuth access token (will be encrypted)
-     * @param refreshToken      OAuth refresh token (will be encrypted)
-     * @param expiresIn         Token expiration in seconds
-     * @param folderId   Google Drive folder ID
-     * @param folderName Google Drive folder name
+     * @param userId       Firebase user ID
+     * @param accessToken  OAuth access token (will be encrypted)
+     * @param refreshToken OAuth refresh token (will be encrypted)
+     * @param expiresIn    Token expiration in seconds
+     * @param folderId     Google Drive folder ID
+     * @param folderName   Google Drive folder name
      */
     private void connectGoogleDriveWithTokens(String userId, String accessToken, String refreshToken,
                                               long expiresIn, String folderId, String folderName) {

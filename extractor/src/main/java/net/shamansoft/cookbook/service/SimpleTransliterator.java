@@ -35,7 +35,7 @@ public class SimpleTransliterator implements Transliterator {
     @Override
     public String toAsciiKebab(String input) {
 
-        if(input == null || input.isBlank()) {
+        if (input == null || input.isBlank()) {
             return "";
         }
 
@@ -51,7 +51,7 @@ public class SimpleTransliterator implements Transliterator {
         String normalized = Normalizer.normalize(result, Normalizer.Form.NFD);
         String ascii = normalized.replaceAll("[^\\p{ASCII}]", "");
         String kebab = ascii.replaceAll("[^a-z0-9]+", "-");
-        if(kebab.endsWith("-")) kebab = kebab.substring(0, kebab.length() - 1);
+        if (kebab.endsWith("-")) kebab = kebab.substring(0, kebab.length() - 1);
         return kebab;
     }
 }

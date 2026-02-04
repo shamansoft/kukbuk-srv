@@ -25,8 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("RecipeMapper Tests")
 class RecipeMapperTest {
 
-    private RecipeMapper recipeMapper;
-
     private static final String RECIPE_ID = "drive-file-123";
     private static final String LAST_MODIFIED = "2024-01-15T10:30:00Z";
     private static final String RECIPE_TITLE = "Chocolate Chip Cookies";
@@ -41,6 +39,7 @@ class RecipeMapperTest {
     private static final String NOTES = "Store in airtight container";
     private static final String COVER_IMAGE_URL = "https://example.com/cover.jpg";
     private static final String COVER_IMAGE_ALT = "Freshly baked cookies";
+    private RecipeMapper recipeMapper;
 
     @BeforeEach
     void setUp() {
@@ -108,7 +107,7 @@ class RecipeMapperTest {
 
         // Then
         assertThat(dto.getIngredients()).hasSize(2);
-        
+
         IngredientDto flour = dto.getIngredients().get(0);
         assertThat(flour.getName()).isEqualTo("all-purpose flour");
         assertThat(flour.getAmount()).isEqualTo("2.25");
@@ -598,7 +597,7 @@ class RecipeMapperTest {
     }
 
     private Instruction createInstructionWithTemperature(Integer step, String description,
-                                                        String time, String temperature) {
+                                                         String time, String temperature) {
         return new Instruction(step, description, time, temperature, null);
     }
 }

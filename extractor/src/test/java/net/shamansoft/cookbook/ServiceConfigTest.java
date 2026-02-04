@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook;
 
+import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.web.exchanges.HttpExchangeRepository;
@@ -11,11 +12,9 @@ import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import net.shamansoft.cookbook.config.TestFirebaseConfig;
-
 /**
  * Test ServiceConfig Actuator bean configuration for Spring Boot 4 migration.
- *
+ * <p>
  * Tests verify:
  * - HttpExchangeRepository bean is created for Actuator httpexchanges endpoint
  * - Bean is configured as InMemoryHttpExchangeRepository

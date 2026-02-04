@@ -4,82 +4,177 @@
   "version": "1.0.0",
   "title": "Recipe",
   "type": "object",
-  "required": ["metadata", "ingredients", "instructions"],
+  "required": [
+    "metadata",
+    "ingredients",
+    "instructions"
+  ],
   "properties": {
     "metadata": {
       "type": "object",
-      "required": ["title", "date_created"],
+      "required": [
+        "title",
+        "date_created"
+      ],
       "properties": {
-        "title": { "type": "string" },
-        "author": { "type": "string" },
-        "date_created": { "type": "string", "format": "date" },
-        "category": { "type": "array", "items": { "type": "string" } },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "servings": { "type": "integer", "minimum": 1 },
-        "prep_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
-        "cook_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
-        "total_time": { "type": "string", "pattern": "^\\d+\\s+minutes$" },
+        "title": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "date_created": {
+          "type": "string",
+          "format": "date"
+        },
+        "category": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "servings": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "prep_time": {
+          "type": "string",
+          "pattern": "^\\d+\\s+minutes$"
+        },
+        "cook_time": {
+          "type": "string",
+          "pattern": "^\\d+\\s+minutes$"
+        },
+        "total_time": {
+          "type": "string",
+          "pattern": "^\\d+\\s+minutes$"
+        },
         "difficulty": {
           "type": "string",
-          "enum": ["easy", "medium", "hard"]
+          "enum": [
+            "easy",
+            "medium",
+            "hard"
+          ]
         },
         "cover_image": {
           "type": "object",
-          "required": ["path", "alt"],
+          "required": [
+            "path",
+            "alt"
+          ],
           "properties": {
-            "path": { "type": "string" },
-            "alt": { "type": "string" }
+            "path": {
+              "type": "string"
+            },
+            "alt": {
+              "type": "string"
+            }
           }
         }
       }
     },
-    "description": { "type": "string" },
+    "description": {
+      "type": "string"
+    },
     "ingredients": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["item", "amount", "unit"],
+        "required": [
+          "item",
+          "amount",
+          "unit"
+        ],
         "properties": {
-          "item": { "type": "string" },
-          "amount": { "type": "number", "minimum": 0 },
-          "unit": { "type": "string" },
-          "notes": { "type": "string" }
+          "item": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
         }
       }
     },
     "equipment": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "instructions": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["step", "description"],
+        "required": [
+          "step",
+          "description"
+        ],
         "properties": {
-          "step": { "type": "integer", "minimum": 1 },
-          "description": { "type": "string" },
+          "step": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string"
+          },
           "media": {
             "type": "array",
             "items": {
               "oneOf": [
                 {
                   "type": "object",
-                  "required": ["type", "path", "alt"],
+                  "required": [
+                    "type",
+                    "path",
+                    "alt"
+                  ],
                   "properties": {
-                    "type": { "const": "image" },
-                    "path": { "type": "string" },
-                    "alt": { "type": "string" }
+                    "type": {
+                      "const": "image"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "alt": {
+                      "type": "string"
+                    }
                   }
                 },
                 {
                   "type": "object",
-                  "required": ["type", "path", "thumbnail"],
+                  "required": [
+                    "type",
+                    "path",
+                    "thumbnail"
+                  ],
                   "properties": {
-                    "type": { "const": "video" },
-                    "path": { "type": "string" },
-                    "thumbnail": { "type": "string" },
-                    "duration": { "type": "string", "pattern": "^\\d+:\\d{2}$" }
+                    "type": {
+                      "const": "video"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "thumbnail": {
+                      "type": "string"
+                    },
+                    "duration": {
+                      "type": "string",
+                      "pattern": "^\\d+:\\d{2}$"
+                    }
                   }
                 }
               ]
@@ -91,15 +186,33 @@
     "nutrition": {
       "type": "object",
       "properties": {
-        "serving_size": { "type": "string" },
-        "calories": { "type": "integer", "minimum": 0 },
-        "protein": { "type": "number", "minimum": 0 },
-        "carbohydrates": { "type": "number", "minimum": 0 },
-        "fat": { "type": "number", "minimum": 0 }
+        "serving_size": {
+          "type": "string"
+        },
+        "calories": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "protein": {
+          "type": "number",
+          "minimum": 0
+        },
+        "carbohydrates": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fat": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
-    "notes": { "type": "string" },
-    "source": { "type": "string" },
+    "notes": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
     "schema_version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$"

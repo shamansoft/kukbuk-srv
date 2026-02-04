@@ -15,7 +15,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Test configuration that provides mock Firebase/Firestore/KMS beans for unit tests.
- *
+ * <p>
  * This replaces the production beans during tests, allowing tests to run
  * without needing real GCP credentials.
  */

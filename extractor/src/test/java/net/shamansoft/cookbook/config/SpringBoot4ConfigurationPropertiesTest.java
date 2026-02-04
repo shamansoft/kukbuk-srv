@@ -1,6 +1,5 @@
 package net.shamansoft.cookbook.config;
 
-import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,15 +20,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @Import(TestFirebaseConfig.class)
 @TestPropertySource(properties = {
-    "spring.threads.virtual.enabled=true",
-    "management.endpoints.web.exposure.include=health,info",
-    "cookbook.gemini.api-key=test-key",
-    "cookbook.gemini.model=gemini-test",
-    "recipe.llm.retry=2",
-    "recipe.store.enabled=true",
-    "recipe.store.timeout.lookup-ms=100",
-    "recipe.store.timeout.save-ms=500",
-    "recipe.store.timeout.count-ms=200"
+        "spring.threads.virtual.enabled=true",
+        "management.endpoints.web.exposure.include=health,info",
+        "cookbook.gemini.api-key=test-key",
+        "cookbook.gemini.model=gemini-test",
+        "recipe.llm.retry=2",
+        "recipe.store.enabled=true",
+        "recipe.store.timeout.lookup-ms=100",
+        "recipe.store.timeout.save-ms=500",
+        "recipe.store.timeout.count-ms=200"
 })
 class SpringBoot4ConfigurationPropertiesTest {
 

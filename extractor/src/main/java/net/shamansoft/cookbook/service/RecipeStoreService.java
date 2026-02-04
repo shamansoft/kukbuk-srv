@@ -16,19 +16,15 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class RecipeStoreService {
 
+    private final RecipeRepository repository;
     @Value("${recipe.store.enabled:false}")
     private boolean enabled = false;
-
     @Value("${recipe.store.timeout.lookup-ms:200}")
     private int lookupTimeoutMs;
-
     @Value("${recipe.store.timeout.save-ms:5000}")
     private int saveTimeoutMs;
-
     @Value("${recipe.store.timeout.count-ms:1000}")
     private int countTimeoutMs;
-
-    private final RecipeRepository repository;
 
     public Optional<StoredRecipe> findStoredRecipeByHash(String contentHash) {
         if (contentHash == null || contentHash.isEmpty()) {
@@ -62,7 +58,7 @@ public class RecipeStoreService {
                     .orTimeout(lookupTimeoutMs, TimeUnit.MILLISECONDS)
                     .exceptionally(throwable -> {
                         log.warn("Cache lookup timed out or failed for hash {}: {}", contentHash, throwable.getMessage());
-                        return Optional.<StoredRecipe>empty();
+                        return Optional.empty();
                     })
                     .join();
         } catch (Exception e) {

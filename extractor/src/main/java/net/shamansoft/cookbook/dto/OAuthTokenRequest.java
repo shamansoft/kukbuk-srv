@@ -1,9 +1,8 @@
 package net.shamansoft.cookbook.dto;
 
-import lombok.Data;
-
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 /**
  * Request DTO for storing OAuth tokens

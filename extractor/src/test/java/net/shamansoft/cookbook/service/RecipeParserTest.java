@@ -12,8 +12,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("RecipeParser Tests")
 class RecipeParserTest {
 
-    private RecipeParser recipeParser;
-
     private static final String VALID_RECIPE_YAML = """
             schema_version: "1.0.0"
             recipe_version: "1.0.0"
@@ -53,7 +51,6 @@ class RecipeParserTest {
               fat: 10.5
             notes: "Store in airtight container"
             """;
-
     private static final String MINIMAL_RECIPE_YAML = """
             schema_version: "1.0.0"
             recipe_version: "1.0.0"
@@ -66,12 +63,10 @@ class RecipeParserTest {
               - step: 1
                 description: "Do something"
             """;
-
     private static final String INVALID_YAML = """
             schema_version: "invalid
             this is not proper YAML: [
             """;
-
     private static final String MISSING_REQUIRED_FIELD_YAML = """
             schema_version: "1.0.0"
             recipe_version: "1.0.0"
@@ -83,7 +78,6 @@ class RecipeParserTest {
               - step: 1
                 description: "Mix"
             """;
-
     private static final String INVALID_SCHEMA_VERSION_YAML = """
             schema_version: "not-a-semver"
             recipe_version: "1.0.0"
@@ -96,7 +90,6 @@ class RecipeParserTest {
               - step: 1
                 description: "Mix"
             """;
-
     private static final String EMPTY_INGREDIENTS_YAML = """
             schema_version: "1.0.0"
             recipe_version: "1.0.0"
@@ -108,7 +101,6 @@ class RecipeParserTest {
               - step: 1
                 description: "Do something"
             """;
-
     private static final String EMPTY_INSTRUCTIONS_YAML = """
             schema_version: "1.0.0"
             recipe_version: "1.0.0"
@@ -119,6 +111,7 @@ class RecipeParserTest {
               - item: "flour"
             instructions: []
             """;
+    private RecipeParser recipeParser;
 
     @BeforeEach
     void setUp() {
@@ -320,7 +313,7 @@ class RecipeParserTest {
     void shouldThrowInvalidRecipeFormatExceptionForInvalidYamlStructure() {
         // Given - invalid YAML that cannot be parsed
         String invalidYaml = "{ invalid yaml: }";
-        
+
         // When & Then
         assertThatThrownBy(() -> recipeParser.parse(invalidYaml))
                 .isInstanceOf(InvalidRecipeFormatException.class)
@@ -332,7 +325,7 @@ class RecipeParserTest {
     void shouldThrowInvalidRecipeFormatExceptionForCompletelyMalformedInput() {
         // Given - completely invalid format
         String malformedInput = "not yaml at all !@#$%";
-        
+
         // When & Then
         assertThatThrownBy(() -> recipeParser.parse(malformedInput))
                 .isInstanceOf(InvalidRecipeFormatException.class);
@@ -354,10 +347,10 @@ class RecipeParserTest {
                   - step: 1
                     description: "Mix"
                 """;
-        
+
         // When
         Recipe recipe = recipeParser.parse(validVersionYaml);
-        
+
         // Then
         assertThat(recipe.schemaVersion()).isEqualTo("1.2.3");
         assertThat(recipe.recipeVersion()).isEqualTo("2.0.0");

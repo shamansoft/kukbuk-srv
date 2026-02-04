@@ -4,6 +4,8 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.repository.FirestoreRecipeRepository;
@@ -13,11 +15,12 @@ import net.shamansoft.cookbook.service.ContentHashService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -55,74 +58,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AddRecipeIT {
 
     public static final String RECIPE_PATH = "/v1/recipes";
-    @LocalServerPort
-    private int port;
-
-    @Autowired
-    private TestRestTemplate restTemplate;
-
-    @Autowired
-    private Firestore firestore;
-
-    @Autowired
-    private FirestoreRecipeRepository recipeRepository;
-
-    @Autowired
-    private ContentHashService contentHashService;
-
+    @Container
+    static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
+            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"));
     @Container
     static GenericContainer<?> wiremockContainer = new GenericContainer<>("wiremock/wiremock:3.3.1")
             .withExposedPorts(8080)
             .withCommand("--global-response-templating");
-
-    @Container
-    static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
-            DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"));
-
-    @TestConfiguration
-    static class FirestoreTestConfig {
-        @Bean
-        @Primary
-        public Firestore firestore() {
-            String emulatorEndpoint = firestoreEmulator.getEmulatorEndpoint();
-            return FirestoreOptions.newBuilder()
-                    .setProjectId("test-project")
-                    .setHost(emulatorEndpoint)
-                    .setCredentials(com.google.auth.oauth2.GoogleCredentials.newBuilder().build())
-                    .build()
-                    .getService();
-        }
-
-        @Bean
-        @Primary
-        public com.google.firebase.auth.FirebaseAuth firebaseAuth() throws Exception {
-            com.google.firebase.auth.FirebaseAuth mockAuth = org.mockito.Mockito
-                    .mock(com.google.firebase.auth.FirebaseAuth.class);
-            com.google.firebase.auth.FirebaseToken mockToken = org.mockito.Mockito
-                    .mock(com.google.firebase.auth.FirebaseToken.class);
-            org.mockito.Mockito.when(mockToken.getUid()).thenReturn("test-user-123");
-            org.mockito.Mockito.when(mockToken.getEmail()).thenReturn("testuser@example.com");
-            org.mockito.Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString()))
-                    .thenReturn(mockToken);
-            return mockAuth;
-        }
-
-        @Bean
-        @Primary
-        public TokenEncryptionService tokenEncryptionService() throws Exception {
-            TokenEncryptionService mockService = org.mockito.Mockito.mock(TokenEncryptionService.class);
-            // Mock encrypt: return "encrypted-" + input
-            org.mockito.Mockito.when(mockService.encrypt(org.mockito.ArgumentMatchers.anyString()))
-                    .thenAnswer(invocation -> "encrypted-" + invocation.getArgument(0));
-            // Mock decrypt: remove "encrypted-" prefix
-            org.mockito.Mockito.when(mockService.decrypt(org.mockito.ArgumentMatchers.anyString()))
-                    .thenAnswer(invocation -> {
-                        String encrypted = invocation.getArgument(0);
-                        return encrypted.startsWith("encrypted-") ? encrypted.substring(10) : encrypted;
-                    });
-            return mockService;
-        }
-    }
+    @LocalServerPort
+    private int port;
+    @Autowired
+    private TestRestTemplate restTemplate;
+    @Autowired
+    private Firestore firestore;
+    @Autowired
+    private FirestoreRecipeRepository recipeRepository;
+    @Autowired
+    private ContentHashService contentHashService;
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -286,17 +238,17 @@ class AddRecipeIT {
 
         // Store encrypted tokens (TokenEncryptionService mock adds "encrypted-" prefix)
         firestore.collection("users").document(userId).set(
-                Map.of(
-                        "userId", userId,
-                        "email", "testuser@example.com",
-                        "storage", Map.of(
-                                "type", "googleDrive",
-                                "connected", true,
-                                "accessToken", "encrypted-" + accessToken,
-                                "refreshToken", "encrypted-refresh-token-123",
-                                "expiresAt", futureTime,
-                                "connectedAt", nowTime,
-                                "folderId", "folder-123")))
+                        Map.of(
+                                "userId", userId,
+                                "email", "testuser@example.com",
+                                "storage", Map.of(
+                                        "type", "googleDrive",
+                                        "connected", true,
+                                        "accessToken", "encrypted-" + accessToken,
+                                        "refreshToken", "encrypted-refresh-token-123",
+                                        "expiresAt", futureTime,
+                                        "connectedAt", nowTime,
+                                        "folderId", "folder-123")))
                 .get();
     }
 
@@ -720,5 +672,50 @@ class AddRecipeIT {
         assertThat(port)
                 .as("Random port should be assigned for web environment")
                 .isGreaterThan(0);
+    }
+
+    @TestConfiguration
+    static class FirestoreTestConfig {
+        @Bean
+        @Primary
+        public Firestore firestore() {
+            String emulatorEndpoint = firestoreEmulator.getEmulatorEndpoint();
+            return FirestoreOptions.newBuilder()
+                    .setProjectId("test-project")
+                    .setHost(emulatorEndpoint)
+                    .setCredentials(com.google.auth.oauth2.GoogleCredentials.newBuilder().build())
+                    .build()
+                    .getService();
+        }
+
+        @Bean
+        @Primary
+        public FirebaseAuth firebaseAuth() throws Exception {
+            FirebaseAuth mockAuth = Mockito
+                    .mock(FirebaseAuth.class);
+            FirebaseToken mockToken = Mockito
+                    .mock(FirebaseToken.class);
+            Mockito.when(mockToken.getUid()).thenReturn("test-user-123");
+            Mockito.when(mockToken.getEmail()).thenReturn("testuser@example.com");
+            Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString()))
+                    .thenReturn(mockToken);
+            return mockAuth;
+        }
+
+        @Bean
+        @Primary
+        public TokenEncryptionService tokenEncryptionService() throws Exception {
+            TokenEncryptionService mockService = Mockito.mock(TokenEncryptionService.class);
+            // Mock encrypt: return "encrypted-" + input
+            Mockito.when(mockService.encrypt(org.mockito.ArgumentMatchers.anyString()))
+                    .thenAnswer(invocation -> "encrypted-" + invocation.getArgument(0));
+            // Mock decrypt: remove "encrypted-" prefix
+            Mockito.when(mockService.decrypt(org.mockito.ArgumentMatchers.anyString()))
+                    .thenAnswer(invocation -> {
+                        String encrypted = invocation.getArgument(0);
+                        return encrypted.startsWith("encrypted-") ? encrypted.substring(10) : encrypted;
+                    });
+            return mockService;
+        }
     }
 }

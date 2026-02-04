@@ -111,7 +111,7 @@ public class CookbookExceptionHandler {
      * Handle UserNotFoundException - user profile doesn't exist in Firestore.
      * This typically indicates a user authenticated with Firebase but hasn't
      * been properly initialized in the database.
-     *
+     * <p>
      * HTTP 404 Not Found is appropriate here - the user resource doesn't exist.
      */
     @ResponseStatus(HttpStatus.NOT_FOUND)

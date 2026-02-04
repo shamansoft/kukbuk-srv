@@ -85,18 +85,18 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 4. **COMPONENT GROUPING - MANDATORY SECTION DETECTION:**
     * **STEP 1 - SCAN FOR SECTIONS:** Before extracting ANY ingredients, scan the entire HTML for section
       headers/separators
-   * **STEP 2 - IDENTIFY PATTERNS:** Look for:
-      - Headings (H1, H2, H3, H4) before ingredient lists
-      - Bold/strong text before ingredient groups
-      - Text like "For the Sauce:", "Dough:", "Filling:", "Main:", "Topping:"
-      - Named recipe component titles: "Lemon-Herb Chicken Thighs", "Bacon-Apple Cider Gravy", "Pizza Dough", "
-        Marinara Sauce"
-      - Any clear visual separation or grouping in ingredient lists
-   * **STEP 3 - ASSIGN COMPONENTS:** As you extract ingredients, track which section you're in and assign the component
-     name
-   * **VALIDATION:** If your final JSON has more than 3 ingredients and ALL components are "main", you probably missed
-     the section headers. Re-scan the HTML.
-   * **Normalize component names:** Remove "For the", colons, and simplify when appropriate
+    * **STEP 2 - IDENTIFY PATTERNS:** Look for:
+        - Headings (H1, H2, H3, H4) before ingredient lists
+        - Bold/strong text before ingredient groups
+        - Text like "For the Sauce:", "Dough:", "Filling:", "Main:", "Topping:"
+        - Named recipe component titles: "Lemon-Herb Chicken Thighs", "Bacon-Apple Cider Gravy", "Pizza Dough", "
+          Marinara Sauce"
+        - Any clear visual separation or grouping in ingredient lists
+    * **STEP 3 - ASSIGN COMPONENTS:** As you extract ingredients, track which section you're in and assign the component
+      name
+    * **VALIDATION:** If your final JSON has more than 3 ingredients and ALL components are "main", you probably missed
+      the section headers. Re-scan the HTML.
+    * **Normalize component names:** Remove "For the", colons, and simplify when appropriate
         - "For the Sauce:" → `"component": "Sauce"`
         - "Lemon-Herb Chicken Thighs" → `"component": "Lemon-Herb Chicken Thighs"` (keep descriptive names)
         - "Bacon-Apple Cider Gravy" → `"component": "Bacon-Apple Cider Gravy"` (keep descriptive names)
@@ -151,12 +151,12 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
     * Look for ALL time mentions in a step: "3-5 minutes", "about 20 minutes", "for 2-3 minutes"
     * Format as: "5m", "20m", "1h 30m"
     * For ranges, use format: "3-5m"
-   * **CRITICAL:** When a step has MULTIPLE sequential time mentions, estimate the TOTAL time:
+    * **CRITICAL:** When a step has MULTIPLE sequential time mentions, estimate the TOTAL time:
         - "Cook bacon until crisp. Add onions, cook 1 minute. Add lemon, cook 1 minute. Deglaze and reduce by half."
         - This is: bacon (5m) + onions (1m) + lemon (1m) + reduce (3-5m) = roughly 10-12 minutes total
         - Extract as: `"time": "10-12m"` (reasonable estimate) NOT `"time": "1m"` (just one substep)
-   * When uncertain about total time, use a reasonable range based on the cooking techniques mentioned
-   * Do NOT add "0m" or null for steps without explicit timing
+    * When uncertain about total time, use a reasonable range based on the cooking techniques mentioned
+    * Do NOT add "0m" or null for steps without explicit timing
 
 2. **EXTRACT TEMPERATURES:**
     * Detect both Celsius and Fahrenheit: "425°F", "180°C"
@@ -179,6 +179,7 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
 2. If IS a recipe, extract data per rules below.
 
 **Required Fields (always include):**
+
 - `schema_version`: "1.0.0"
 - `recipe_version`: "1.0.0" (or extract from HTML if present)
 - `is_recipe`: true (if it's a recipe) or false (if not a recipe)
@@ -225,6 +226,7 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 Return ONLY valid JSON conforming to the provided schema. No text before or after.
 
 **HTML Content to Process:**
+
 ```html
 %s
 ```

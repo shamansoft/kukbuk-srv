@@ -145,7 +145,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
     void shouldCountDocumentsCorrectly() {
         // Given - Clear any existing data and add some test data
         String[] hashes = {"count-test-1", "count-test-2", "count-test-3"};
-        
+
         for (String hash : hashes) {
             StoredRecipe recipe = StoredRecipe.builder()
                     .contentHash(hash)

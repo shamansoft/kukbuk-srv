@@ -25,8 +25,8 @@ public class GeminiRestTransformer implements Transformer {
     /**
      * Transforms HTML content to Recipe with validation feedback from a previous attempt.
      *
-     * @param htmlContent the HTML string to transform
-     * @param previousRecipe the Recipe from the previous attempt that failed validation
+     * @param htmlContent     the HTML string to transform
+     * @param previousRecipe  the Recipe from the previous attempt that failed validation
      * @param validationError the validation error message to help correct the issue
      * @return the transformed result
      */
@@ -59,9 +59,9 @@ public class GeminiRestTransformer implements Transformer {
             }
         } catch (JacksonException e) {
             log.error("Failed to prepare request for Gemini API. HTML length: {}, Error: {}",
-                htmlContent.length(),
-                e.getMessage(),
-                e);
+                    htmlContent.length(),
+                    e.getMessage(),
+                    e);
             throw new ClientException("Failed to transform content via Gemini API", e);
         }
     }

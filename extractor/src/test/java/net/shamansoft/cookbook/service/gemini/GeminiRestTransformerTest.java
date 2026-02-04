@@ -194,7 +194,8 @@ class GeminiRestTransformerTest {
         String htmlContent = "<html><body>Recipe content</body></html>";
 
         when(requestBuilder.buildRequest(eq(htmlContent)))
-                .thenThrow(new JacksonException("Failed to serialize request") {});
+                .thenThrow(new JacksonException("Failed to serialize request") {
+                });
 
         // When/Then
         assertThatThrownBy(() -> transformer.transform(htmlContent, "https://example.com"))
@@ -214,7 +215,8 @@ class GeminiRestTransformerTest {
         String validationError = "Error";
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
-                .thenThrow(new JacksonException("Failed to serialize") {});
+                .thenThrow(new JacksonException("Failed to serialize") {
+                });
 
         // When/Then
         assertThatThrownBy(() -> transformer.transformWithFeedback(htmlContent, previousRecipe, validationError))

@@ -63,7 +63,8 @@ public class GoogleAuthClient {
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(params)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new IllegalArgumentException("Invalid response from Google OAuth: " + response);
@@ -138,7 +139,8 @@ public class GoogleAuthClient {
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(params)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new RuntimeException("Invalid response from Google OAuth: " + response);

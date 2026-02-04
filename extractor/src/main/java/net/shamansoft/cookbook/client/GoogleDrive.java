@@ -46,7 +46,8 @@ public class GoogleDrive {
                         .build())
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
 
         var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
 
@@ -81,7 +82,8 @@ public class GoogleDrive {
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(metadata)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
             if (created == null || !created.containsKey("id")) {
                 throw new ClientException("Unexpected response: " + created);
             }
@@ -106,7 +108,8 @@ public class GoogleDrive {
                         .build())
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
         var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
         if (files != null && !files.isEmpty()) {
             return Optional.of(new Item(files.getFirst().get("id").toString(), name));
@@ -124,7 +127,8 @@ public class GoogleDrive {
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(metadata)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             Map<String, Object> updateResponse = uploadClient.patch()
                     .uri(uri -> uri.path("/files/" + file.id())
@@ -135,7 +139,8 @@ public class GoogleDrive {
                     .contentType(new org.springframework.http.MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))
                     .body(content)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
             if (updateResponse == null || !updateResponse.containsKey("id")) {
                 throw new ClientException("Failed to update Drive file");
             }
@@ -171,7 +176,8 @@ public class GoogleDrive {
                     .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(metadataMap)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
             // Step 2: Update the content of the created file
             if (createResponse == null || !createResponse.containsKey("id")) {
                 throw new RuntimeException("Failed to create Drive file");
@@ -190,7 +196,8 @@ public class GoogleDrive {
                     .contentType(org.springframework.http.MediaType.parseMediaType("application/x-yaml"))
                     .body(content)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
             if (updateResponse == null || !updateResponse.containsKey("id")) {
                 throw new ClientException("Failed to upload content to Drive file");
             }
@@ -239,7 +246,8 @@ public class GoogleDrive {
                 })
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
 
         if (response == null) {
             throw new ClientException("Failed to list files from Drive");
@@ -337,7 +345,8 @@ public class GoogleDrive {
                         .build())
                 .header("Authorization", "Bearer " + authToken)
                 .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
 
         if (metadata == null) {
             throw new ClientException("Failed to get file metadata from Drive: " + fileId);
@@ -368,5 +377,6 @@ public class GoogleDrive {
             String name,
             String mimeType,
             String modifiedTime
-    ) {}
+    ) {
+    }
 }

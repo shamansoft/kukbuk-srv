@@ -46,7 +46,7 @@ public class FirestoreUserProfileRepository implements UserProfileRepository {
 
                 if (!documentSnapshot.exists()) {
                     log.debug("User profile not found for userId: {} (retrieved in {}ms)", userId, duration);
-                    return Optional.<UserProfile>empty();
+                    return Optional.empty();
                 }
 
                 UserProfile profile = transformer.documentToUserProfile(documentSnapshot);
@@ -55,7 +55,7 @@ public class FirestoreUserProfileRepository implements UserProfileRepository {
                 return Optional.of(profile);
             } catch (Exception e) {
                 log.error("Error retrieving user profile for userId {}: {}", userId, e.getMessage(), e);
-                return Optional.<UserProfile>empty();
+                return Optional.empty();
             }
         }, executor);
     }

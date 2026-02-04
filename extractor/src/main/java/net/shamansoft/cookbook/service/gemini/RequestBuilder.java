@@ -23,10 +23,12 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class RequestBuilder {
 
+    private final ResourcesLoader resourceLoader;
+    private final ObjectMapper objectMapper;
+    private final Clock clock;
     private String prompt;
     private String validationPrompt;
     private Object parsedJsonSchema;
-
     @Value("${cookbook.gemini.temperature}")
     private float temperature;
     @Value("${cookbook.gemini.top-p}")
@@ -35,10 +37,6 @@ public class RequestBuilder {
     private int maxOutputTokens;
     @Value("${cookbook.gemini.safety-threshold}")
     private String safetyThreshold;
-
-    private final ResourcesLoader resourceLoader;
-    private final ObjectMapper objectMapper;
-    private final Clock clock;
 
     @PostConstruct
     @SneakyThrows

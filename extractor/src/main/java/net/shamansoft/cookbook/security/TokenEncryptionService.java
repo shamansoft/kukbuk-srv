@@ -18,7 +18,7 @@ import java.util.Base64;
 
 /**
  * Service for encrypting and decrypting OAuth tokens using Google Cloud KMS.
- *
+ * <p>
  * Tokens are encrypted at rest in Firestore for security.
  */
 @Service
@@ -45,7 +45,7 @@ public class TokenEncryptionService {
     /**
      * Initialize KMS client during bean creation with explicit quota project.
      * This ensures API calls are billed to the correct project.
-     *
+     * <p>
      * Can be disabled via gcp.kms.enabled=false (useful for tests).
      */
     @PostConstruct
@@ -62,11 +62,11 @@ public class TokenEncryptionService {
             GoogleCredentials credentialsWithQuotaProject = credentials.createWithQuotaProject(projectId);
 
             log.debug("Initializing KMS client with quota project: {}, location: {}, keyring: {}, key: {}",
-                     projectId, location, keyring, keyName);
+                    projectId, location, keyring, keyName);
 
             KeyManagementServiceSettings settings = KeyManagementServiceSettings.newBuilder()
-                .setCredentialsProvider(FixedCredentialsProvider.create(credentialsWithQuotaProject))
-                .build();
+                    .setCredentialsProvider(FixedCredentialsProvider.create(credentialsWithQuotaProject))
+                    .build();
 
             this.kmsClient = KeyManagementServiceClient.create(settings);
 
@@ -102,11 +102,11 @@ public class TokenEncryptionService {
 
         try {
             CryptoKeyName cryptoKeyName = CryptoKeyName.of(
-                projectId, location, keyring, keyName
+                    projectId, location, keyring, keyName
             );
 
             ByteString plaintextBytes = ByteString.copyFrom(
-                plaintext.getBytes(StandardCharsets.UTF_8)
+                    plaintext.getBytes(StandardCharsets.UTF_8)
             );
 
             var response = kmsClient.encrypt(cryptoKeyName, plaintextBytes);
@@ -135,7 +135,7 @@ public class TokenEncryptionService {
 
         try {
             CryptoKeyName cryptoKeyName = CryptoKeyName.of(
-                projectId, location, keyring, keyName
+                    projectId, location, keyring, keyName
             );
 
             byte[] ciphertext = Base64.getDecoder().decode(encryptedToken);

@@ -21,7 +21,7 @@ class FirestoreRecipeRepositorySimpleTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        
+
         testRecipe = StoredRecipe.builder()
                 .contentHash("test-hash-123")
                 .sourceUrl("https://example.com/recipe")

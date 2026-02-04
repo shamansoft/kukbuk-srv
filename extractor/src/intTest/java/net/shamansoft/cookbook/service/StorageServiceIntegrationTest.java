@@ -33,13 +33,7 @@ class StorageServiceIntegrationTest {
     static final FirestoreEmulatorContainer firestoreEmulator = new FirestoreEmulatorContainer(
             DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators")
     );
-
-    private StorageService storageService;
-    private Firestore firestore;
-    private TokenEncryptionService tokenEncryptionService;
-    private GoogleAuthClient googleAuthClient;
     private static final String FOLDER_NAME = "kukbuk";
-
     private static final String TEST_USER_ID = "integration-test-user";
     private static final String AUTH_CODE = "test-auth-code";
     private static final String REDIRECT_URI = "https://example.com/callback";
@@ -48,6 +42,10 @@ class StorageServiceIntegrationTest {
     private static final String ENCRYPTED_ACCESS = "encrypted-access-token";
     private static final String ENCRYPTED_REFRESH = "encrypted-refresh-token";
     private static final String FOLDER_ID = "test-folder-123";
+    private StorageService storageService;
+    private Firestore firestore;
+    private TokenEncryptionService tokenEncryptionService;
+    private GoogleAuthClient googleAuthClient;
     private GoogleDrive googleDrive;
 
     @BeforeEach

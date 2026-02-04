@@ -26,10 +26,10 @@ public class FirestoreConfig {
     @ConditionalOnProperty(name = "firestore.enabled", havingValue = "true", matchIfMissing = true)
     public Firestore firestore() throws IOException {
         log.info("Initializing Firestore with project ID: {}", projectId);
-        
+
         FirestoreOptions.Builder optionsBuilder = FirestoreOptions.newBuilder()
                 .setProjectId(projectId);
-        
+
         try {
             if (!credentialsPath.isEmpty()) {
                 log.info("Using credentials from path: {}", credentialsPath);
@@ -39,10 +39,10 @@ public class FirestoreConfig {
                 log.info("Using default credentials (Application Default Credentials)");
                 // For Cloud Run, this will automatically use the service account attached to the instance
             }
-            
+
             Firestore firestore = optionsBuilder.build().getService();
             log.info("Firestore initialized successfully");
-            
+
             return firestore;
         } catch (Exception e) {
             log.error("Failed to initialize Firestore: {}", e.getMessage());
