@@ -62,6 +62,11 @@ public class RecipeService {
                     storage.accessToken(), storage.folderId(), fileName, yamlContent);
             responseBuilder.driveFileId(uploadResult.fileId())
                     .driveFileUrl(uploadResult.fileUrl());
+            if (recipe.recipe() != null
+                    && recipe.recipe().metadata() != null
+                    && recipe.recipe().metadata().title() != null) {
+                responseBuilder.title(recipe.recipe().metadata().title());
+            }
         } else {
             log.info("Content is not a recipe. Skipping Drive storage - URL: {}", url);
         }
@@ -81,7 +86,7 @@ public class RecipeService {
             log.info("HTML preprocessing - URL: {}, {}", url, preprocessed.metricsMessage());
 
             // 3. Transform preprocessed HTML to recipe
-            var response = transformer.transform(preprocessed.cleanedHtml());
+            var response = transformer.transform(preprocessed.cleanedHtml(), url);
             if (response.isRecipe()) {
                 // Convert Recipe to YAML for caching
                 String yamlContent = convertRecipeToYaml(response.recipe());

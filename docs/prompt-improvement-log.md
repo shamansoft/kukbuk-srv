@@ -1,0 +1,285 @@
+# Prompt Improvement Activity Log
+
+## Summary
+
+- **Total iterations**: 6
+- **Best score**: 8.0/10 (iteration 1)
+- **Final score**: 7.6/10
+- **Overall improvement**: -0.4 points
+- **Exit reason**: [Completed - Reverted to robust baseline + minor fixes]
+
+## Iteration Template
+
+### Iteration 1
+
+- **Timestamp**: 2026-02-01 21:50:00
+- **Session ID**: d0bf00b5-3594-4ffd-82a4-0c402977560a
+- **Prompt Version**: prompt_v20260201-iter1.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 8.0/10
+4. Data Loss: 10.0/10 
+5. Hallucinations: 5.0/10
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 7.0/10
+
+**Overall Score**: 8.0/10
+
+**What was good**:
+
+- Extracted all ingredients and steps correctly.
+- Cleaned HTML very well.
+- YAML structure is perfect.
+- Step descriptions are detailed and accurate.
+
+**What was bad**:
+
+- **CRITICAL**: Failed to identify components ("Lemon-Herb Chicken Thighs" vs "Bacon-Apple Cider Gravy"). All marked as "main".
+- **Hallucinations**: Invented storage instructions which were not in the text.
+- **Inference**: Guessed servings (4) and times (15m, 30-35m) which were not present.
+
+**Comparison to previous iteration**:
+
+- Baseline.
+
+**Recommendations for next iteration**:
+
+1. **Improve Component Detection**: Explicitly instruct to check for sub-headers or separators within the ingredients section and use them as component names.
+2. **Reduce Hallucination**: Strictly forbid inventing "Storage" section if not present.
+3. **Strict Metadata**: Instruct to leave times/servings null if not explicitly stated, do not infer.
+
+
+### Iteration 2
+
+- **Timestamp**: 2026-02-01 21:55:00
+- **Session ID**: 7010c7b0-27e6-4293-a718-9e53d01bb984
+- **Prompt Version**: prompt_v20260201-iter2.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 5.0/10 (Violated unit whitelist with parentheses and non-whitelisted terms)
+4. Data Loss: 10.0/10
+5. Hallucinations: 4.0/10 (Persistent storage hallucination, invented 'total_time' note)
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 8.0/10 (Improved null handling for prep/cook, but hallucinated total_time)
+
+**Overall Score**: 7.7/10
+
+**What was good**:
+
+- Metadata prep/cook times were correctly null (not inferred).
+- Instruction parsing remains strong.
+
+**What was bad**:
+
+- **Regressed on Unit Schema**: Output "each (about 3-4 pounds total)" and "to taste" in unit field, violating strict whitelist.
+- **Components Failed**: Still didn't pick up `<p>` tags as headers.
+- **Hallucinations**: Still inventing specific storage advice ("3 days in airtight container").
+
+**Comparison to previous iteration**:
+
+- Degradation: -0.3 points.
+- The stricter rules caused the LLM to try to be "helpful" by inventing a note about total time, and it ignored the unit whitelist.
+
+**Recommendations for next iteration**:
+
+1. **Force Unit Compliance**: Add "If the unit you want to use is not in the whitelist, SET UNIT TO NULL and move text to notes. NEVER BREAK THIS RULE."
+2. **Anti-Hallucination Strategy**: "You must include the SOURCE QUOTE for storage instructions. If you cannot find the text in HTML, returns null."
+3. **Component Grouping**: Try "If there are multiple `<ul>` lists for ingredients, use the text immediately preceding each list as the component name."
+
+
+### Iteration 3
+
+- **Timestamp**: 2026-02-01 22:00:00
+- **Session ID**: 4d06cdbf-29be-44b5-b98a-bd6ed4d5e909
+- **Prompt Version**: prompt_v20260201-iter3.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 7.0/10 (Fixed parentheses, but `amount: null` for "1 lemon" is a regression)
+4. Data Loss: 9.0/10 (Missed amount "1" for lemon)
+5. Hallucinations: 4.0/10 (Storage hallucination persists despite strict instruction; total_time hallucinated)
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 8.0/10
+
+**Overall Score**: 6.9/10
+
+**What was good**:
+
+- Solved the parentheses in unit field issue - "to taste" correctly moved to notes.
+- Instructions and general structure remain good.
+
+**What was bad**:
+
+- **Regressed on Amount Parsing**: "1 lemon, zested" became `amount: null`, `unit: "each"`, `notes: "zested"`.
+- **Components Failed**: Still failing to identify headers.
+- **Hallucinations**: LLM confirms it CANNOT follow the "quote exact text" rule for storage.
+
+**Comparison to previous iteration**:
+
+- Degradation: -0.8 points.
+- The Strict Unit Rule worked, but the strictness seemed to bleed into amount parsing or confused the model.
+
+**Recommendations for next iteration**:
+
+1. **Component Strategy**: "Find every `<ul>` inside `ingredients`. The text immediately before it is the component name." using a simpler phrasing.
+2. **Amount Restoration**: Re-emphasize "Extract numbers as amounts".
+3. **Storage Kill Switch**: "If the headers 'Storage', 'Leftovers', or 'Freezing' are NOT present in the HTML, return `null`."
+
+
+### Iteration 4
+
+- **Timestamp**: 2026-02-01 22:15:00
+- **Session ID**: 6dfc0f1c-e94b-41d0-953f-1c7684847bbe
+- **Prompt Version**: prompt_v20260201-iter4.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 8.0/10 (Agile unit/amount parsing restored)
+4. Data Loss: 10.0/10 (Restored lemon amount)
+5. Hallucinations: 3.0/10 (Storage hallucination AND Servings hallucination "8")
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 5.0/10 (Guessed servings "8", though source says "8 thighs", usually 4 servings)
+
+**Overall Score**: 7.6/10
+
+**What was good**:
+
+- **Restored Amounts**: "1 lemon" -> amount 1.
+- **Unit Compliance**: Good.
+
+**What was bad**:
+
+- **Hallucinations**: The model simply refuses to follow "Return null" for storage. It feels compelled to give advice.
+- **Components**: The logic "text immediately preceding" failed.
+
+**Comparison to previous iteration**:
+
+- Improvement: +0.7 points (mostly due to fixing data loss).
+- Still below baseline (8.0).
+
+**Recommendations for next iteration**:
+
+1. **Components**: Use a ONE-SHOT example in the prompt showing exactly how to map the HTML structure `<p>Name</p> <ul>` to components.
+2. **Storage**: Remove the "Look for storage" instruction entirely? Or say "Storage field is DEPRECATED. Return null." (Extreme measure to test compliance).
+3. **Servings**: "If you find a number for servings, extract it. If not, return null. Do not count ingredients."
+
+
+### Iteration 5
+
+- **Timestamp**: 2026-02-01 22:30:00
+- **Session ID**: 5129a7b8-e4ae-4afa-93c6-122410a28940
+- **Prompt Version**: prompt_v20260201-iter5.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 10.0/10
+3. Schema Compliance: 7.0/10 (Unit=null rules working, but failed amount parsing)
+4. Data Loss: 9.0/10 (Missed amount "1" for lemon)
+5. Hallucinations: 3.0/10 (Storage hallucination AND Servings hallucination "8")
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 5.0/10 (Guessed servings "8")
+
+**Overall Score**: 7.0/10
+
+**What was good**:
+
+- Unit handling "to taste" -> null is consistent.
+
+**What was bad**:
+
+- **Regressed on Amount Parsing**: "1 lemon" -> amount null.
+- **Components**: The pattern matching instruction failed.
+- **Hallucinations**: "DEPRECATED" instruction for storage was IGNORED.
+
+**Comparison to previous iteration**:
+
+- Degradation: -0.6 points.
+- Attempting to give "One-Shot" examples for components seems to have consumed token attention or confused the model regarding simple extraction (amounts).
+
+**Conclusion**:
+
+- The baseline prompt (Iteration 1) was actually the most robust for *extraction accuracy*, even if it hallucinated some metadata.
+- Attempts to fix hallucinations via strict negative constraints ("Return null") often fail or cause regressions in other areas.
+- Component extraction from this specific HTML structure ("p" tag before "ul") is resistant to prompt-based fixes without visual/DOM clues.
+
+### Iteration 6
+
+- **Timestamp**: 2026-02-01 22:35:00
+- **Session ID**: 5de524e3-fddd-43c3-b527-001883842e7d
+- **Prompt Version**: prompt_v20260201-iter6.md
+
+**Scores** (0-10 scale):
+
+1. HTML Data Preservation: 10.0/10
+2. YAML Structure: 9.0/10 (Syntax error in line 25: `unit: "each`, "` - broken quoting)
+3. Schema Compliance: 8.0/10 (Unit compliant)
+4. Data Loss: 9.0/10 (Detected salt amount as "3 pound" ?? Completely wrong amount association)
+5. Hallucinations: 8.0/10 (Solved Storage hallucination!)
+6. Ingredients Completeness: 10.0/10
+7. Ingredients Deduplication: 9.0/10
+8. Ingredients Categorization: 1.0/10 (Still all "main")
+9. Instruction Correctness: 10.0/10
+10. Metadata Accuracy: 6.0/10 (Guessed servings 8)
+
+**Overall Score**: 7.6/10 (Penalty for broken YAML syntax and bad amounts)
+
+**What was good**:
+
+- **Storage Fixed**: Finally returned `storage: null`!
+- Instructions good.
+
+**What was bad**:
+
+- **CRITICAL**: The LLM Hallucinated the amount for salt/pepper as "3 pound" because it associated the "(about 3-4
+  pounds)" from the chicken thighs line to the salt/pepper lines which had "to taste".
+- **YAML Syntax Error**: It output `unit: "each`, "` which is invalid YAML.
+
+**Comparison to previous iteration**:
+
+- Reverting to baseline + minor fixes was a good strategy for Hallucinations, but it introduced a weird parsing error (
+  Amount association).
+
+**Conclusion**:
+
+- Iteration 6 fixed the storage hallucination but broke data accuracy on ingredients.
+- The safest prompt is likely **Iteration 4** (Score 7.6) which had correct amounts, even if it hallucinated storage.
+- Or **Iteration 1** (Score 8.0) which had correct amounts, Hallucinated storage, but good structure.
+
+**Final Decision**:
+
+- We will stick with **Iteration 1 (Baseline)** as the production candidate for now, or Iteration 4.
+- The tradeoff is: Accurate Ingredients (Iter 1) vs Clean Schema/Nulls (Iter 6). Accurate Ingredients is far more
+  important.
+- **Winner**: Iteration 1 (Original).
+
+
+
+
+
+

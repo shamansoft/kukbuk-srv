@@ -21,12 +21,15 @@ public class ValidatingTransformerService implements Transformer {
 
     private final GeminiRestTransformer geminiTransformer;
     private final RecipeValidationService validationService;
+    private final RecipePostProcessor postProcessor;
 
     public ValidatingTransformerService(
             @Qualifier("geminiTransformer") GeminiRestTransformer geminiTransformer,
-            RecipeValidationService validationService) {
+            RecipeValidationService validationService,
+            RecipePostProcessor postProcessor) {
         this.geminiTransformer = geminiTransformer;
         this.validationService = validationService;
+        this.postProcessor = postProcessor;
     }
 
     @Value("${recipe.llm.retry:1}")
@@ -40,11 +43,12 @@ public class ValidatingTransformerService implements Transformer {
      * When recipe.llm.retry > 0, validation is performed with the specified number of retry attempts.
      *
      * @param htmlContent the HTML string to transform
+     * @param sourceUrl the source URL of the recipe
      * @return the transformed and validated result
      */
     @Override
-    public Response transform(String htmlContent) {
-        Response initialResponse = geminiTransformer.transform(htmlContent);
+    public Response transform(String htmlContent, String sourceUrl) {
+        Response initialResponse = geminiTransformer.transform(htmlContent, sourceUrl);
 
         // If it's not a recipe, return immediately without validation
         if (!initialResponse.isRecipe()) {
@@ -55,21 +59,24 @@ public class ValidatingTransformerService implements Transformer {
         // If maxRetries is 0, skip validation entirely and return raw Recipe
         if (maxRetries == 0) {
             log.info("Validation disabled (recipe.llm.retry=0), returning raw Recipe without validation");
-            return initialResponse;
+            Recipe postProcessedRecipe = postProcessor.process(initialResponse.recipe(), sourceUrl);
+            return Response.withRawResponse(true, postProcessedRecipe, initialResponse.rawLlmResponse());
         }
 
         // Validate and potentially retry
-        return validateWithRetry(htmlContent, initialResponse);
+        return validateWithRetry(htmlContent, initialResponse, sourceUrl);
     }
 
-    private Response validateWithRetry(String htmlContent, Response initialResponse) {
+    private Response validateWithRetry(String htmlContent, Response initialResponse, String sourceUrl) {
         Recipe currentRecipe = initialResponse.recipe();
+        String rawLlmResponse = initialResponse.rawLlmResponse(); // Preserve raw response
         RecipeValidationService.ValidationResult validationResult = validationService.validate(currentRecipe);
 
         if (validationResult.isValid()) {
             log.info("Recipe validated successfully on first attempt - Title: '{}'",
                     currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
-            return Response.recipe(validationResult.getRecipe());
+            Recipe postProcessedRecipe = postProcessor.process(validationResult.getRecipe(), sourceUrl);
+            return Response.withRawResponse(true, postProcessedRecipe, rawLlmResponse);
         }
 
         log.warn("Initial Recipe failed validation - Will retry up to {} times. Error:\n{}", 
@@ -109,7 +116,9 @@ public class ValidatingTransformerService implements Transformer {
                 log.info("Recipe validated successfully after {} retry attempt(s) - Title: '{}'",
                         attempt,
                         currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
-                return Response.recipe(validationResult.getRecipe());
+                // Preserve raw response from the retry attempt
+                Recipe postProcessedRecipe = postProcessor.process(validationResult.getRecipe(), sourceUrl);
+                return Response.withRawResponse(true, postProcessedRecipe, retryResponse.rawLlmResponse());
             }
 
             log.warn("Retry attempt {}/{} failed validation:\n{}", attempt, maxRetries, validationResult.getErrorMessage());

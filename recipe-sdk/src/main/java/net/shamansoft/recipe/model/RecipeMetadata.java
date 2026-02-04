@@ -33,6 +33,7 @@ public record RecipeMetadata(
         @JsonProperty("title")
         String title,
 
+        @NotBlank
         @JsonProperty("source")
         String source,
 

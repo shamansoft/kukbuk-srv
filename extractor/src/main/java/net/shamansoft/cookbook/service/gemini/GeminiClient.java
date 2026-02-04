@@ -1,16 +1,16 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
-import jakarta.annotation.PostConstruct;
 import java.util.Objects;
 
 @Component
@@ -110,7 +110,7 @@ public class GeminiClient {
                     jsonContent.substring(0, Math.min(200, jsonContent.length())));
             log.info("Gemini API request successful - Response length: {} chars", jsonContent.length());
             try {
-                return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz));
+                return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz), jsonContent);
             } catch (JacksonException e) {
                 log.error("Invalid JSON structure received from Gemini API", e);
                 return GeminiResponse.failure(GeminiResponse.Code.PARSE_ERROR,

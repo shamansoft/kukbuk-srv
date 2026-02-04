@@ -98,6 +98,12 @@ firestore:
 # RECIPE PROCESSING CONFIGURATION
 # ------------------------------------------------------------------------------
 recipe:
+  # Recipe schema version for validation and compatibility tracking
+  # Used by: RecipePostProcessor.java (@Value("${recipe.schema.version:1.0.0}"))
+  # Default: 1.0.0
+  schema:
+    version: "1.0.0"
+
   llm:
     # Number of retry attempts when LLM validation fails
     # Used by: ValidatingTransformerService.java:39 (@Value("${recipe.llm.retry:1}"))
@@ -168,18 +174,18 @@ cookbook:
     # Used by: RequestBuilder.java:31 (@Value("${cookbook.gemini.temperature}"))
     # Lower = more deterministic, Higher = more creative
     # Default: 0.1 (very deterministic for consistent recipe extraction)
-    temperature: 0.1
+    temperature: 0.0
 
     # Top-p (nucleus sampling) parameter for Gemini model (0.0 to 1.0)
     # Used by: RequestBuilder.java:34 (@Value("${cookbook.gemini.top-p}"))
     # Default: 0.8
-    top-p: 0.8
+    top-p: 1.0
 
     # Maximum number of tokens in the model's response
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.max-output-tokens}"))
     # Default: 4096
     # Range: 1 to 8192 (model-dependent)
-    max-output-tokens: 6000
+    max-output-tokens: 8192
 
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
@@ -244,6 +250,16 @@ cookbook:
     # Note: This is separate from cookbook.drive.oauth-secret (duplicate/legacy configuration)
     # TODO: Consolidate with cookbook.drive.oauth-secret to use single OAuth config
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
+
+  # ---------------------------------------------------------------------------
+  # DEBUG CONFIGURATION
+  # ---------------------------------------------------------------------------
+  debug:
+    # Directory for dumping intermediate processing states (only used in local profile)
+    # Used by: DumpService.java (@Value("${cookbook.debug.dump-dir}"))
+    # Default: /tmp/sar-srv/dumps
+    # Can be overridden via environment variable: COOKBOOK_DEBUG_DUMP_DIR
+    dump-dir: ${COOKBOOK_DEBUG_DUMP_DIR:/tmp/sar-srv/dumps}
 
   # ---------------------------------------------------------------------------
   # HTML CLEANUP CONFIGURATION

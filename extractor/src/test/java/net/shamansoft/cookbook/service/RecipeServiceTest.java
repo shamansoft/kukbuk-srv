@@ -53,7 +53,7 @@ class RecipeServiceTest {
         when(htmlCleaner.process(anyString(), anyString())).thenReturn(results);
 
         Recipe recipe = mock(Recipe.class);
-        when(transformer.transform(anyString())).thenReturn(Transformer.Response.recipe(recipe));
+        when(transformer.transform(anyString(), anyString())).thenReturn(Transformer.Response.recipe(recipe));
 
         // validation service serializes object to YAML
         when(validationService.toYaml(recipe)).thenReturn("title: x\ningredients: []\n");
