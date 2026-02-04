@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.naming.AuthenticationException;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -148,12 +147,12 @@ public class RecipeController {
                                        @RequestAttribute("userId") String userId,
                                        @RequestAttribute("userEmail") String userEmail
     )
-            throws IOException, AuthenticationException {
+            throws IOException {
 
         log.info("Creating recipe for user: {} ({})", userEmail, userId);
         log.info("Processing recipe request - URL: {}, Title: {}, Has HTML: {}, Compression: {}",
                 request.url(),
-                request.title(),
+                request.title() != null ? request.title() : "Not Provided",
                 request.html() != null && !request.html().isEmpty(),
                 compression != null ? compression : "default");
         return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());

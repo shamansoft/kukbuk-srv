@@ -1,7 +1,5 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -13,8 +11,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,10 +34,13 @@ class RequestBuilderTest {
     private ObjectMapper objectMapper;
     private RequestBuilder requestBuilder;
 
+    private Clock clock;
+
     @BeforeEach
     void setUp() throws IOException {
         objectMapper = new ObjectMapper();
-        requestBuilder = new RequestBuilder(resourcesLoader, objectMapper);
+        clock = Clock.fixed(Instant.parse("2026-02-03T10:00:00Z"), ZoneId.of("UTC"));
+        requestBuilder = new RequestBuilder(resourcesLoader, objectMapper, clock);
 
         // Set configuration values
         ReflectionTestUtils.setField(requestBuilder, "temperature", 0.7f);
@@ -77,16 +83,13 @@ class RequestBuilderTest {
                 null,
                 null,
                 null,
-                null
-        );
+                null);
 
         List<Ingredient> ingredients = List.of(
-                new Ingredient("Sugar", "1", "cup", null, null, null, null)
-        );
+                new Ingredient("Sugar", "1", "cup", null, null, null, null));
 
         List<Instruction> instructions = List.of(
-                new Instruction(1, "Mix ingredients", null, null, null)
-        );
+                new Instruction(1, "Mix ingredients", null, null, null));
 
         return new Recipe(
                 true,
@@ -99,8 +102,7 @@ class RequestBuilderTest {
                 instructions,
                 null,
                 null,
-                null
-        );
+                null);
     }
 
     @Test
@@ -233,11 +235,9 @@ class RequestBuilderTest {
                 "HARM_CATEGORY_HARASSMENT",
                 "HARM_CATEGORY_HATE_SPEECH",
                 "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "HARM_CATEGORY_DANGEROUS_CONTENT"
-        );
+                "HARM_CATEGORY_DANGEROUS_CONTENT");
 
-        safetySettings.forEach(setting ->
-                assertThat(setting.getThreshold()).isEqualTo("BLOCK_NONE"));
+        safetySettings.forEach(setting -> assertThat(setting.getThreshold()).isEqualTo("BLOCK_NONE"));
     }
 
     @Test
@@ -257,7 +257,7 @@ class RequestBuilderTest {
     @Test
     void postConstructLoadsPromptAndSchemaResources() throws IOException {
         // Given
-        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
         ReflectionTestUtils.setField(builder, "temperature", 0.7f);
         ReflectionTestUtils.setField(builder, "topP", 0.9f);
         ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
@@ -279,7 +279,7 @@ class RequestBuilderTest {
     @Test
     void postConstructRemovesIdAndSchemaFromJsonSchema() throws IOException {
         // Given
-        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper);
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
         ReflectionTestUtils.setField(builder, "temperature", 0.7f);
         ReflectionTestUtils.setField(builder, "topP", 0.9f);
         ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);

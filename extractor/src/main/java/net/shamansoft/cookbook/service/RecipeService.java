@@ -62,6 +62,11 @@ public class RecipeService {
                     storage.accessToken(), storage.folderId(), fileName, yamlContent);
             responseBuilder.driveFileId(uploadResult.fileId())
                     .driveFileUrl(uploadResult.fileUrl());
+            if (recipe.recipe() != null
+                    && recipe.recipe().metadata() != null
+                    && recipe.recipe().metadata().title() != null) {
+                responseBuilder.title(recipe.recipe().metadata().title());
+            }
         } else {
             log.info("Content is not a recipe. Skipping Drive storage - URL: {}", url);
         }

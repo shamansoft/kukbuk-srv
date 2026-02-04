@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record Request(
         String html,
-        @NotBlank(message = "Title is required") String title,
+        String title,
         @NotBlank(message = "URL is required") String url
 ) {
 }

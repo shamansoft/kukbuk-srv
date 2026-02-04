@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Clock;
 import java.time.LocalDate;
 
 /**
@@ -34,12 +35,15 @@ public class DumpService {
 
     private final String dumpDir;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     public DumpService(
             @Value("${cookbook.debug.dump-dir}") String dumpDir,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            Clock clock) {
         this.dumpDir = dumpDir;
         this.objectMapper = objectMapper;
+        this.clock = clock;
         log.info("DumpService initialized - Dump directory: {}", dumpDir);
     }
 
@@ -55,7 +59,7 @@ public class DumpService {
     public String dump(String content, String prefix, String extension, String sessionId) {
         try {
             // Create dumps directory with daily subfolder: {dumpDir}/yyyy-mm-dd
-            Path dumpPath = Paths.get(dumpDir, LocalDate.now().toString());
+            Path dumpPath = Paths.get(dumpDir, LocalDate.now(clock).toString());
             Files.createDirectories(dumpPath);
 
             // Generate filename: {sessionId}-{prefix}-{timestamp}.{extension}
