@@ -6,8 +6,8 @@ metadata:
     alt: "Freshly baked chocolate chip cookies on cooling rack"
   author: "Jane Smith"
   date_created: "2025-02-14"
-  category: ["dessert", "baking"]
-  tags: ["cookies", "chocolate", "family-favorite"]
+  category: [ "dessert", "baking" ]
+  tags: [ "cookies", "chocolate", "family-favorite" ]
   servings: 24
   prep_time: "20 minutes"
   cook_time: "12 minutes"

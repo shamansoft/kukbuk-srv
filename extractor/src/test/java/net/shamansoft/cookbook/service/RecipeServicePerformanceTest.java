@@ -22,14 +22,12 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RecipeServicePerformanceTest {
 
-    @Mock
-    private RecipeRepository repository;
-
-    private RecipeStoreService service;
-
     private final String testUrl = "https://example.com/recipe";
     private final String testHash = "test-hash-123";
     private final String testYaml = "recipe: test";
+    @Mock
+    private RecipeRepository repository;
+    private RecipeStoreService service;
 
     @BeforeEach
     void setUp() {
@@ -141,7 +139,7 @@ class RecipeServicePerformanceTest {
         for (Optional<StoredRecipe> result : results) {
             assertTrue(result.isPresent());
         }
-        
+
         // Total time for 10 sequential requests should still be reasonable
         assertTrue(totalDuration < 500, "Sequential retrieval took " + totalDuration + "ms for 10 requests");
     }

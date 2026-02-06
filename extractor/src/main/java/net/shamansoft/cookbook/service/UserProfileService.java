@@ -1,7 +1,6 @@
 package net.shamansoft.cookbook.service;
 
 import com.google.cloud.Timestamp;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.repository.UserProfileRepository;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
@@ -23,9 +22,15 @@ import java.util.Optional;
 @Slf4j
 public class UserProfileService {
 
+    private static final long TOKEN_BUFFER_SECONDS = 300; // 5 minutes
     private final UserProfileRepository userProfileRepository;
     private final TokenEncryptionService tokenEncryptionService;
     private final RestClient restClient;
+    @Value("${cookbook.google.oauth-id}")
+    private String googleClientId;
+
+    @Value("${cookbook.google.oauth-secret}")
+    private String googleClientSecret;
 
     public UserProfileService(
             UserProfileRepository userProfileRepository,
@@ -35,14 +40,6 @@ public class UserProfileService {
         this.tokenEncryptionService = tokenEncryptionService;
         this.restClient = restClient;
     }
-
-    @Value("${cookbook.google.oauth-id}")
-    private String googleClientId;
-
-    @Value("${cookbook.google.oauth-secret}")
-    private String googleClientSecret;
-
-    private static final long TOKEN_BUFFER_SECONDS = 300; // 5 minutes
 
     /**
      * Store OAuth tokens in user profile (encrypted)
@@ -159,7 +156,8 @@ public class UserProfileService {
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(params)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
 
             if (response == null || !response.containsKey("access_token")) {
                 throw new IllegalStateException("Failed to refresh OAuth token");

@@ -13,13 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test FirebaseConfig conditional bean loading for Spring Boot 4 migration.
- *
+ * <p>
  * Tests verify:
  * - Firebase beans are available when using TestFirebaseConfig (mock setup)
  * - Firebase beans are NOT created when firebase.enabled=false
  * - FirebaseAuth bean depends on FirebaseApp bean
  * - Configuration properly handles conditional bean scenarios
- *
+ * <p>
  * Note: TestFirebaseConfig provides mock beans with @Primary to avoid requiring
  * real GCP credentials during testing.
  */

@@ -4,8 +4,8 @@ metadata:
   source: "https://www.chefgordon.com/recipes/chocolate-chip-cookies"
   language: "en"
   date_created: "2024-02-15"
-  category: ["dessert", "baking"]
-  tags: ["cookies", "chocolate", "easy"]
+  category: [ "dessert", "baking" ]
+  tags: [ "cookies", "chocolate", "easy" ]
   servings: 24
   prep_time: "20m"
   cook_time: "12m"

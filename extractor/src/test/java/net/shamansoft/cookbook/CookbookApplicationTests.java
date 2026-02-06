@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Import;
 @Import(TestFirebaseConfig.class)
 class CookbookApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
+    @Test
+    void contextLoads() {
+    }
 
 }

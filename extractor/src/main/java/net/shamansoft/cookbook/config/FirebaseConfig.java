@@ -20,9 +20,9 @@ public class FirebaseConfig {
     public FirebaseApp firebaseApp() throws IOException {
         if (FirebaseApp.getApps().isEmpty()) {
             FirebaseOptions options = FirebaseOptions.builder()
-                .setCredentials(GoogleCredentials.getApplicationDefault())
-                .setProjectId("kukbuk-tf")
-                .build();
+                    .setCredentials(GoogleCredentials.getApplicationDefault())
+                    .setProjectId("kukbuk-tf")
+                    .build();
 
             FirebaseApp app = FirebaseApp.initializeApp(options);
             log.info("Firebase initialized for project: kukbuk-tf");

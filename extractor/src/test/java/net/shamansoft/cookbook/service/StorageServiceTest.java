@@ -40,34 +40,7 @@ import static org.mockito.Mockito.when;
 @DisplayName("StorageService Tests")
 class StorageServiceTest {
 
-    @Mock(lenient = true)
-    private Firestore firestore;
-
-    @Mock
-    private TokenEncryptionService tokenEncryptionService;
-
-    @Mock
-    private GoogleAuthClient googleAuthClient;
-
-    @Mock(lenient = true)
-    private CollectionReference usersCollection;
-
-    @Mock(lenient = true)
-    private DocumentReference userDocument;
-
-    @Mock(lenient = true)
-    private ApiFuture<DocumentSnapshot> documentFuture;
-
-    @Mock(lenient = true)
-    private ApiFuture<WriteResult> writeFuture;
-
-    @Mock(lenient = true)
-    private DocumentSnapshot documentSnapshot;
-
     private static final String FOLDER_NAME = "test-folder";
-
-    private StorageService storageService;
-
     private static final String USER_ID = "test-user-123";
     private static final String ACCESS_TOKEN = "access-token-123";
     private static final String REFRESH_TOKEN = "refresh-token-456";
@@ -75,6 +48,23 @@ class StorageServiceTest {
     private static final String ENCRYPTED_REFRESH = "encrypted-refresh";
     private static final long EXPIRES_IN = 3600L;
     private static final String FOLDER_ID = "folder-123";
+    @Mock(lenient = true)
+    private Firestore firestore;
+    @Mock
+    private TokenEncryptionService tokenEncryptionService;
+    @Mock
+    private GoogleAuthClient googleAuthClient;
+    @Mock(lenient = true)
+    private CollectionReference usersCollection;
+    @Mock(lenient = true)
+    private DocumentReference userDocument;
+    @Mock(lenient = true)
+    private ApiFuture<DocumentSnapshot> documentFuture;
+    @Mock(lenient = true)
+    private ApiFuture<WriteResult> writeFuture;
+    @Mock(lenient = true)
+    private DocumentSnapshot documentSnapshot;
+    private StorageService storageService;
     @Mock
     private net.shamansoft.cookbook.client.GoogleDrive googleDrive;
 

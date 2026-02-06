@@ -12,12 +12,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test FirestoreConfig conditional bean loading for Spring Boot 4 migration.
- *
+ * <p>
  * Tests verify:
  * - Firestore bean is available when using TestFirebaseConfig (mock setup)
  * - Firestore bean is NOT created when firestore.enabled=false
  * - Configuration properly handles conditional bean scenarios
- *
+ * <p>
  * Note: TestFirebaseConfig provides mock beans with @Primary to avoid requiring
  * real GCP credentials during testing.
  */

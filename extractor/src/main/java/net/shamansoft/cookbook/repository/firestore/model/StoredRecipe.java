@@ -10,21 +10,21 @@ import java.time.Instant;
 @Builder
 @Jacksonized
 public class StoredRecipe {
-    
+
     private String contentHash;
-    
+
     private String sourceUrl;
-    
+
     private String recipeYaml;
 
     private boolean isValid;
-    
+
     private Instant createdAt;
-    
+
     private Instant lastUpdatedAt;
-    
+
     private long version;
-    
+
     public StoredRecipe withUpdatedVersion() {
         return StoredRecipe.builder()
                 .contentHash(this.contentHash)

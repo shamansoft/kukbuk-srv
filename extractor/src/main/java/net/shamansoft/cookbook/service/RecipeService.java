@@ -235,15 +235,6 @@ public class RecipeService {
     }
 
     /**
-     * Result of listing recipes with pagination.
-     *
-     * @param recipes       List of recipe DTOs
-     * @param nextPageToken Token for next page (null if no more pages)
-     */
-    public record RecipeListResult(List<RecipeDto> recipes, String nextPageToken) {
-    }
-
-    /**
      * Converts a Recipe object to YAML format for storage.
      * Handles serialization errors gracefully.
      *
@@ -259,5 +250,14 @@ public class RecipeService {
                     recipe.metadata() != null ? recipe.metadata().title() : "N/A", e);
             throw new RuntimeException("Failed to convert recipe to YAML for storage", e);
         }
+    }
+
+    /**
+     * Result of listing recipes with pagination.
+     *
+     * @param recipes       List of recipe DTOs
+     * @param nextPageToken Token for next page (null if no more pages)
+     */
+    public record RecipeListResult(List<RecipeDto> recipes, String nextPageToken) {
     }
 }

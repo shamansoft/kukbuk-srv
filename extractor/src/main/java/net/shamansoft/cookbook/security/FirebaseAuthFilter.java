@@ -18,12 +18,6 @@ import java.util.List;
 @Slf4j
 public class FirebaseAuthFilter extends OncePerRequestFilter {
 
-    private final FirebaseAuth firebaseAuth;
-
-    public FirebaseAuthFilter(FirebaseAuth firebaseAuth) {
-        this.firebaseAuth = firebaseAuth;
-    }
-
     // Public endpoints that don't require authentication
     private static final List<String> PUBLIC_PATHS = List.of(
             "/",
@@ -31,6 +25,11 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             "/actuator",
             "/debug"  // Debug/test endpoints (only active in non-prod profiles)
     );
+    private final FirebaseAuth firebaseAuth;
+
+    public FirebaseAuthFilter(FirebaseAuth firebaseAuth) {
+        this.firebaseAuth = firebaseAuth;
+    }
 
     private boolean isPublicPath(String path) {
         return PUBLIC_PATHS.stream().anyMatch(publicPath -> {

@@ -8,7 +8,7 @@ spring:
 google:
   cloud:
     project-id: "${FIRESTORE_PROJECT_ID}"
-    
+
 # Firestore configuration
 firestore:
   enabled: true

@@ -36,7 +36,7 @@ class ContentHashServiceTest {
     void shouldGenerateDifferentHashesForDifferentUrls() {
         String url1 = "https://example.com/recipe1";
         String url2 = "https://example.com/recipe2";
-        
+
         String hash1 = contentHashService.generateContentHash(url1);
         String hash2 = contentHashService.generateContentHash(url2);
 
@@ -48,7 +48,7 @@ class ContentHashServiceTest {
     void shouldNormalizeUrlsByRemovingTrackingParameters() throws URISyntaxException {
         String originalUrl = "https://example.com/recipe?utm_source=google&utm_medium=cpc&keep=this";
         String expected = "https://example.com/recipe?keep=this";
-        
+
         String normalized = contentHashService.normalizeUrl(originalUrl);
 
         assertThat(normalized).isEqualTo(expected);
@@ -59,7 +59,7 @@ class ContentHashServiceTest {
     void shouldGenerateIdenticalHashesForUrlsWithAndWithoutTrackingParameters() {
         String cleanUrl = "https://example.com/recipe?category=dessert";
         String urlWithTracking = "https://example.com/recipe?category=dessert&utm_source=google&fbclid=123";
-        
+
         String hash1 = contentHashService.generateContentHash(cleanUrl);
         String hash2 = contentHashService.generateContentHash(urlWithTracking);
 
@@ -71,7 +71,7 @@ class ContentHashServiceTest {
     void shouldRemoveAllSupportedTrackingParameters() throws URISyntaxException {
         String urlWithAllTracking = "https://example.com/recipe?utm_source=google&utm_medium=cpc&utm_campaign=test&utm_term=keyword&utm_content=content&fbclid=123&gclid=456&dclid=789&msclkid=abc&twclid=def&ref=twitter&source=facebook&keep=this";
         String expected = "https://example.com/recipe?keep=this";
-        
+
         String normalized = contentHashService.normalizeUrl(urlWithAllTracking);
 
         assertThat(normalized).isEqualTo(expected);
@@ -91,7 +91,7 @@ class ContentHashServiceTest {
     void shouldHandleUrlsWithOnlyTrackingParameters() throws URISyntaxException {
         String urlWithOnlyTracking = "https://example.com/recipe?utm_source=google&fbclid=123";
         String expected = "https://example.com/recipe";
-        
+
         String normalized = contentHashService.normalizeUrl(urlWithOnlyTracking);
 
         assertThat(normalized).isEqualTo(expected);
@@ -111,7 +111,7 @@ class ContentHashServiceTest {
     void shouldRemoveFragmentFromUrl() throws URISyntaxException {
         String url = "https://example.com/recipe#section1";
         String expected = "https://example.com/recipe";
-        
+
         String normalized = contentHashService.normalizeUrl(url);
 
         assertThat(normalized).isEqualTo(expected);
@@ -191,7 +191,7 @@ class ContentHashServiceTest {
         String baseUrl = "https://example.com/recipe";
         String baseHash = contentHashService.generateContentHash(baseUrl);
         String testHash = contentHashService.generateContentHash(url);
-        
+
         if (!url.equals(baseUrl)) {
             assertThat(baseHash).isNotEqualTo(testHash);
         }
@@ -203,10 +203,10 @@ class ContentHashServiceTest {
         String url = "https://example.com/recipe";
 
         assertThat(contentHashService.getCacheSize()).isEqualTo(0);
-        
+
         contentHashService.generateContentHash(url);
         assertThat(contentHashService.getCacheSize()).isEqualTo(1);
-        
+
         contentHashService.generateContentHash(url);
         assertThat(contentHashService.getCacheSize()).isEqualTo(1);
     }
@@ -215,10 +215,10 @@ class ContentHashServiceTest {
     @DisplayName("Should clear cache when requested")
     void shouldClearCacheWhenRequested() {
         String url = "https://example.com/recipe";
-        
+
         contentHashService.generateContentHash(url);
         assertThat(contentHashService.getCacheSize()).isEqualTo(1);
-        
+
         contentHashService.clearCache();
         assertThat(contentHashService.getCacheSize()).isEqualTo(0);
     }

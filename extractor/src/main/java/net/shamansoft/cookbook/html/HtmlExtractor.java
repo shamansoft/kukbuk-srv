@@ -11,8 +11,8 @@ import java.io.IOException;
 @Service
 public class HtmlExtractor {
 
-    private final Compressor compressor;
     public static final String NONE = "none";
+    private final Compressor compressor;
     private final HtmlFetcher htmlFetcher;
 
     public HtmlExtractor(Compressor compressor, HtmlFetcher htmlFetcher) {

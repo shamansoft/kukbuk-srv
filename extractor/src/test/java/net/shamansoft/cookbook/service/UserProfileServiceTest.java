@@ -24,7 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -34,30 +33,6 @@ import static org.mockito.Mockito.when;
 @DisplayName("UserProfileService Tests")
 class UserProfileServiceTest {
 
-    @Mock
-    private UserProfileRepository userProfileRepository;
-
-    @Mock
-    private TokenEncryptionService tokenEncryptionService;
-
-    @Mock
-    private RestClient webClient;
-
-    @Mock
-    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
-
-    @Mock
-    private RestClient.RequestBodySpec requestBodySpec;
-
-    @Mock
-    @SuppressWarnings("rawtypes")
-    private RestClient.RequestHeadersSpec requestHeadersSpec;
-
-    @Mock
-    private RestClient.ResponseSpec responseSpec;
-
-    private UserProfileService userProfileService;
-
     private static final String USER_ID = "test-user-123";
     private static final String ACCESS_TOKEN = "access-token-123";
     private static final String REFRESH_TOKEN = "refresh-token-456";
@@ -65,6 +40,22 @@ class UserProfileServiceTest {
     private static final String ENCRYPTED_REFRESH_TOKEN = "encrypted-refresh-456";
     private static final long EXPIRES_IN = 3600L;
     private static final String USER_EMAIL = "test@example.com";
+    @Mock
+    private UserProfileRepository userProfileRepository;
+    @Mock
+    private TokenEncryptionService tokenEncryptionService;
+    @Mock
+    private RestClient webClient;
+    @Mock
+    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
+    @Mock
+    private RestClient.RequestBodySpec requestBodySpec;
+    @Mock
+    @SuppressWarnings("rawtypes")
+    private RestClient.RequestHeadersSpec requestHeadersSpec;
+    @Mock
+    private RestClient.ResponseSpec responseSpec;
+    private UserProfileService userProfileService;
 
     @BeforeEach
     void setUp() {
@@ -186,7 +177,8 @@ class UserProfileServiceTest {
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(oauthResponse);
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenReturn(oauthResponse);
 
         when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -296,7 +288,8 @@ class UserProfileServiceTest {
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenThrow(new RuntimeException("OAuth refresh failed"));
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new RuntimeException("OAuth refresh failed"));
 
         // When & Then
         assertThatThrownBy(() -> userProfileService.getValidOAuthToken(USER_ID))
@@ -332,7 +325,8 @@ class UserProfileServiceTest {
         when(requestBodySpec.contentType(MediaType.APPLICATION_FORM_URLENCODED)).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {})).thenReturn(oauthResponse);
+        when(responseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenReturn(oauthResponse);
 
         when(userProfileRepository.update(eq(USER_ID), any(Map.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));

@@ -12,14 +12,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class FirebaseAuthFilterTest {
@@ -55,8 +61,7 @@ class FirebaseAuthFilterTest {
     @Test
     void testExtendsOncePerRequestFilter() {
         // Verify that FirebaseAuthFilter extends OncePerRequestFilter
-        assertTrue(filter instanceof org.springframework.web.filter.OncePerRequestFilter,
-                "FirebaseAuthFilter should extend OncePerRequestFilter");
+        assertInstanceOf(OncePerRequestFilter.class, filter, "FirebaseAuthFilter should extend OncePerRequestFilter");
     }
 
     @Test

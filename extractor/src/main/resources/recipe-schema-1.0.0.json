@@ -23,7 +23,12 @@
     },
     "metadata": {
       "type": "object",
-      "required": ["title", "source", "date_created", "servings"],
+      "required": [
+        "title",
+        "source",
+        "date_created",
+        "servings"
+      ],
       "properties": {
         "title": {
           "type": "string",
@@ -34,13 +39,18 @@
           "format": "uri",
           "description": "Original recipe url"
         },
-        "author": { "type": "string" },
+        "author": {
+          "type": "string"
+        },
         "language": {
           "type": "string",
           "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
           "description": "Language code 'en' or region format 'en/us'"
         },
-        "date_created": { "type": "string", "format": "date" },
+        "date_created": {
+          "type": "string",
+          "format": "date"
+        },
         "category": {
           "type": "array",
           "items": {
@@ -53,10 +63,22 @@
             "type": "string"
           }
         },
-        "servings": { "type": "integer", "minimum": 1 },
-        "prep_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
-        "cook_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
-        "total_time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
+        "servings": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "prep_time": {
+          "type": "string",
+          "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+        },
+        "cook_time": {
+          "type": "string",
+          "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+        },
+        "total_time": {
+          "type": "string",
+          "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+        },
         "difficulty": {
           "type": "string",
           "enum": [
@@ -67,9 +89,13 @@
         },
         "cover_image": {
           "type": "object",
-          "required": ["path"],
+          "required": [
+            "path"
+          ],
           "properties": {
-            "path": { "type": "string" },
+            "path": {
+              "type": "string"
+            },
             "alt": {
               "type": "string"
             }
@@ -85,12 +111,23 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["item"],
+        "required": [
+          "item"
+        ],
         "properties": {
-          "item": { "type": "string" },
-          "amount": { "type": "number", "minimum": 0 },
-          "unit": { "type": "string" },
-          "notes": { "type": "string" },
+          "item": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
           "optional": {
             "type": "boolean"
           },
@@ -98,12 +135,23 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["item"],
+              "required": [
+                "item"
+              ],
               "properties": {
-                "item": { "type": "string" },
-                "amount": { "type": "number", "minimum": 0 },
-                "unit": { "type": "string" },
-                "notes": { "type": "string" },
+                "item": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "string"
+                },
                 "ratio": {
                   "type": "string",
                   "description": "Conversion ratio like '1:1' or '2:1'"
@@ -129,15 +177,25 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["description"],
+        "required": [
+          "description"
+        ],
         "properties": {
-          "step": { "type": "integer", "minimum": 1 },
+          "step": {
+            "type": "integer",
+            "minimum": 1
+          },
           "description": {
             "type": "string",
             "description": "Markdown-formatted instruction"
           },
-          "time": { "type": "string", "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$" },
-          "temperature": { "type": "string" },
+          "time": {
+            "type": "string",
+            "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+          },
+          "temperature": {
+            "type": "string"
+          },
           "media": {
             "type": "array",
             "items": {
@@ -177,14 +235,37 @@
     "nutrition": {
       "type": "object",
       "properties": {
-        "serving_size": { "type": "string" },
-        "calories": { "type": "integer", "minimum": 0 },
-        "protein": { "type": "number", "minimum": 0 },
-        "carbohydrates": { "type": "number", "minimum": 0 },
-        "fat": { "type": "number", "minimum": 0 },
-        "fiber": { "type": "number", "minimum": 0 },
-        "sugar": { "type": "number", "minimum": 0 },
-        "sodium": { "type": "number", "minimum": 0 }
+        "serving_size": {
+          "type": "string"
+        },
+        "calories": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "protein": {
+          "type": "number",
+          "minimum": 0
+        },
+        "carbohydrates": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fat": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fiber": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sugar": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sodium": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "notes": {
@@ -194,9 +275,15 @@
     "storage": {
       "type": "object",
       "properties": {
-        "refrigerator": { "type": "string" },
-        "freezer": { "type": "string" },
-        "room_temperature": { "type": "string" }
+        "refrigerator": {
+          "type": "string"
+        },
+        "freezer": {
+          "type": "string"
+        },
+        "room_temperature": {
+          "type": "string"
+        }
       }
     },
     "schema_version": {

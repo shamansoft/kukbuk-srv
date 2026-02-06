@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.service.gemini;
 
-import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 

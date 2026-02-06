@@ -1,9 +1,9 @@
 package net.shamansoft.cookbook.html.strategy;
 
-import tools.jackson.databind.ObjectMapper;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 

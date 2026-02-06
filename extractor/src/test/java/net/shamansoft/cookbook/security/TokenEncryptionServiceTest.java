@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for TokenEncryptionService.
- *
+ * <p>
  * Tests focus on @PostConstruct initialization behavior.
  * Full encryption/decryption functionality is tested via integration tests
  * since it requires GCP KMS credentials.

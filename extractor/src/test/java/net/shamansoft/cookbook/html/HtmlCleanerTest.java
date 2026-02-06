@@ -1,6 +1,5 @@
 package net.shamansoft.cookbook.html;
 
-import tools.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 import static net.shamansoft.cookbook.html.strategy.Strategy.CONTENT_FILTER;
 import static net.shamansoft.cookbook.html.strategy.Strategy.FALLBACK;

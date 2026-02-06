@@ -43,15 +43,15 @@ class CompressorHTMLBase64Test {
     void invalidBase64ThrowsIOException() {
         String invalidBase64 = "not-base64-content";
         assertThatThrownBy(() -> compressor.decompress(invalidBase64))
-            .isInstanceOf(IOException.class)
-            .hasMessageContaining("Content isn't Base64 encoded");
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Content isn't Base64 encoded");
     }
 
     @Test
     void invalidGzipContentThrowsIOException() {
         String invalidGzip = Base64.getEncoder().encodeToString("not-gzipped".getBytes());
         assertThatThrownBy(() -> compressor.decompress(invalidGzip))
-            .isInstanceOf(IOException.class);
+                .isInstanceOf(IOException.class);
     }
 
     private byte[] gzip(String content) throws IOException {

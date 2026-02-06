@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook;
 
+import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,17 +12,15 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import net.shamansoft.cookbook.config.TestFirebaseConfig;
-
 /**
  * Test WebConfig CORS configuration for Spring Boot 4 migration.
- *
+ * <p>
  * Tests verify:
  * - WebConfig bean is created and implements WebMvcConfigurer
  * - addCorsMappings method is invoked correctly
  * - CORS configuration is applied to the Spring MVC handler mapping
  * - Configuration object is properly initialized
- *
+ * <p>
  * Note: Full CORS behavior testing (HTTP headers, preflight requests) is done
  * in integration tests where the full web context is available.
  */
@@ -74,7 +73,7 @@ class WebConfigTest {
         assertThat(applicationContext.containsBean("requestMappingHandlerMapping")).isTrue();
 
         RequestMappingHandlerMapping handlerMapping =
-            applicationContext.getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
+                applicationContext.getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
         assertThat(handlerMapping).isNotNull();
     }
 
@@ -82,7 +81,7 @@ class WebConfigTest {
     void corsConfiguration_isAppliedToHandlerMapping() {
         // Verify CORS configuration is present in the handler mapping
         RequestMappingHandlerMapping handlerMapping =
-            applicationContext.getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
+                applicationContext.getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class);
 
         // The handler mapping should have CORS configuration applied
         // (actual CORS behavior is tested in integration tests)

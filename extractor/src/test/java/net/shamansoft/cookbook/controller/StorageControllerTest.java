@@ -38,17 +38,15 @@ import static org.mockito.Mockito.when;
 @Import(TestFirebaseConfig.class)
 class StorageControllerTest {
 
-    @Autowired
-    private StorageController controller;
-
-    @MockitoBean
-    private StorageService storageService;
-
     private static final String TEST_USER_ID = "test-user-123";
     private static final String TEST_AUTH_CODE = "auth-code-123";
     private static final String TEST_REDIRECT_URI = "https://example.com/callback";
     private static final String TEST_FOLDER_ID = "folder-123";
     private static final String TEST_FOLDER_NAME = "test-folder";
+    @Autowired
+    private StorageController controller;
+    @MockitoBean
+    private StorageService storageService;
 
     @BeforeEach
     void setUp() {

@@ -38,16 +38,16 @@ public class ContentHashService {
         }
 
         long startTime = System.currentTimeMillis();
-        
+
         try {
             String normalizedUrl = normalizeUrl(url);
             String hash = generateSha256Hash(normalizedUrl);
-            
+
             hashCache.put(url, hash);
-            
+
             long processingTime = System.currentTimeMillis() - startTime;
             log.debug("Generated hash for URL in {}ms: {}", processingTime, url);
-            
+
             return hash;
         } catch (Exception e) {
             log.error("Failed to generate hash for URL: {}", url, e);
@@ -57,7 +57,7 @@ public class ContentHashService {
 
     String normalizeUrl(String url) throws URISyntaxException {
         URI uri = new URI(url);
-        
+
         StringBuilder normalizedQuery = new StringBuilder();
         if (uri.getQuery() != null) {
             String[] queryParams = uri.getQuery().split("&");
@@ -74,9 +74,9 @@ public class ContentHashService {
                 }
             }
         }
-        
+
         String queryString = normalizedQuery.length() > 0 ? normalizedQuery.toString() : null;
-        
+
         URI normalizedUri = new URI(
                 uri.getScheme() != null ? uri.getScheme().toLowerCase() : null,
                 uri.getAuthority() != null ? uri.getAuthority().toLowerCase() : null,
@@ -84,14 +84,14 @@ public class ContentHashService {
                 queryString,
                 null // Remove fragment
         );
-        
+
         return normalizedUri.toString();
     }
 
     private String generateSha256Hash(String input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-        
+
         StringBuilder hexString = new StringBuilder();
         for (byte b : hashBytes) {
             String hex = Integer.toHexString(0xff & b);
@@ -100,7 +100,7 @@ public class ContentHashService {
             }
             hexString.append(hex);
         }
-        
+
         return hexString.toString();
     }
 

@@ -31,15 +31,15 @@ public class GoogleDriveService implements DriveService {
         this.storageService = storageService;
     }
 
+    private static String defaultName() {
+        return "recipe-" + System.currentTimeMillis();
+    }
+
     @Override
     public String generateFileName(String title) {
         String lowerAscii = transliterator.toAsciiKebab(title);
         String base = lowerAscii.isEmpty() ? defaultName() : lowerAscii;
         return base + ".yaml";
-    }
-
-    private static String defaultName() {
-        return "recipe-" + System.currentTimeMillis();
     }
 
     @Override

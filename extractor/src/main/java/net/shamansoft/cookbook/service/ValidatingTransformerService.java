@@ -22,6 +22,8 @@ public class ValidatingTransformerService implements Transformer {
     private final GeminiRestTransformer geminiTransformer;
     private final RecipeValidationService validationService;
     private final RecipePostProcessor postProcessor;
+    @Value("${recipe.llm.retry:1}")
+    private int maxRetries;
 
     public ValidatingTransformerService(
             @Qualifier("geminiTransformer") GeminiRestTransformer geminiTransformer,
@@ -32,18 +34,15 @@ public class ValidatingTransformerService implements Transformer {
         this.postProcessor = postProcessor;
     }
 
-    @Value("${recipe.llm.retry:1}")
-    private int maxRetries;
-
     /**
      * Transforms HTML content to validated Recipe object.
      * If validation fails, retries with feedback up to max-retries times.
-     *
+     * <p>
      * When recipe.llm.retry = 0, validation is skipped entirely and the raw Recipe is returned.
      * When recipe.llm.retry > 0, validation is performed with the specified number of retry attempts.
      *
      * @param htmlContent the HTML string to transform
-     * @param sourceUrl the source URL of the recipe
+     * @param sourceUrl   the source URL of the recipe
      * @return the transformed and validated result
      */
     @Override
@@ -79,9 +78,9 @@ public class ValidatingTransformerService implements Transformer {
             return Response.withRawResponse(true, postProcessedRecipe, rawLlmResponse);
         }
 
-        log.warn("Initial Recipe failed validation - Will retry up to {} times. Error:\n{}", 
-            maxRetries,
-            validationResult.getErrorMessage());
+        log.warn("Initial Recipe failed validation - Will retry up to {} times. Error:\n{}",
+                maxRetries,
+                validationResult.getErrorMessage());
         logRecipeDetails(currentRecipe, "initial validation failure");
 
         // Retry with feedback
@@ -89,9 +88,9 @@ public class ValidatingTransformerService implements Transformer {
             String errorPreview = validationResult.getErrorMessage().substring(
                     0, Math.min(200, validationResult.getErrorMessage().length())
             );
-            log.info("Retry attempt {}/{} - Sending validation feedback to Gemini: {}{}", 
-                attempt,
-                maxRetries,
+            log.info("Retry attempt {}/{} - Sending validation feedback to Gemini: {}{}",
+                    attempt,
+                    maxRetries,
                     errorPreview,
                     validationResult.getErrorMessage().length() > 200 ? "..." : "");
 
@@ -104,8 +103,8 @@ public class ValidatingTransformerService implements Transformer {
             // If the model decides it's not a recipe after feedback, respect that
             if (!retryResponse.isRecipe()) {
                 log.warn("Gemini changed decision after validation feedback (attempt {}/{}): Content is NOT a recipe",
-                    attempt,
-                    maxRetries);
+                        attempt,
+                        maxRetries);
                 return retryResponse;
             }
 
@@ -126,9 +125,9 @@ public class ValidatingTransformerService implements Transformer {
         }
 
         // All retries exhausted, return as non-recipe since validation failed
-        log.error("VALIDATION FAILED after {} retry attempt(s). Final error:\n{}", 
-            maxRetries,
-            validationResult.getErrorMessage());
+        log.error("VALIDATION FAILED after {} retry attempt(s). Final error:\n{}",
+                maxRetries,
+                validationResult.getErrorMessage());
         log.error("Recipe that failed all validation attempts - Title: '{}'",
                 currentRecipe.metadata() != null ? currentRecipe.metadata().title() : "N/A");
         logRecipeDetails(currentRecipe, "all validation attempts");

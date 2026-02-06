@@ -21,36 +21,36 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class FirestoreRecipeRepository implements RecipeRepository {
 
-    private final Firestore firestore;
     private static final String COLLECTION_NAME = "recipe_store";
     private static final Executor executor = Executors.newCachedThreadPool();
+    private final Firestore firestore;
     private final Transformer transformer;
 
     @Override
     public CompletableFuture<Optional<StoredRecipe>> findByContentHash(String contentHash) {
         log.debug("Retrieving recipe for hash: {}", contentHash);
         long startTime = System.currentTimeMillis();
-        
+
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
         ApiFuture<DocumentSnapshot> future = docRef.get();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 DocumentSnapshot documentSnapshot = future.get();
                 long duration = System.currentTimeMillis() - startTime;
-                
+
                 if (!documentSnapshot.exists()) {
                     log.debug("Recipe not found for hash: {} (retrieved in {}ms)", contentHash, duration);
-                    return Optional.<StoredRecipe>empty();
+                    return Optional.empty();
                 }
-                
+
                 StoredRecipe recipe = transformer.documentToRecipeCache(documentSnapshot);
                 log.debug("Retrieved recipe for hash: {} (retrieved in {}ms)", contentHash, duration);
-                
+
                 return Optional.of(recipe);
             } catch (Exception e) {
                 log.error("Error retrieving recipe for hash {}: {}", contentHash, e.getMessage(), e);
-                return Optional.<StoredRecipe>empty();
+                return Optional.empty();
             }
         }, executor);
     }
@@ -58,10 +58,10 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     @Override
     public CompletableFuture<Void> save(StoredRecipe recipe) {
         log.debug("Saving recipe for hash: {}", recipe.getContentHash());
-        
+
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(recipe.getContentHash());
         ApiFuture<WriteResult> future = docRef.set(recipe);
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 future.get();
@@ -78,7 +78,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     public CompletableFuture<Boolean> existsByContentHash(String contentHash) {
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
         ApiFuture<DocumentSnapshot> future = docRef.get();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 DocumentSnapshot documentSnapshot = future.get();
@@ -93,10 +93,10 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     @Override
     public CompletableFuture<Void> deleteByContentHash(String contentHash) {
         log.debug("Deleting recipe for hash: {}", contentHash);
-        
+
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(contentHash);
         ApiFuture<WriteResult> future = docRef.delete();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 future.get();
@@ -112,7 +112,7 @@ public class FirestoreRecipeRepository implements RecipeRepository {
     @Override
     public CompletableFuture<Long> count() {
         ApiFuture<com.google.cloud.firestore.QuerySnapshot> future = firestore.collection(COLLECTION_NAME).get();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 com.google.cloud.firestore.QuerySnapshot querySnapshot = future.get();
