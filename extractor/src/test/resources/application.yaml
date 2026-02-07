@@ -41,6 +41,23 @@ cookbook:
   google:
     oauth-id: "test-oauth-id"  # Used by UserProfileService
     oauth-secret: "test-oauth-secret"
+  tasks:
+    enabled: false
+    project-id: "test-project"
+    location: "us-west1"
+    queue-name: "test-queue"
+    service-url: "http://localhost:8080"
+  transcript:
+    youtube-transcript-io:
+      api-url: "https://www.youtube-transcript.io"
+      api-key: "test-transcript-io-key"
+    supadata:
+      api-url: "https://api.supadata.ai"
+      api-key: "test-supadata-key"
+  youtube:
+    api-url: "https://www.googleapis.com/youtube/v3"
+    api-key: "test-youtube-api-key"
+    timeout-seconds: 10
 
 logging:
   level:

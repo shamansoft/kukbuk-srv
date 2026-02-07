@@ -150,4 +150,40 @@ public class RestClientConfig {
                 .baseUrl(baseUrl)
                 .build();
     }
+
+    @Bean
+    public ClientHttpRequestFactory youtubeApiHttpRequestFactory(
+            @Value("${cookbook.youtube.timeout-seconds:10}") int timeoutSeconds) {
+        ConnectionConfig connectionConfig = ConnectionConfig.custom()
+                .setConnectTimeout(Timeout.ofSeconds(5))
+                .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                new PoolingHttpClientConnectionManager();
+        connectionManager.setMaxTotal(20);
+        connectionManager.setDefaultMaxPerRoute(5);
+        connectionManager.setDefaultConnectionConfig(connectionConfig);
+
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                .setResponseTimeout(Timeout.ofSeconds(timeoutSeconds))
+                .build();
+
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+
+        return new HttpComponentsClientHttpRequestFactory(httpClient);
+    }
+
+    @Bean
+    public RestClient youtubeApiRestClient(
+            @Value("${cookbook.youtube.api-url}") String baseUrl,
+            @Qualifier("youtubeApiHttpRequestFactory") ClientHttpRequestFactory requestFactory) {
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .baseUrl(baseUrl)
+                .build();
+    }
 }

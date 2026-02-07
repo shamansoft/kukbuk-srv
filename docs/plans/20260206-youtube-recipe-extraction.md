@@ -147,20 +147,20 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 4
 
 ### Task 4: Create YouTubeDataService for metadata extraction
-- [ ] Create `YouTubeMetadata` record in `/service/youtube/`:
+- [x] Create `YouTubeMetadata` record in `/service/youtube/`:
   - Fields: `title` (String), `description` (String), `channelName` (String), `publishedAt` (Instant)
-- [ ] Create `YouTubeDataService.java` in `/service/youtube/`:
+- [x] Create `YouTubeDataService.java` in `/service/youtube/`:
   - `YouTubeMetadata getMetadata(String videoId)` - fetches video metadata
   - Uses YouTube Data API v3 or REST endpoint (no auth needed for public videos)
   - Option 1: Use `google-api-services-youtube` library
   - Option 2: Direct REST call to `https://www.googleapis.com/youtube/v3/videos?id={videoId}&part=snippet`
   - Handles API errors with `YouTubeApiException`
-- [ ] Create `YouTubeApiException` custom exception in `/exception/`
-- [ ] Add YouTube API configuration to `application.yaml` under `cookbook.youtube.*`
-- [ ] Add RestClient bean for YouTube API in `RestClientConfig.java` (if using REST)
-- [ ] Write tests for getMetadata() (success case with mocked API response)
-- [ ] Write tests for getMetadata() (error cases: invalid video ID, API error)
-- [ ] Run tests - must pass before task 5
+- [x] Create `YouTubeApiException` custom exception in `/exception/`
+- [x] Add YouTube API configuration to `application.yaml` under `cookbook.youtube.*`
+- [x] Add RestClient bean for YouTube API in `RestClientConfig.java` (if using REST)
+- [x] Write tests for getMetadata() (success case with mocked API response)
+- [x] Write tests for getMetadata() (error cases: invalid video ID, API error)
+- [x] Run tests - must pass before task 5
 
 ### Task 5: Create YouTubeTransformer implementing Transformer interface
 - [ ] Create `YouTubeInput` record in `/service/youtube/`:

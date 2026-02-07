@@ -305,6 +305,23 @@ cookbook:
       api-key: ${COOKBOOK_SUPADATA_API_KEY:REPLACE_WITH_API_KEY}
 
   # ---------------------------------------------------------------------------
+  # YOUTUBE DATA API CONFIGURATION
+  # ---------------------------------------------------------------------------
+  youtube:
+    # Base URL for YouTube Data API v3
+    # Used by: RestClientConfig.java (youtubeApiRestClient bean)
+    api-url: ${COOKBOOK_YOUTUBE_API_URL:https://www.googleapis.com/youtube/v3}
+
+    # YouTube Data API key (for public video metadata)
+    # Used by: YouTubeDataService.java
+    # Required: Yes (set via environment variable)
+    api-key: ${COOKBOOK_YOUTUBE_API_KEY:REPLACE_WITH_API_KEY}
+
+    # HTTP request timeout in seconds for YouTube API calls
+    # Default: 10 seconds
+    timeout-seconds: ${COOKBOOK_YOUTUBE_TIMEOUT_SECONDS:10}
+
+  # ---------------------------------------------------------------------------
   # DEBUG CONFIGURATION
   # ---------------------------------------------------------------------------
   debug:
