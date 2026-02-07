@@ -258,14 +258,14 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 10
 
 ### Task 10: Integration testing
-- [ ] Create `YouTubeRecipeIntegrationTest.java` in `/extractor/src/intTest/java/`:
+- [x] Create `YouTubeRecipeIntegrationTest.java` in `/extractor/src/intTest/java/`:
   - Use Testcontainers for WireMock (mock YouTube API, transcript APIs, Gemini)
   - Test full flow: POST /v1/recipes/youtube → verify job created → simulate Cloud Task callback → verify Drive upload
   - Mock Cloud Tasks client (no actual task queue in integration tests)
   - Verify job status transitions: PENDING → PROCESSING → COMPLETED
   - Test error scenarios: invalid URL, API failures, not a recipe
-- [ ] Run integration tests: `./gradlew :cookbook:intTest`
-- [ ] Fix any failures before task 11
+- [x] Run integration tests: `./gradlew :cookbook:intTest`
+- [x] Fix any failures before task 11
 
 ### Task 11: Configure Terraform for Cloud Tasks infrastructure
 - [ ] Add Cloud Tasks API to `terraform/apis.tf`:

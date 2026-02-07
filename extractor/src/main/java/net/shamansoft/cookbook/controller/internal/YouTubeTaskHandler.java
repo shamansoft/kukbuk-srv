@@ -1,7 +1,6 @@
 package net.shamansoft.cookbook.controller.internal;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.YouTubeTaskRequest;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
@@ -21,16 +20,26 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/internal/youtube-tasks")
-@RequiredArgsConstructor
 @Slf4j
 public class YouTubeTaskHandler {
 
     static final String CLOUD_TASKS_HEADER = "X-CloudTasks-TaskName";
 
-    private final @Qualifier("youtubeTransformer") Transformer youtubeTransformer;
+    private final Transformer youtubeTransformer;
     private final FirestoreYouTubeJobRepository jobRepository;
     private final DriveService driveService;
     private final RecipeValidationService validationService;
+
+    public YouTubeTaskHandler(
+            @Qualifier("youtubeTransformer") Transformer youtubeTransformer,
+            FirestoreYouTubeJobRepository jobRepository,
+            DriveService driveService,
+            RecipeValidationService validationService) {
+        this.youtubeTransformer = youtubeTransformer;
+        this.jobRepository = jobRepository;
+        this.driveService = driveService;
+        this.validationService = validationService;
+    }
 
     @PostMapping("/process")
     public ResponseEntity<Map<String, String>> processYouTubeJob(
