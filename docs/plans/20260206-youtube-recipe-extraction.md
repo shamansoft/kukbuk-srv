@@ -109,18 +109,18 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 2
 
 ### Task 2: Create Firestore YouTubeJobRepository
-- [ ] Create `YouTubeJob` record in `/repository/`:
+- [x] Create `YouTubeJob` record in `/repository/`:
   - Fields: `jobId` (String), `userId` (String), `videoUrl` (String), `status` (enum: PENDING, PROCESSING, COMPLETED, FAILED), `createdAt` (Instant), `completedAt` (Instant), `driveFileId` (String), `errorMessage` (String)
-- [ ] Create `JobStatus` enum with states: PENDING, PROCESSING, COMPLETED, FAILED
-- [ ] Create `FirestoreYouTubeJobRepository.java` in `/repository/`:
+- [x] Create `JobStatus` enum with states: PENDING, PROCESSING, COMPLETED, FAILED
+- [x] Create `FirestoreYouTubeJobRepository.java` in `/repository/`:
   - `CompletableFuture<YouTubeJob> save(YouTubeJob job)` - creates/updates job doc in `youtube_jobs` collection
   - `CompletableFuture<Optional<YouTubeJob>> findById(String jobId)` - retrieves job by ID
   - `CompletableFuture<Void> updateStatus(String jobId, JobStatus status, String errorMessage)` - updates job status
   - Use `users/{userId}/youtube_jobs/{jobId}` document path
-- [ ] Write tests for save() (success case)
-- [ ] Write tests for findById() (found and not found cases)
-- [ ] Write tests for updateStatus() (success and error cases)
-- [ ] Run tests - must pass before task 3
+- [x] Write tests for save() (success case)
+- [x] Write tests for findById() (found and not found cases)
+- [x] Write tests for updateStatus() (success and error cases)
+- [x] Run tests - must pass before task 3
 
 ### Task 3: Create transcript service abstraction layer
 - [ ] Create `TranscriptService` interface in `/service/youtube/`:
