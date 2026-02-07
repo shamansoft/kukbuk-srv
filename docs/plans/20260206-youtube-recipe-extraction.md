@@ -163,9 +163,9 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 5
 
 ### Task 5: Create YouTubeTransformer implementing Transformer interface
-- [ ] Create `YouTubeInput` record in `/service/youtube/`:
+- [x] Create `YouTubeInput` record in `/service/youtube/`:
   - Fields: `videoUrl` (String), `videoId` (String)
-- [ ] Create `YouTubeTransformer.java` in `/service/youtube/` implementing `Transformer<YouTubeInput, Recipe>`:
+- [x] Create `YouTubeTransformer.java` in `/service/youtube/` implementing `Transformer<YouTubeInput, Recipe>`:
   - Inject: `YouTubeDataService`, `TranscriptServiceRouter`, `GeminiClient`, `RequestBuilder`
   - `Response transform(String userId, YouTubeInput input)`:
     1. Extract videoId from videoUrl
@@ -175,12 +175,12 @@ Add support for extracting recipes from YouTube cooking videos using async backg
     5. Call `GeminiClient.request()` with YouTube-specific prompt
     6. Return `Transformer.Response(isRecipe, recipe, rawLlmResponse)`
   - Handle errors with appropriate exceptions
-- [ ] Extract videoId utility method: `extractVideoId(String url)` - handles youtu.be and youtube.com URLs
-- [ ] Write tests for extractVideoId() (various URL formats)
-- [ ] Write tests for transform() success case (mock all dependencies)
-- [ ] Write tests for transform() when not a recipe (isRecipe=false)
-- [ ] Write tests for transform() error cases (API failures, invalid URL)
-- [ ] Run tests - must pass before task 6
+- [x] Extract videoId utility method: `extractVideoId(String url)` - handles youtu.be and youtube.com URLs
+- [x] Write tests for extractVideoId() (various URL formats)
+- [x] Write tests for transform() success case (mock all dependencies)
+- [x] Write tests for transform() when not a recipe (isRecipe=false)
+- [x] Write tests for transform() error cases (API failures, invalid URL)
+- [x] Run tests - must pass before task 6
 
 ### Task 6: Integrate YouTube prompt with RequestBuilder
 - [ ] Review existing `youtube-prompt.md` in `/extractor/src/main/resources/`:
