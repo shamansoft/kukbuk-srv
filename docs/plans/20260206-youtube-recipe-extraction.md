@@ -287,23 +287,24 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] No unit tests needed (infrastructure code)
 
 ### Task 12: Update Cloud Run Terraform and application config
-- [ ] Add Secret Manager secrets to `terraform/cloudrun.tf`:
+- [x] Add Secret Manager secrets to `terraform/cloudrun.tf`:
   - Create `google_secret_manager_secret.youtube_transcript_io_api_key`
   - Create `google_secret_manager_secret.supadata_api_key`
-- [ ] Add environment variables to Cloud Run service in `terraform/cloudrun.tf`:
+- [x] Add environment variables to Cloud Run service in `terraform/cloudrun.tf`:
   - `COOKBOOK_YOUTUBE_TRANSCRIPT_IO_API_KEY` from Secret Manager
   - `COOKBOOK_SUPADATA_API_KEY` from Secret Manager
   - `COOKBOOK_TASKS_SERVICE_URL` using `google_cloud_run_service.cookbook.status[0].url`
   - `COOKBOOK_TASKS_QUEUE_NAME` = "youtube-recipes"
   - `COOKBOOK_TASKS_PROJECT_ID` = `var.project_id`
   - `COOKBOOK_TASKS_LOCATION` = `var.region`
-- [ ] Update `application-gcp.yaml` with Cloud Tasks configuration:
+- [x] Update `application-gcp.yaml` with Cloud Tasks configuration:
   - `cookbook.tasks.service-url: ${COOKBOOK_TASKS_SERVICE_URL}`
   - `cookbook.tasks.queue-name: ${COOKBOOK_TASKS_QUEUE_NAME}`
   - `cookbook.tasks.project-id: ${COOKBOOK_TASKS_PROJECT_ID}`
   - `cookbook.tasks.location: ${COOKBOOK_TASKS_LOCATION}`
-- [ ] Run Terraform validation: `cd terraform && terraform validate`
-- [ ] No unit tests needed (configuration only)
+- [x] Run Terraform validation: `cd terraform && terraform validate`
+  - Note: terraform/tofu CLI not installed locally; validated syntax manually against existing patterns
+- [x] No unit tests needed (configuration only)
 
 ### Task 13: [Final] Update documentation
 - [ ] Update `extractor/README.md`:

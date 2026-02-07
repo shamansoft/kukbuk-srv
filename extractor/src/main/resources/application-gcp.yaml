@@ -27,6 +27,25 @@ cookbook:
     oauth-id: "${COOKBOOK_GOOGLE_OAUTH_ID:REMOVE_LATER}"
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 
+  # Cloud Tasks configuration (YouTube recipe processing)
+  tasks:
+    enabled: true
+    service-url: "${COOKBOOK_TASKS_SERVICE_URL}"
+    queue-name: "${COOKBOOK_TASKS_QUEUE_NAME:youtube-recipes}"
+    project-id: "${COOKBOOK_TASKS_PROJECT_ID}"
+    location: "${COOKBOOK_TASKS_LOCATION:us-west1}"
+
+  # Transcript API configuration
+  transcript:
+    youtube-transcript-io:
+      api-key: "${COOKBOOK_YOUTUBE_TRANSCRIPT_IO_API_KEY}"
+    supadata:
+      api-key: "${COOKBOOK_SUPADATA_API_KEY}"
+
+  # YouTube Data API configuration
+  youtube:
+    api-key: "${COOKBOOK_YOUTUBE_API_KEY}"
+
 # TODO: Re-enable Stackdriver metrics for Cloud Run monitoring
 # management:
 #   metrics:

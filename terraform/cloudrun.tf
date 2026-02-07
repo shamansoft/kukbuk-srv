@@ -25,6 +25,30 @@ resource "google_secret_manager_secret" "sar-srv-google-oauth-secret" {
   }
 }
 
+resource "google_secret_manager_secret" "youtube_transcript_io_api_key" {
+  secret_id = "youtube-transcript-io-api-key"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "supadata_api_key" {
+  secret_id = "supadata-api-key"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "youtube_api_key" {
+  secret_id = "youtube-api-key"
+
+  replication {
+    auto {}
+  }
+}
+
 # Cloud Run service
 resource "google_cloud_run_service" "cookbook" {
   name     = var.service_name
@@ -117,6 +141,63 @@ resource "google_cloud_run_service" "cookbook" {
         env {
           name  = "RECIPE_CACHE_ENABLED"
           value = "true"
+        }
+
+        # YouTube recipe extraction - Transcript API keys
+        env {
+          name = "COOKBOOK_YOUTUBE_TRANSCRIPT_IO_API_KEY"
+          value_from {
+            secret_key_ref {
+              name = google_secret_manager_secret.youtube_transcript_io_api_key.secret_id
+              key  = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "COOKBOOK_SUPADATA_API_KEY"
+          value_from {
+            secret_key_ref {
+              name = google_secret_manager_secret.supadata_api_key.secret_id
+              key  = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "COOKBOOK_YOUTUBE_API_KEY"
+          value_from {
+            secret_key_ref {
+              name = google_secret_manager_secret.youtube_api_key.secret_id
+              key  = "latest"
+            }
+          }
+        }
+
+        # YouTube recipe extraction - Cloud Tasks configuration
+        env {
+          name  = "COOKBOOK_TASKS_ENABLED"
+          value = "true"
+        }
+
+        env {
+          name  = "COOKBOOK_TASKS_SERVICE_URL"
+          value = google_cloud_run_service.cookbook.status[0].url
+        }
+
+        env {
+          name  = "COOKBOOK_TASKS_QUEUE_NAME"
+          value = "youtube-recipes"
+        }
+
+        env {
+          name  = "COOKBOOK_TASKS_PROJECT_ID"
+          value = var.project_id
+        }
+
+        env {
+          name  = "COOKBOOK_TASKS_LOCATION"
+          value = var.region
         }
 
         resources {
