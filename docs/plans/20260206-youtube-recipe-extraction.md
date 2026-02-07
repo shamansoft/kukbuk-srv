@@ -248,14 +248,14 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 9
 
 ### Task 9: Add job status query endpoint (optional but recommended)
-- [ ] Add GET `/v1/recipes/youtube/{jobId}` to `YouTubeController`:
+- [x] Add GET `/v1/recipes/youtube/{jobId}` to `YouTubeController`:
   - Returns `YouTubeJobStatusResponse(String jobId, String status, String driveFileId, String driveFileUrl, String errorMessage)`
   - Fetches job from `FirestoreYouTubeJobRepository`
   - Returns 404 if job not found or belongs to different user
   - Includes driveFileId and driveFileUrl when status=COMPLETED
-- [ ] Create `YouTubeJobStatusResponse` record in `/dto/`
-- [ ] Write tests for job status endpoint (found, not found, completed, failed)
-- [ ] Run tests - must pass before task 10
+- [x] Create `YouTubeJobStatusResponse` record in `/dto/`
+- [x] Write tests for job status endpoint (found, not found, completed, failed)
+- [x] Run tests - must pass before task 10
 
 ### Task 10: Integration testing
 - [ ] Create `YouTubeRecipeIntegrationTest.java` in `/extractor/src/intTest/java/`:

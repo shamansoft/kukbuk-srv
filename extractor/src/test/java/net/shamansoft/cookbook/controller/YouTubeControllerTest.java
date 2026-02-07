@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.controller;
 
+import net.shamansoft.cookbook.dto.YouTubeJobStatusResponse;
 import net.shamansoft.cookbook.dto.YouTubeRecipeRequest;
 import net.shamansoft.cookbook.dto.YouTubeRecipeResponse;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
@@ -16,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -130,6 +133,116 @@ class YouTubeControllerTest {
                     controller.createYouTubeRecipe(new YouTubeRecipeRequest(VIDEO_URL), USER_ID);
 
             assertThat(result1.getBody().jobId()).isNotEqualTo(result2.getBody().jobId());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /v1/recipes/youtube/{jobId}")
+    class GetJobStatus {
+
+        private static final String JOB_ID = "job-123";
+
+        @Test
+        @DisplayName("Should return job status when job exists and belongs to user")
+        void shouldReturnJobStatusWhenFound() {
+            YouTubeJob job = new YouTubeJob(
+                    JOB_ID, USER_ID, VIDEO_URL, JobStatus.PROCESSING,
+                    Instant.parse("2026-02-06T10:00:00Z"), null, null, null
+            );
+
+            when(jobRepository.findById(USER_ID, JOB_ID))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.of(job)));
+
+            ResponseEntity<YouTubeJobStatusResponse> result = controller.getJobStatus(JOB_ID, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(200);
+            assertThat(result.getBody()).isNotNull();
+            assertThat(result.getBody().jobId()).isEqualTo(JOB_ID);
+            assertThat(result.getBody().status()).isEqualTo("PROCESSING");
+            assertThat(result.getBody().driveFileId()).isNull();
+            assertThat(result.getBody().driveFileUrl()).isNull();
+            assertThat(result.getBody().errorMessage()).isNull();
+        }
+
+        @Test
+        @DisplayName("Should return 404 when job not found")
+        void shouldReturn404WhenJobNotFound() {
+            when(jobRepository.findById(USER_ID, JOB_ID))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+            ResponseEntity<YouTubeJobStatusResponse> result = controller.getJobStatus(JOB_ID, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(404);
+            assertThat(result.getBody()).isNull();
+        }
+
+        @Test
+        @DisplayName("Should return completed job with drive file URL")
+        void shouldReturnCompletedJobWithDriveUrl() {
+            String driveFileId = "drive-file-abc";
+            YouTubeJob job = new YouTubeJob(
+                    JOB_ID, USER_ID, VIDEO_URL, JobStatus.COMPLETED,
+                    Instant.parse("2026-02-06T10:00:00Z"),
+                    Instant.parse("2026-02-06T10:05:00Z"),
+                    driveFileId, null
+            );
+
+            when(jobRepository.findById(USER_ID, JOB_ID))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.of(job)));
+
+            ResponseEntity<YouTubeJobStatusResponse> result = controller.getJobStatus(JOB_ID, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(200);
+            assertThat(result.getBody()).isNotNull();
+            assertThat(result.getBody().jobId()).isEqualTo(JOB_ID);
+            assertThat(result.getBody().status()).isEqualTo("COMPLETED");
+            assertThat(result.getBody().driveFileId()).isEqualTo(driveFileId);
+            assertThat(result.getBody().driveFileUrl())
+                    .isEqualTo("https://drive.google.com/file/d/" + driveFileId + "/view");
+            assertThat(result.getBody().errorMessage()).isNull();
+        }
+
+        @Test
+        @DisplayName("Should return failed job with error message")
+        void shouldReturnFailedJobWithErrorMessage() {
+            String errorMsg = "Transcript extraction failed";
+            YouTubeJob job = new YouTubeJob(
+                    JOB_ID, USER_ID, VIDEO_URL, JobStatus.FAILED,
+                    Instant.parse("2026-02-06T10:00:00Z"),
+                    Instant.parse("2026-02-06T10:03:00Z"),
+                    null, errorMsg
+            );
+
+            when(jobRepository.findById(USER_ID, JOB_ID))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.of(job)));
+
+            ResponseEntity<YouTubeJobStatusResponse> result = controller.getJobStatus(JOB_ID, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(200);
+            assertThat(result.getBody()).isNotNull();
+            assertThat(result.getBody().jobId()).isEqualTo(JOB_ID);
+            assertThat(result.getBody().status()).isEqualTo("FAILED");
+            assertThat(result.getBody().driveFileId()).isNull();
+            assertThat(result.getBody().driveFileUrl()).isNull();
+            assertThat(result.getBody().errorMessage()).isEqualTo(errorMsg);
+        }
+
+        @Test
+        @DisplayName("Should return pending job status")
+        void shouldReturnPendingJobStatus() {
+            YouTubeJob job = new YouTubeJob(
+                    JOB_ID, USER_ID, VIDEO_URL, JobStatus.PENDING,
+                    Instant.parse("2026-02-06T10:00:00Z"), null, null, null
+            );
+
+            when(jobRepository.findById(USER_ID, JOB_ID))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.of(job)));
+
+            ResponseEntity<YouTubeJobStatusResponse> result = controller.getJobStatus(JOB_ID, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(200);
+            assertThat(result.getBody()).isNotNull();
+            assertThat(result.getBody().status()).isEqualTo("PENDING");
         }
     }
 

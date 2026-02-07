@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.dto.YouTubeJobStatusResponse;
 import net.shamansoft.cookbook.dto.YouTubeRecipeRequest;
 import net.shamansoft.cookbook.dto.YouTubeRecipeResponse;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
@@ -10,6 +11,8 @@ import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.repository.YouTubeJob;
 import net.shamansoft.cookbook.service.CloudTasksService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -64,6 +67,35 @@ public class YouTubeController {
         log.info("YouTube job created: {} for user: {}", jobId, userId);
 
         return ResponseEntity.ok(new YouTubeRecipeResponse(jobId, JobStatus.PENDING.name()));
+    }
+
+    @GetMapping(value = "/{jobId}", produces = "application/json")
+    public ResponseEntity<YouTubeJobStatusResponse> getJobStatus(
+            @PathVariable String jobId,
+            @RequestAttribute("userId") String userId) {
+
+        log.info("Job status request from user: {}, jobId: {}", userId, jobId);
+
+        var jobOptional = jobRepository.findById(userId, jobId).join();
+
+        if (jobOptional.isEmpty()) {
+            log.debug("Job not found: {} for user: {}", jobId, userId);
+            return ResponseEntity.notFound().build();
+        }
+
+        YouTubeJob job = jobOptional.get();
+
+        String driveFileUrl = job.driveFileId() != null
+                ? "https://drive.google.com/file/d/" + job.driveFileId() + "/view"
+                : null;
+
+        return ResponseEntity.ok(new YouTubeJobStatusResponse(
+                job.jobId(),
+                job.status() != null ? job.status().name() : null,
+                job.driveFileId(),
+                driveFileUrl,
+                job.errorMessage()
+        ));
     }
 
     static boolean isValidYouTubeUrl(String url) {
