@@ -200,6 +200,11 @@ resource "google_cloud_run_service" "cookbook" {
           value = var.region
         }
 
+        env {
+          name  = "COOKBOOK_TASKS_SERVICE_ACCOUNT"
+          value = google_service_account.cookbook_cloudrun_service_account.email
+        }
+
         resources {
           limits = {
             cpu    = "1000m"

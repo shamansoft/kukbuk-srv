@@ -10,6 +10,7 @@ import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.repository.YouTubeJob;
 import net.shamansoft.cookbook.service.CloudTasksService;
+import net.shamansoft.cookbook.service.youtube.YouTubeTransformer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/v1/recipes/youtube")
@@ -30,13 +30,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 @Slf4j
 public class YouTubeController {
-
-    private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
-            "(?:https?://)?(?:www\\.)?(?:youtube\\.com|m\\.youtube\\.com)/watch\\?.*v=[a-zA-Z0-9_-]{11}(?:[&#].*)*" +
-            "|(?:https?://)?youtu\\.be/[a-zA-Z0-9_-]{11}(?:[?#].*)?" +
-            "|(?:https?://)?(?:www\\.)?youtube\\.com/embed/[a-zA-Z0-9_-]{11}(?:[?#].*)?" +
-            "|(?:https?://)?(?:www\\.)?youtube\\.com/shorts/[a-zA-Z0-9_-]{11}(?:[?#].*)?"
-    );
 
     private final FirestoreYouTubeJobRepository jobRepository;
     private final CloudTasksService cloudTasksService;
@@ -64,7 +57,15 @@ public class YouTubeController {
 
         jobRepository.save(job).join();
 
-        cloudTasksService.enqueueYouTubeJob(jobId, userId, request.videoUrl());
+        try {
+            cloudTasksService.enqueueYouTubeJob(jobId, userId, request.videoUrl());
+        } catch (Exception e) {
+            log.error("Failed to enqueue Cloud Task for job {}, marking as FAILED: {}", jobId, e.getMessage());
+            jobRepository.updateStatus(userId, jobId, JobStatus.FAILED,
+                    "Failed to enqueue processing task: " + e.getMessage()).join();
+            return ResponseEntity.internalServerError()
+                    .body(new YouTubeRecipeResponse(jobId, "ENQUEUE_FAILED"));
+        }
 
         log.info("YouTube job created: {} for user: {}", jobId, userId);
 
@@ -104,6 +105,11 @@ public class YouTubeController {
         if (url == null || url.isBlank()) {
             return false;
         }
-        return YOUTUBE_URL_PATTERN.matcher(url).matches();
+        try {
+            YouTubeTransformer.extractVideoId(url);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }

@@ -25,7 +25,7 @@ public class FirestoreYouTubeJobRepository {
 
     private static final String USERS_COLLECTION = "users";
     private static final String JOBS_COLLECTION = "youtube_jobs";
-    private static final Executor executor = Executors.newCachedThreadPool();
+    private static final Executor executor = Executors.newVirtualThreadPerTaskExecutor();
     private final Firestore firestore;
 
     public CompletableFuture<YouTubeJob> save(YouTubeJob job) {

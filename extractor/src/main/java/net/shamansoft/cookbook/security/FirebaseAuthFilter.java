@@ -24,7 +24,7 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             "/hello",
             "/actuator",
             "/debug",  // Debug/test endpoints (only active in non-prod profiles)
-            "/internal"  // Internal endpoints (Cloud Tasks callbacks, validated by handler)
+            "/internal"  // Internal endpoints (Cloud Tasks callbacks, authenticated via OIDC token)
     );
     private final FirebaseAuth firebaseAuth;
 

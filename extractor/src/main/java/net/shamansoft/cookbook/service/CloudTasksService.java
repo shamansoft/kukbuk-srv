@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service;
 import com.google.cloud.tasks.v2.CloudTasksClient;
 import com.google.cloud.tasks.v2.HttpMethod;
 import com.google.cloud.tasks.v2.HttpRequest;
+import com.google.cloud.tasks.v2.OidcToken;
 import com.google.cloud.tasks.v2.QueueName;
 import com.google.cloud.tasks.v2.Task;
 import com.google.protobuf.ByteString;
@@ -25,6 +26,7 @@ public class CloudTasksService {
     private final String location;
     private final String queueName;
     private final String serviceUrl;
+    private final String serviceAccountEmail;
 
     public CloudTasksService(
             CloudTasksClient cloudTasksClient,
@@ -32,13 +34,15 @@ public class CloudTasksService {
             @Value("${cookbook.tasks.project-id}") String projectId,
             @Value("${cookbook.tasks.location}") String location,
             @Value("${cookbook.tasks.queue-name}") String queueName,
-            @Value("${cookbook.tasks.service-url}") String serviceUrl) {
+            @Value("${cookbook.tasks.service-url}") String serviceUrl,
+            @Value("${cookbook.tasks.service-account:}") String serviceAccountEmail) {
         this.cloudTasksClient = cloudTasksClient;
         this.objectMapper = objectMapper;
         this.projectId = projectId;
         this.location = location;
         this.queueName = queueName;
         this.serviceUrl = serviceUrl;
+        this.serviceAccountEmail = serviceAccountEmail;
     }
 
     public void enqueueYouTubeJob(String jobId, String userId, String videoUrl) {
@@ -54,15 +58,22 @@ public class CloudTasksService {
 
             String targetUrl = serviceUrl + "/internal/youtube-tasks/process";
 
-            HttpRequest httpRequest = HttpRequest.newBuilder()
+            HttpRequest.Builder httpRequestBuilder = HttpRequest.newBuilder()
                     .setUrl(targetUrl)
                     .setHttpMethod(HttpMethod.POST)
                     .putHeaders("Content-Type", "application/json")
-                    .setBody(ByteString.copyFromUtf8(jsonPayload))
-                    .build();
+                    .setBody(ByteString.copyFromUtf8(jsonPayload));
+
+            // Add OIDC token for authenticated Cloud Tasks callbacks
+            if (serviceAccountEmail != null && !serviceAccountEmail.isBlank()) {
+                httpRequestBuilder.setOidcToken(OidcToken.newBuilder()
+                        .setServiceAccountEmail(serviceAccountEmail)
+                        .setAudience(serviceUrl)
+                        .build());
+            }
 
             Task task = Task.newBuilder()
-                    .setHttpRequest(httpRequest)
+                    .setHttpRequest(httpRequestBuilder.build())
                     .build();
 
             QueueName parent = QueueName.of(projectId, location, queueName);

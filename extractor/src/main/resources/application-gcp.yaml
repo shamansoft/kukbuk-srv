@@ -34,6 +34,7 @@ cookbook:
     queue-name: "${COOKBOOK_TASKS_QUEUE_NAME:youtube-recipes}"
     project-id: "${COOKBOOK_TASKS_PROJECT_ID}"
     location: "${COOKBOOK_TASKS_LOCATION:us-west1}"
+    service-account: "${COOKBOOK_TASKS_SERVICE_ACCOUNT}"
 
   # Transcript API configuration
   transcript:

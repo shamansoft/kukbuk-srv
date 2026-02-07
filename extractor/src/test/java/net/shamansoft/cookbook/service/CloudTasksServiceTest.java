@@ -39,7 +39,7 @@ class CloudTasksServiceTest {
         objectMapper = JsonMapper.builder().build();
         service = new CloudTasksService(
                 cloudTasksClient, objectMapper,
-                PROJECT_ID, LOCATION, QUEUE_NAME, SERVICE_URL);
+                PROJECT_ID, LOCATION, QUEUE_NAME, SERVICE_URL, "");
     }
 
     @Test

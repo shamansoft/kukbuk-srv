@@ -23,7 +23,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -133,6 +135,32 @@ class YouTubeControllerTest {
                     controller.createYouTubeRecipe(new YouTubeRecipeRequest(VIDEO_URL), USER_ID);
 
             assertThat(result1.getBody().jobId()).isNotEqualTo(result2.getBody().jobId());
+        }
+
+        @Test
+        @DisplayName("Should handle enqueue failure and mark job as FAILED")
+        void shouldHandleEnqueueFailure() {
+            YouTubeRecipeRequest request = new YouTubeRecipeRequest(VIDEO_URL);
+
+            when(jobRepository.save(any(YouTubeJob.class)))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            when(jobRepository.updateStatus(any(), any(), any(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            doThrow(new RuntimeException("Cloud Tasks unavailable"))
+                    .when(cloudTasksService).enqueueYouTubeJob(any(), any(), any());
+
+            ResponseEntity<YouTubeRecipeResponse> result = controller.createYouTubeRecipe(request, USER_ID);
+
+            assertThat(result.getStatusCode().value()).isEqualTo(500);
+            assertThat(result.getBody()).isNotNull();
+            assertThat(result.getBody().status()).isEqualTo("ENQUEUE_FAILED");
+            assertThat(result.getBody().jobId()).isNotNull();
+
+            verify(jobRepository).updateStatus(
+                    eq(USER_ID),
+                    any(String.class),
+                    eq(JobStatus.FAILED),
+                    argThat(msg -> msg != null && msg.contains("Failed to enqueue")));
         }
     }
 

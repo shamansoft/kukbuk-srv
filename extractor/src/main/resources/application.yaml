@@ -280,6 +280,11 @@ cookbook:
     # Required: Yes (set via environment variable in production)
     service-url: ${COOKBOOK_TASKS_SERVICE_URL:http://localhost:8080}
 
+    # Service account email for OIDC token authentication on Cloud Tasks callbacks
+    # Used by: CloudTasksService.java
+    # Required: Yes in production (set via environment variable)
+    service-account: ${COOKBOOK_TASKS_SERVICE_ACCOUNT:}
+
   # ---------------------------------------------------------------------------
   # TRANSCRIPT API CONFIGURATION
   # ---------------------------------------------------------------------------

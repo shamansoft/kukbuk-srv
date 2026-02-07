@@ -6,6 +6,7 @@ import net.shamansoft.cookbook.exception.TranscriptException;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.service.DriveService;
+import net.shamansoft.cookbook.service.RecipePostProcessor;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Ingredient;
@@ -53,11 +54,14 @@ class YouTubeTaskHandlerTest {
     @Mock
     private RecipeValidationService validationService;
 
+    @Mock
+    private RecipePostProcessor postProcessor;
+
     private YouTubeTaskHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new YouTubeTaskHandler(youtubeTransformer, jobRepository, driveService, validationService);
+        handler = new YouTubeTaskHandler(youtubeTransformer, jobRepository, driveService, validationService, postProcessor);
     }
 
     private Recipe createTestRecipe(String title) {
@@ -101,6 +105,9 @@ class YouTubeTaskHandlerTest {
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
+            when(validationService.validate(recipe))
+                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
+            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(recipe);
             when(validationService.toYaml(recipe)).thenReturn("recipe: yaml content");
             when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake"))
                     .thenReturn(new DriveService.UploadResult("file-789", "https://drive.google.com/file/789"));
@@ -114,6 +121,8 @@ class YouTubeTaskHandlerTest {
 
             verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null);
             verify(youtubeTransformer).transform(isNull(), eq(VIDEO_URL));
+            verify(validationService).validate(recipe);
+            verify(postProcessor).process(recipe, VIDEO_URL);
             verify(validationService).toYaml(recipe);
             verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake");
             verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-789");
@@ -131,21 +140,31 @@ class YouTubeTaskHandlerTest {
                     List.of(new Instruction(1, "Mix", null, null, null)),
                     null, null, null
             );
+            // PostProcessor creates metadata with title "Untitled Recipe" when metadata is null
+            Recipe postProcessedRecipe = new Recipe(
+                    true, "1.0.0", "1.0.0",
+                    new RecipeMetadata("Untitled Recipe", VIDEO_URL, null, null, null, null, null, null, null, null, null, null, null),
+                    null, recipe.ingredients(), null, recipe.instructions(),
+                    null, null, null
+            );
             Transformer.Response transformerResponse = Transformer.Response.recipe(recipe);
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
-            when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
-            when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml", "YouTube Recipe"))
+            when(validationService.validate(recipe))
+                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
+            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(postProcessedRecipe);
+            when(validationService.toYaml(postProcessedRecipe)).thenReturn("recipe: yaml");
+            when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml", "Untitled Recipe"))
                     .thenReturn(new DriveService.UploadResult("file-1", "url"));
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-1"))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             handler.processYouTubeJob(TASK_NAME, request);
 
-            verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml", "YouTube Recipe");
+            verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml", "Untitled Recipe");
         }
     }
 
@@ -179,28 +198,25 @@ class YouTubeTaskHandlerTest {
     class ErrorHandling {
 
         @Test
-        @DisplayName("Should mark job failed when transformer throws exception")
-        void shouldMarkJobFailedOnTransformerError() {
+        @DisplayName("Should return 503 for transient errors without marking job as FAILED")
+        void shouldReturn503ForTransientErrors() {
             YouTubeTaskRequest request = new YouTubeTaskRequest(JOB_ID, USER_ID, VIDEO_URL);
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenThrow(new TranscriptException("All transcript providers failed"));
-            when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
-                    eq("All transcript providers failed")))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             ResponseEntity<Map<String, String>> result = handler.processYouTubeJob(TASK_NAME, request);
 
-            assertThat(result.getStatusCode().value()).isEqualTo(200);
-            verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.FAILED,
-                    "All transcript providers failed");
+            assertThat(result.getStatusCode().value()).isEqualTo(503);
+            assertThat(result.getBody()).containsEntry("status", "transient_error");
+            verify(jobRepository, never()).updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED), any());
         }
 
         @Test
-        @DisplayName("Should mark job failed when Drive upload throws exception")
-        void shouldMarkJobFailedOnDriveError() throws Exception {
+        @DisplayName("Should return 500 for unknown errors without marking job as FAILED")
+        void shouldReturn500ForUnknownErrors() throws Exception {
             YouTubeTaskRequest request = new YouTubeTaskRequest(JOB_ID, USER_ID, VIDEO_URL);
             Recipe recipe = createTestRecipe("Test Recipe");
             Transformer.Response transformerResponse = Transformer.Response.recipe(recipe);
@@ -209,39 +225,42 @@ class YouTubeTaskHandlerTest {
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
+            when(validationService.validate(recipe))
+                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
+            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(recipe);
             when(validationService.toYaml(recipe)).thenReturn("yaml");
             when(driveService.saveRecipeForUser(USER_ID, "yaml", "Test Recipe"))
                     .thenThrow(new ClientException("Drive API error"));
-            when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
-                    eq("Drive API error")))
-                    .thenReturn(CompletableFuture.completedFuture(null));
 
             ResponseEntity<Map<String, String>> result = handler.processYouTubeJob(TASK_NAME, request);
 
-            assertThat(result.getStatusCode().value()).isEqualTo(200);
-            verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.FAILED, "Drive API error");
+            assertThat(result.getStatusCode().value()).isEqualTo(500);
+            assertThat(result.getBody()).containsEntry("status", "error");
+            verify(jobRepository, never()).updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED), any());
         }
 
         @Test
-        @DisplayName("Should still return 200 even when status update to FAILED fails")
-        void shouldReturn200EvenWhenStatusUpdateFails() {
+        @DisplayName("Should mark job failed for permanent errors (invalid arguments)")
+        void shouldMarkJobFailedForPermanentErrors() {
             YouTubeTaskRequest request = new YouTubeTaskRequest(JOB_ID, USER_ID, VIDEO_URL);
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
-                    .thenThrow(new RuntimeException("Unexpected error"));
+                    .thenThrow(new IllegalArgumentException("Invalid video URL format"));
             when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
-                    eq("Unexpected error")))
-                    .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Firestore down")));
+                    eq("Invalid video URL format")))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
             ResponseEntity<Map<String, String>> result = handler.processYouTubeJob(TASK_NAME, request);
 
             assertThat(result.getStatusCode().value()).isEqualTo(200);
+            assertThat(result.getBody()).containsEntry("status", "failed");
+            verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.FAILED, "Invalid video URL format");
         }
 
         @Test
-        @DisplayName("Should truncate long error messages to 500 characters")
+        @DisplayName("Should truncate long error messages to 500 characters for permanent errors")
         void shouldTruncateLongErrorMessages() {
             YouTubeTaskRequest request = new YouTubeTaskRequest(JOB_ID, USER_ID, VIDEO_URL);
             String longMessage = "x".repeat(1000);
@@ -249,7 +268,7 @@ class YouTubeTaskHandlerTest {
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
             when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
-                    .thenThrow(new RuntimeException(longMessage));
+                    .thenThrow(new IllegalArgumentException(longMessage));
             when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
                     eq("x".repeat(500))))
                     .thenReturn(CompletableFuture.completedFuture(null));

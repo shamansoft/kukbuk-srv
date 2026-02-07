@@ -100,7 +100,7 @@ public class YouTubeTransformer implements Transformer {
      * @return the 11-character video ID
      * @throws IllegalArgumentException if the URL format is not recognized
      */
-    static String extractVideoId(String url) {
+    public static String extractVideoId(String url) {
         Objects.requireNonNull(url, "URL cannot be null");
 
         for (Pattern pattern : List.of(YOUTUBE_LONG_URL, YOUTUBE_SHORT_URL, YOUTUBE_EMBED_URL, YOUTUBE_SHORTS_URL)) {
