@@ -281,6 +281,30 @@ cookbook:
     service-url: ${COOKBOOK_TASKS_SERVICE_URL:http://localhost:8080}
 
   # ---------------------------------------------------------------------------
+  # TRANSCRIPT API CONFIGURATION
+  # ---------------------------------------------------------------------------
+  transcript:
+    youtube-transcript-io:
+      # Base URL for youtube-transcript.io API
+      # Used by: RestClientConfig.java (transcriptIoRestClient bean)
+      api-url: ${COOKBOOK_TRANSCRIPT_IO_API_URL:https://www.youtube-transcript.io}
+
+      # API key for youtube-transcript.io (Basic auth token)
+      # Used by: YouTubeTranscriptIoService.java
+      # Required: Yes (set via environment variable)
+      api-key: ${COOKBOOK_YOUTUBE_TRANSCRIPT_IO_API_KEY:REPLACE_WITH_API_KEY}
+
+    supadata:
+      # Base URL for supadata.ai API
+      # Used by: RestClientConfig.java (supadataRestClient bean)
+      api-url: ${COOKBOOK_SUPADATA_API_URL:https://api.supadata.ai}
+
+      # API key for supadata.ai
+      # Used by: SupadataTranscriptService.java
+      # Required: Yes (set via environment variable)
+      api-key: ${COOKBOOK_SUPADATA_API_KEY:REPLACE_WITH_API_KEY}
+
+  # ---------------------------------------------------------------------------
   # DEBUG CONFIGURATION
   # ---------------------------------------------------------------------------
   debug:

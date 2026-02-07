@@ -123,28 +123,28 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 3
 
 ### Task 3: Create transcript service abstraction layer
-- [ ] Create `TranscriptService` interface in `/service/youtube/`:
+- [x] Create `TranscriptService` interface in `/service/youtube/`:
   - `String getTranscript(String videoId)` - returns transcript text or throws exception
   - `String getProviderName()` - returns provider name for logging
-- [ ] Create `YouTubeTranscriptIoService.java` implementing `TranscriptService`:
+- [x] Create `YouTubeTranscriptIoService.java` implementing `TranscriptService`:
   - Uses `https://www.youtube-transcript.io/api` (check actual API docs)
   - Handles API errors with `TranscriptException`
   - Configure API key/endpoint in `application.yaml` under `cookbook.transcript.youtube-transcript-io.*`
-- [ ] Create `SupadataTranscriptService.java` implementing `TranscriptService`:
+- [x] Create `SupadataTranscriptService.java` implementing `TranscriptService`:
   - Uses `https://docs.supadata.ai/get-transcript` API
   - Handles API errors with `TranscriptException`
   - Configure API key/endpoint in `application.yaml` under `cookbook.transcript.supadata.*`
-- [ ] Create `TranscriptException` custom exception in `/exception/`
-- [ ] Create `TranscriptServiceRouter.java` in `/service/youtube/`:
+- [x] Create `TranscriptException` custom exception in `/exception/`
+- [x] Create `TranscriptServiceRouter.java` in `/service/youtube/`:
   - Injects `List<TranscriptService>` (all implementations)
   - `String getTranscript(String videoId)` - tries services in order (round-robin or failover)
   - Logs which provider was used
   - Throws `TranscriptException` if all providers fail
-- [ ] Add RestClient beans for transcript APIs in `RestClientConfig.java`
-- [ ] Write tests for YouTubeTranscriptIoService (mock HTTP responses)
-- [ ] Write tests for SupadataTranscriptService (mock HTTP responses)
-- [ ] Write tests for TranscriptServiceRouter (verify failover logic)
-- [ ] Run tests - must pass before task 4
+- [x] Add RestClient beans for transcript APIs in `RestClientConfig.java`
+- [x] Write tests for YouTubeTranscriptIoService (mock HTTP responses)
+- [x] Write tests for SupadataTranscriptService (mock HTTP responses)
+- [x] Write tests for TranscriptServiceRouter (verify failover logic)
+- [x] Run tests - must pass before task 4
 
 ### Task 4: Create YouTubeDataService for metadata extraction
 - [ ] Create `YouTubeMetadata` record in `/service/youtube/`:

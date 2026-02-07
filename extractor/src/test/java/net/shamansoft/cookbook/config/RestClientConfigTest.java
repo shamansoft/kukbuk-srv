@@ -19,6 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "cookbook.drive.auth-url=https://oauth2.googleapis.com",
         "cookbook.drive.base-url=https://www.googleapis.com/drive/v3",
         "cookbook.drive.upload-url=https://www.googleapis.com/upload/drive/v3",
+        "cookbook.transcript.youtube-transcript-io.api-url=https://www.youtube-transcript.io",
+        "cookbook.transcript.youtube-transcript-io.api-key=test-key",
+        "cookbook.transcript.supadata.api-url=https://api.supadata.ai",
+        "cookbook.transcript.supadata.api-key=test-key",
         "firestore.enabled=false"
 })
 class RestClientConfigTest {
