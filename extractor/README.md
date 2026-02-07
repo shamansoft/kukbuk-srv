@@ -83,6 +83,53 @@ Retrieves a single recipe by its Drive file ID.
 - Recipe data as JSON
 - Cache-Control: 1 hour
 
+### POST /v1/recipes/youtube
+
+Creates an async YouTube recipe extraction job. Submits the video for background processing via Google Cloud Tasks.
+
+**Request:**
+```json
+{
+  "videoUrl": "https://www.youtube.com/watch?v=..."
+}
+```
+
+**Headers:**
+- `X-S-AUTH-TOKEN`: Google OAuth access token (required)
+
+**Response:**
+```json
+{
+  "jobId": "uuid-string",
+  "status": "PENDING"
+}
+```
+
+**Supported URL formats:**
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+- `https://www.youtube.com/embed/VIDEO_ID`
+
+### GET /v1/recipes/youtube/{jobId}
+
+Queries the status of a YouTube recipe extraction job.
+
+**Response:**
+```json
+{
+  "jobId": "uuid-string",
+  "status": "COMPLETED",
+  "driveFileId": "drive-file-id",
+  "driveFileUrl": "https://drive.google.com/file/d/...",
+  "errorMessage": null
+}
+```
+
+**Status values:** `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
+
+Returns 404 if the job is not found or belongs to a different user.
+
 ## Building and Running
 
 ### Prerequisites
@@ -109,6 +156,20 @@ cookbook:
     oauth-id: "YOUR_GOOGLE_OAUTH_CLIENT_ID"
   drive:
     folder-name: "_save_a_recipe"
+  tasks:
+    project-id: "your-gcp-project-id"
+    location: "us-west1"
+    queue-name: "youtube-recipes"
+    service-url: "https://your-cloud-run-url"
+  transcript:
+    youtube-transcript-io:
+      api-url: "https://www.youtube-transcript.io/api"
+      api-key: "YOUR_TRANSCRIPT_IO_API_KEY"
+    supadata:
+      api-url: "https://api.supadata.ai/v1/transcript"
+      api-key: "YOUR_SUPADATA_API_KEY"
+  youtube:
+    api-key: "YOUR_YOUTUBE_API_KEY"
 
 # Recipe validation retry (default: 1)
   RECIPE_LLM_RETRY=1
@@ -258,6 +319,13 @@ For detailed CI/CD documentation, see:
 - **TokenRestService**: OAuth token validation
 - **CompressorHTMLBase64**: Content compression/decompression
 - **HtmlExtractor**: HTML cleanup and preparation
+- **YouTubeController**: YouTube recipe extraction endpoints (POST create job, GET status)
+- **YouTubeTaskHandler**: Internal Cloud Tasks callback handler for async processing
+- **YouTubeTransformer**: AI-powered YouTube video to Recipe conversion
+- **YouTubeDataService**: YouTube Data API v3 client for video metadata
+- **TranscriptServiceRouter**: Multi-provider transcript fetching with failover
+- **CloudTasksService**: Google Cloud Tasks job enqueuing
+- **FirestoreYouTubeJobRepository**: YouTube job persistence in Firestore
 
 For detailed Firestore schema, see `../terraform/firestore-schema.md`.
 

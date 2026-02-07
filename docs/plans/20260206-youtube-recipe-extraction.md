@@ -307,17 +307,17 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] No unit tests needed (configuration only)
 
 ### Task 13: [Final] Update documentation
-- [ ] Update `extractor/README.md`:
+- [x] Update `extractor/README.md`:
   - Add section on YouTube recipe extraction
   - Document new endpoint: POST /v1/recipes/youtube
   - Document job status endpoint: GET /v1/recipes/youtube/{jobId}
   - Document environment variables for transcript APIs
-- [ ] Update `CLAUDE.md`:
+- [x] Update `CLAUDE.md`:
   - Add YouTubeController to endpoints list
   - Add Cloud Tasks to infrastructure section
   - Add transcript services to external API patterns
-- [ ] Update root `README.md` if needed (feature highlights)
-- [ ] No tests needed (documentation only)
+- [x] Update root `README.md` if needed (feature highlights)
+- [x] No tests needed (documentation only)
 
 ## Technical Details
 

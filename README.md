@@ -6,7 +6,7 @@
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
 
 A recipe extraction and management system with a Java Spring Boot backend, featuring automated CI/CD pipelines, GraalVM
-native image compilation, and deployment to Google Cloud Run. Current version: **0.9.0-SNAPSHOT**
+native image compilation, and deployment to Google Cloud Run. Supports recipe extraction from both web pages and YouTube cooking videos. Current version: **0.9.0-SNAPSHOT**
 
 ## Technologies
 
@@ -17,7 +17,7 @@ native image compilation, and deployment to Google Cloud Run. Current version: *
 - **Docker** for containerization
 - **GitHub Actions** for CI/CD automation (Java 25 for builds)
 - **OpenTofu/Terraform** for infrastructure as code
-- **Google Cloud Platform** (Cloud Run, Firestore, Secret Manager, KMS)
+- **Google Cloud Platform** (Cloud Run, Cloud Tasks, Firestore, Secret Manager, KMS)
 
 ## CI/CD Workflow
 
