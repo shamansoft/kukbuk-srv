@@ -51,6 +51,8 @@ class RequestBuilderTest {
         // Mock resource loading
         when(resourcesLoader.loadTextFile(eq("classpath:prompt.md")))
                 .thenReturn("Date: %s\nHTML: %s");
+        when(resourcesLoader.loadTextFile(eq("classpath:youtube-prompt.md")))
+                .thenReturn("Title: %s\nDescription: %s\nTranscript: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:prompt_with_validation.md")))
                 .thenReturn("\nValidation Error: %s\nPrevious Recipe: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:recipe-schema-1.0.0.json")))
@@ -268,10 +270,12 @@ class RequestBuilderTest {
 
         // Then
         String prompt = (String) ReflectionTestUtils.getField(builder, "prompt");
+        String youtubePrompt = (String) ReflectionTestUtils.getField(builder, "youtubePrompt");
         String validationPrompt = (String) ReflectionTestUtils.getField(builder, "validationPrompt");
         Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
 
         assertThat(prompt).isNotNull();
+        assertThat(youtubePrompt).isNotNull();
         assertThat(validationPrompt).isNotNull();
         assertThat(parsedJsonSchema).isNotNull();
     }
@@ -296,5 +300,92 @@ class RequestBuilderTest {
         assertThat(schemaJson).doesNotContain("$id");
         assertThat(schemaJson).doesNotContain("$schema");
         assertThat(schemaJson).contains("\"type\"");
+    }
+
+    @Test
+    void buildYouTubeRecipeRequestCreatesValidRequest() throws JacksonException {
+        // Given
+        String title = "How to Make Perfect Pasta";
+        String description = "Ingredients: 400g pasta, 2 cups sauce";
+        String transcript = "Today we're making pasta. Boil water and add salt.";
+
+        // When
+        GeminiRequest request = requestBuilder.buildYouTubeRecipeRequest(title, description, transcript);
+
+        // Then
+        assertThat(request).isNotNull();
+        assertThat(request.getContents()).hasSize(1);
+        assertThat(request.getContents().get(0).getParts()).hasSize(1);
+
+        String promptText = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(promptText).contains("Title: " + title);
+        assertThat(promptText).contains("Description: " + description);
+        assertThat(promptText).contains("Transcript: " + transcript);
+
+        // Verify generation config matches standard settings
+        assertThat(request.getGenerationConfig()).isNotNull();
+        assertThat(request.getGenerationConfig().getTemperature()).isEqualTo(0.7f);
+        assertThat(request.getGenerationConfig().getTopP()).isEqualTo(0.9f);
+        assertThat(request.getGenerationConfig().getMaxOutputTokens()).isEqualTo(4096);
+        assertThat(request.getGenerationConfig().getResponseMimeType()).isEqualTo("application/json");
+        assertThat(request.getGenerationConfig().getResponseSchema()).isNotNull();
+
+        // Verify safety settings
+        assertThat(request.getSafetySettings()).hasSize(4);
+    }
+
+    @Test
+    void buildYouTubeRecipeRequestFormatsPromptWithYouTubeData() throws JacksonException {
+        // Given
+        String title = "Georgian Adjika Recipe";
+        String description = "Traditional adjika with hot peppers and garlic";
+        String transcript = "First, we take the peppers and remove the seeds";
+
+        // When
+        GeminiRequest request = requestBuilder.buildYouTubeRecipeRequest(title, description, transcript);
+
+        // Then
+        String promptText = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(promptText).isEqualTo(
+                "Title: Georgian Adjika Recipe\nDescription: Traditional adjika with hot peppers and garlic\nTranscript: First, we take the peppers and remove the seeds");
+    }
+
+    @Test
+    void buildYouTubeRecipeRequestThrowsWhenTitleIsNull() {
+        assertThatThrownBy(() -> requestBuilder.buildYouTubeRecipeRequest(null, "desc", "transcript"))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("title cannot be null");
+    }
+
+    @Test
+    void buildYouTubeRecipeRequestThrowsWhenDescriptionIsNull() {
+        assertThatThrownBy(() -> requestBuilder.buildYouTubeRecipeRequest("title", null, "transcript"))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("description cannot be null");
+    }
+
+    @Test
+    void buildYouTubeRecipeRequestThrowsWhenTranscriptIsNull() {
+        assertThatThrownBy(() -> requestBuilder.buildYouTubeRecipeRequest("title", "desc", null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("transcript cannot be null");
+    }
+
+    @Test
+    void postConstructLoadsYouTubePrompt() throws IOException {
+        // Given
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
+        ReflectionTestUtils.setField(builder, "temperature", 0.7f);
+        ReflectionTestUtils.setField(builder, "topP", 0.9f);
+        ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
+        ReflectionTestUtils.setField(builder, "safetyThreshold", "BLOCK_NONE");
+
+        // When
+        builder.init();
+
+        // Then
+        String youtubePrompt = (String) ReflectionTestUtils.getField(builder, "youtubePrompt");
+        assertThat(youtubePrompt).isNotNull();
+        assertThat(youtubePrompt).contains("%s");
     }
 }

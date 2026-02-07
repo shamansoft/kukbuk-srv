@@ -183,18 +183,18 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 6
 
 ### Task 6: Integrate YouTube prompt with RequestBuilder
-- [ ] Review existing `youtube-prompt.md` in `/extractor/src/main/resources/`:
+- [x] Review existing `youtube-prompt.md` in `/extractor/src/main/resources/`:
   - Already exists with proper YouTube context (title, description, transcript)
   - Uses format placeholders: `%s` for title, description, transcript
   - Handles YouTube-specific extraction rules (description ingredients, timestamps, etc.)
-- [ ] Update `RequestBuilder.java` to support loading youtube-prompt.md:
+- [x] Update `RequestBuilder.java` to support loading youtube-prompt.md:
   - Add method: `buildYouTubeRecipeRequest(String title, String description, String transcript, String language, String schema)`
   - Load `youtube-prompt.md` from classpath (similar to existing `prompt.md`)
   - Format prompt with `String.format()` using title, description, transcript parameters
   - Return `GeminiRequest` with formatted prompt
-- [ ] Write tests for buildYouTubeRecipeRequest() (verify prompt is loaded and formatted correctly)
-- [ ] Write tests for prompt formatting with sample YouTube data
-- [ ] Run tests - must pass before task 7
+- [x] Write tests for buildYouTubeRecipeRequest() (verify prompt is loaded and formatted correctly)
+- [x] Write tests for prompt formatting with sample YouTube data
+- [x] Run tests - must pass before task 7
 
 ### Task 7: Create Cloud Tasks handler endpoint (internal)
 - [ ] Create `YouTubeTaskHandler.java` in `/controller/internal/`:

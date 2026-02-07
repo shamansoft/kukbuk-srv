@@ -2,22 +2,15 @@ package net.shamansoft.cookbook.service.youtube;
 
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
-import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.gemini.GeminiClient;
 import net.shamansoft.cookbook.service.gemini.GeminiRequest;
 import net.shamansoft.cookbook.service.gemini.GeminiResponse;
+import net.shamansoft.cookbook.service.gemini.RequestBuilder;
 import net.shamansoft.recipe.model.Recipe;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
-import jakarta.annotation.PostConstruct;
-
-import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -39,45 +32,17 @@ public class YouTubeTransformer implements Transformer {
     private final YouTubeDataService youTubeDataService;
     private final TranscriptServiceRouter transcriptServiceRouter;
     private final GeminiClient geminiClient;
-    private final ResourcesLoader resourcesLoader;
-    private final ObjectMapper objectMapper;
-
-    @Value("${cookbook.gemini.temperature}")
-    private float temperature;
-    @Value("${cookbook.gemini.top-p}")
-    private float topP;
-    @Value("${cookbook.gemini.max-output-tokens}")
-    private int maxOutputTokens;
-    @Value("${cookbook.gemini.safety-threshold}")
-    private String safetyThreshold;
-
-    private String youtubePrompt;
-    private Object parsedJsonSchema;
+    private final RequestBuilder requestBuilder;
 
     public YouTubeTransformer(
             YouTubeDataService youTubeDataService,
             TranscriptServiceRouter transcriptServiceRouter,
             GeminiClient geminiClient,
-            ResourcesLoader resourcesLoader,
-            ObjectMapper objectMapper) {
+            RequestBuilder requestBuilder) {
         this.youTubeDataService = youTubeDataService;
         this.transcriptServiceRouter = transcriptServiceRouter;
         this.geminiClient = geminiClient;
-        this.resourcesLoader = resourcesLoader;
-        this.objectMapper = objectMapper;
-    }
-
-    @PostConstruct
-    void init() throws IOException {
-        this.youtubePrompt = resourcesLoader.loadTextFile("classpath:youtube-prompt.md");
-        String jsonSchemaString = resourcesLoader.loadTextFile("classpath:recipe-schema-1.0.0.json");
-        JsonNode schemaNode = objectMapper.readTree(jsonSchemaString);
-        if (schemaNode instanceof ObjectNode objectNode) {
-            objectNode.remove("$id");
-            objectNode.remove("$schema");
-            jsonSchemaString = objectMapper.writeValueAsString(objectNode);
-        }
-        this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
+        this.requestBuilder = requestBuilder;
     }
 
     /**
@@ -102,14 +67,9 @@ public class YouTubeTransformer implements Transformer {
         String transcript = transcriptServiceRouter.getTranscript(videoId);
         log.debug("Fetched transcript - length: {} chars", transcript.length());
 
-        String formattedPrompt = youtubePrompt.formatted(
-                metadata.title(),
-                metadata.description(),
-                transcript
-        );
-
         try {
-            GeminiRequest request = buildRequest(formattedPrompt);
+            GeminiRequest request = requestBuilder.buildYouTubeRecipeRequest(
+                    metadata.title(), metadata.description(), transcript);
             GeminiResponse<Recipe> geminiResponse = geminiClient.request(request, Recipe.class);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
@@ -153,31 +113,4 @@ public class YouTubeTransformer implements Transformer {
         throw new IllegalArgumentException("Invalid YouTube URL: " + url);
     }
 
-    private GeminiRequest buildRequest(String fullPrompt) throws JacksonException {
-        return GeminiRequest.builder()
-                .contents(List.of(
-                        GeminiRequest.Content.builder()
-                                .parts(List.of(
-                                        GeminiRequest.Part.builder()
-                                                .text(fullPrompt)
-                                                .build()))
-                                .build()))
-                .generationConfig(GeminiRequest.GenerationConfig.builder()
-                        .temperature(temperature)
-                        .topP(topP)
-                        .maxOutputTokens(maxOutputTokens)
-                        .responseMimeType("application/json")
-                        .responseSchema(parsedJsonSchema)
-                        .build())
-                .safetySettings(List.of(
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT")
-                                .threshold(safetyThreshold).build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HATE_SPEECH")
-                                .threshold(safetyThreshold).build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_SEXUALLY_EXPLICIT")
-                                .threshold(safetyThreshold).build(),
-                        GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_DANGEROUS_CONTENT")
-                                .threshold(safetyThreshold).build()))
-                .build();
-    }
 }

@@ -3,11 +3,11 @@ package net.shamansoft.cookbook.service.youtube;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.exception.TranscriptException;
 import net.shamansoft.cookbook.exception.YouTubeApiException;
-import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.gemini.GeminiClient;
 import net.shamansoft.cookbook.service.gemini.GeminiRequest;
 import net.shamansoft.cookbook.service.gemini.GeminiResponse;
+import net.shamansoft.cookbook.service.gemini.RequestBuilder;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -20,10 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
@@ -48,30 +45,18 @@ class YouTubeTransformerTest {
     private GeminiClient geminiClient;
 
     @Mock
-    private ResourcesLoader resourcesLoader;
-
-    private final ObjectMapper objectMapper = JsonMapper.builder().build();
+    private RequestBuilder requestBuilder;
 
     private YouTubeTransformer transformer;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() {
         transformer = new YouTubeTransformer(
                 youTubeDataService,
                 transcriptServiceRouter,
                 geminiClient,
-                resourcesLoader,
-                objectMapper
+                requestBuilder
         );
-
-        // Mock resource loading
-        when(resourcesLoader.loadTextFile("classpath:youtube-prompt.md"))
-                .thenReturn("Title: %s\nDescription: %s\nTranscript: %s");
-        when(resourcesLoader.loadTextFile("classpath:recipe-schema-1.0.0.json"))
-                .thenReturn("{\"type\": \"object\", \"properties\": {}}");
-
-        // Initialize the component (simulates @PostConstruct)
-        transformer.init();
     }
 
     private Recipe createTestRecipe(String title, boolean isRecipe) {
@@ -193,10 +178,13 @@ class YouTubeTransformerTest {
             YouTubeMetadata metadata = new YouTubeMetadata(
                     "Test Recipe Video", "Ingredients: sugar, flour", "Test Channel", Instant.now());
             Recipe expectedRecipe = createTestRecipe("Test Recipe Video", true);
+            GeminiRequest mockRequest = GeminiRequest.builder().build();
 
             when(youTubeDataService.getMetadata("dQw4w9WgXcQ")).thenReturn(metadata);
             when(transcriptServiceRouter.getTranscript("dQw4w9WgXcQ")).thenReturn("Mix the sugar and flour");
-            when(geminiClient.request(any(GeminiRequest.class), eq(Recipe.class)))
+            when(requestBuilder.buildYouTubeRecipeRequest("Test Recipe Video", "Ingredients: sugar, flour", "Mix the sugar and flour"))
+                    .thenReturn(mockRequest);
+            when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
                     .thenReturn(GeminiResponse.success(expectedRecipe, "{\"is_recipe\": true}"));
 
             Transformer.Response response = transformer.transform(null, videoUrl);
@@ -208,7 +196,8 @@ class YouTubeTransformerTest {
 
             verify(youTubeDataService).getMetadata("dQw4w9WgXcQ");
             verify(transcriptServiceRouter).getTranscript("dQw4w9WgXcQ");
-            verify(geminiClient).request(any(GeminiRequest.class), eq(Recipe.class));
+            verify(requestBuilder).buildYouTubeRecipeRequest("Test Recipe Video", "Ingredients: sugar, flour", "Mix the sugar and flour");
+            verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
         }
 
         @Test
@@ -217,10 +206,13 @@ class YouTubeTransformerTest {
             YouTubeMetadata metadata = new YouTubeMetadata(
                     "My Cat Video", "Watch my cat do stuff", "Cat Channel", Instant.now());
             Recipe nonRecipe = createTestRecipe("My Cat Video", false);
+            GeminiRequest mockRequest = GeminiRequest.builder().build();
 
             when(youTubeDataService.getMetadata("dQw4w9WgXcQ")).thenReturn(metadata);
             when(transcriptServiceRouter.getTranscript("dQw4w9WgXcQ")).thenReturn("Look at my cat");
-            when(geminiClient.request(any(GeminiRequest.class), eq(Recipe.class)))
+            when(requestBuilder.buildYouTubeRecipeRequest("My Cat Video", "Watch my cat do stuff", "Look at my cat"))
+                    .thenReturn(mockRequest);
+            when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
                     .thenReturn(GeminiResponse.success(nonRecipe, "{\"is_recipe\": false}"));
 
             Transformer.Response response = transformer.transform(null, videoUrl);
@@ -283,10 +275,13 @@ class YouTubeTransformerTest {
             String videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
             YouTubeMetadata metadata = new YouTubeMetadata(
                     "Test Video", "Description", "Channel", Instant.now());
+            GeminiRequest mockRequest = GeminiRequest.builder().build();
 
             when(youTubeDataService.getMetadata("dQw4w9WgXcQ")).thenReturn(metadata);
             when(transcriptServiceRouter.getTranscript("dQw4w9WgXcQ")).thenReturn("transcript text");
-            when(geminiClient.request(any(GeminiRequest.class), eq(Recipe.class)))
+            when(requestBuilder.buildYouTubeRecipeRequest("Test Video", "Description", "transcript text"))
+                    .thenReturn(mockRequest);
+            when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
                     .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Content blocked"));
 
             assertThatThrownBy(() -> transformer.transform(null, videoUrl))
@@ -299,10 +294,13 @@ class YouTubeTransformerTest {
             String videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
             YouTubeMetadata metadata = new YouTubeMetadata(
                     "Test Video", "Description", "Channel", Instant.now());
+            GeminiRequest mockRequest = GeminiRequest.builder().build();
 
             when(youTubeDataService.getMetadata("dQw4w9WgXcQ")).thenReturn(metadata);
             when(transcriptServiceRouter.getTranscript("dQw4w9WgXcQ")).thenReturn("transcript text");
-            when(geminiClient.request(any(GeminiRequest.class), eq(Recipe.class)))
+            when(requestBuilder.buildYouTubeRecipeRequest("Test Video", "Description", "transcript text"))
+                    .thenReturn(mockRequest);
+            when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
                     .thenReturn(GeminiResponse.failure(GeminiResponse.Code.OTHER, "Network error"));
 
             assertThatThrownBy(() -> transformer.transform(null, videoUrl))
@@ -311,21 +309,24 @@ class YouTubeTransformerTest {
         }
 
         @Test
-        void passesFormattedPromptToGemini() {
+        void delegatesToRequestBuilderForPromptFormatting() {
             String videoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
             YouTubeMetadata metadata = new YouTubeMetadata(
                     "My Recipe", "Flour and eggs", "Cook Channel", Instant.now());
             Recipe recipe = createTestRecipe("My Recipe", true);
+            GeminiRequest mockRequest = GeminiRequest.builder().build();
 
             when(youTubeDataService.getMetadata("dQw4w9WgXcQ")).thenReturn(metadata);
             when(transcriptServiceRouter.getTranscript("dQw4w9WgXcQ")).thenReturn("Mix everything");
-            when(geminiClient.request(any(GeminiRequest.class), eq(Recipe.class)))
+            when(requestBuilder.buildYouTubeRecipeRequest("My Recipe", "Flour and eggs", "Mix everything"))
+                    .thenReturn(mockRequest);
+            when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
                     .thenReturn(GeminiResponse.success(recipe, "{}"));
 
             transformer.transform(null, videoUrl);
 
-            // Verify geminiClient was called, and the request contains the formatted prompt
-            verify(geminiClient).request(any(GeminiRequest.class), eq(Recipe.class));
+            verify(requestBuilder).buildYouTubeRecipeRequest("My Recipe", "Flour and eggs", "Mix everything");
+            verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
         }
     }
 }

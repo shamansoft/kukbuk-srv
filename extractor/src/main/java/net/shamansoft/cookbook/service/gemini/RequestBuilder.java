@@ -27,6 +27,7 @@ public class RequestBuilder {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private String prompt;
+    private String youtubePrompt;
     private String validationPrompt;
     private Object parsedJsonSchema;
     @Value("${cookbook.gemini.temperature}")
@@ -42,6 +43,7 @@ public class RequestBuilder {
     @SneakyThrows
     public void init() {
         this.prompt = resourceLoader.loadTextFile("classpath:prompt.md");
+        this.youtubePrompt = resourceLoader.loadTextFile("classpath:youtube-prompt.md");
         this.validationPrompt = resourceLoader.loadTextFile("classpath:prompt_with_validation.md");
         String jsonSchemaString = loadSchema();
         this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
@@ -71,6 +73,10 @@ public class RequestBuilder {
         return prompt.formatted(withDate(), html);
     }
 
+    private String withYouTubeData(String title, String description, String transcript) {
+        return youtubePrompt.formatted(title, description, transcript);
+    }
+
     private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError)
             throws JacksonException {
         String basePrompt = withHtml(html);
@@ -90,6 +96,15 @@ public class RequestBuilder {
         Objects.requireNonNull(feedback, "feedback cannot be null");
         Objects.requireNonNull(validationError, "validationError cannot be null");
         String fullPrompt = withHtmlAndFeedback(htmlContent, feedback, validationError);
+        return buildRequestBodyWithSchema(fullPrompt);
+    }
+
+    public GeminiRequest buildYouTubeRecipeRequest(String title, String description, String transcript)
+            throws JacksonException {
+        Objects.requireNonNull(title, "title cannot be null");
+        Objects.requireNonNull(description, "description cannot be null");
+        Objects.requireNonNull(transcript, "transcript cannot be null");
+        String fullPrompt = withYouTubeData(title, description, transcript);
         return buildRequestBodyWithSchema(fullPrompt);
     }
 
