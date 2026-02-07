@@ -197,7 +197,7 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 7
 
 ### Task 7: Create Cloud Tasks handler endpoint (internal)
-- [ ] Create `YouTubeTaskHandler.java` in `/controller/internal/`:
+- [x] Create `YouTubeTaskHandler.java` in `/controller/internal/`:
   - `@RestController` with `@RequestMapping("/internal/youtube-tasks")`
   - POST `/internal/youtube-tasks/process` - processes YouTube job
   - Requires `X-CloudTasks-TaskName` header (validates request is from Cloud Tasks)
@@ -211,13 +211,13 @@ Add support for extracting recipes from YouTube cooking videos using async backg
     6. Update job status to COMPLETED
     7. On error: update job status to FAILED with error message
   - Returns 200 OK when done (Cloud Tasks expects success response)
-- [ ] Create `YouTubeTaskRequest` record in `/dto/`
-- [ ] Add security validation: only accept requests with Cloud Tasks headers
-- [ ] Write tests for task handler success path (mock all services)
-- [ ] Write tests for task handler when not a recipe
-- [ ] Write tests for task handler error cases (transformer failure, Drive upload failure)
-- [ ] Write tests for security validation (reject requests without Cloud Tasks header)
-- [ ] Run tests - must pass before task 8
+- [x] Create `YouTubeTaskRequest` record in `/dto/`
+- [x] Add security validation: only accept requests with Cloud Tasks headers
+- [x] Write tests for task handler success path (mock all services)
+- [x] Write tests for task handler when not a recipe
+- [x] Write tests for task handler error cases (transformer failure, Drive upload failure)
+- [x] Write tests for security validation (reject requests without Cloud Tasks header)
+- [x] Run tests - must pass before task 8
 
 ### Task 8: Create YouTubeController public endpoint
 - [ ] Create `YouTubeController.java` in `/controller/`:

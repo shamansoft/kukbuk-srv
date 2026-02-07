@@ -23,7 +23,8 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             "/",
             "/hello",
             "/actuator",
-            "/debug"  // Debug/test endpoints (only active in non-prod profiles)
+            "/debug",  // Debug/test endpoints (only active in non-prod profiles)
+            "/internal"  // Internal endpoints (Cloud Tasks callbacks, validated by handler)
     );
     private final FirebaseAuth firebaseAuth;
 

@@ -130,6 +130,19 @@ class FirebaseAuthFilterTest {
     }
 
     @Test
+    void testPublicPath_InternalPath_AllowsAccess() throws ServletException, IOException, FirebaseAuthException {
+        // Given: request to internal endpoint (Cloud Tasks callbacks)
+        when(request.getRequestURI()).thenReturn("/internal/youtube-tasks/process");
+
+        // When: filter processes request
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: request passes through without auth check
+        verify(filterChain).doFilter(request, response);
+        verify(firebaseAuth, never()).verifyIdToken(anyString());
+    }
+
+    @Test
     void testProtectedPath_NoAuthHeader_Returns401() throws ServletException, IOException {
         // Given: protected path without auth header
         setupResponseWriter();
