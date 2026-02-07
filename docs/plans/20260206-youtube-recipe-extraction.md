@@ -268,22 +268,23 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Fix any failures before task 11
 
 ### Task 11: Configure Terraform for Cloud Tasks infrastructure
-- [ ] Add Cloud Tasks API to `terraform/apis.tf`:
+- [x] Add Cloud Tasks API to `terraform/apis.tf`:
   - Add `google_project_service` resource for `cloudtasks.googleapis.com`
   - Add dependency on `serviceusage_api`
   - Add to `enabled_apis` output
-- [ ] Add IAM role to `terraform/iam.tf`:
+- [x] Add IAM role to `terraform/iam.tf`:
   - Add `google_project_iam_member` resource for `roles/cloudtasks.enqueuer`
   - Grant to `cookbook_cloudrun_service_account`
-- [ ] Create `terraform/cloudtasks.tf`:
+- [x] Create `terraform/cloudtasks.tf`:
   - Create `google_cloud_tasks_queue` resource named `youtube-recipes`
   - Location: `var.region` (us-west1)
   - Configure retry settings: max_attempts=3, max_backoff=300s
   - Configure rate limits: max_concurrent_dispatches=10, max_dispatches_per_second=5
   - Add depends_on for Cloud Tasks API and service account
   - Add output: `cloud_tasks_queue_name`
-- [ ] Write tests for Terraform (validate configuration): `cd terraform && terraform validate`
-- [ ] No unit tests needed (infrastructure code)
+- [x] Write tests for Terraform (validate configuration): `cd terraform && terraform validate`
+  - Note: terraform/tofu CLI not installed locally; validated syntax manually against existing patterns
+- [x] No unit tests needed (infrastructure code)
 
 ### Task 12: Update Cloud Run Terraform and application config
 - [ ] Add Secret Manager secrets to `terraform/cloudrun.tf`:

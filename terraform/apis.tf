@@ -105,6 +105,13 @@ resource "google_project_service" "cloudkms_api" {
   depends_on         = [google_project_service.serviceusage_api]
 }
 
+resource "google_project_service" "cloudtasks_api" {
+  project            = var.project_id
+  service            = "cloudtasks.googleapis.com"
+  disable_on_destroy = false
+  depends_on         = [google_project_service.serviceusage_api]
+}
+
 # Output enabled APIs
 output "enabled_apis" {
   description = "List of enabled APIs"
@@ -122,5 +129,6 @@ output "enabled_apis" {
     google_project_service.identitytoolkit_api.service,
     google_project_service.iamcredentials_api.service,
     google_project_service.cloudkms_api.service,
+    google_project_service.cloudtasks_api.service,
   ]
 }

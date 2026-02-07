@@ -60,6 +60,15 @@ resource "google_project_iam_member" "cookbook_service_usage_consumer" {
   depends_on = [google_service_account.cookbook_cloudrun_service_account]
 }
 
+# Grant Cloud Tasks Enqueuer role (for creating YouTube recipe tasks)
+resource "google_project_iam_member" "cookbook_cloudtasks_enqueuer" {
+  project = var.project_id
+  role    = "roles/cloudtasks.enqueuer"
+  member  = "serviceAccount:${google_service_account.cookbook_cloudrun_service_account.email}"
+
+  depends_on = [google_service_account.cookbook_cloudrun_service_account]
+}
+
 # # Grant Monitoring Metric Writer role (for Stackdriver metrics)
 # resource "google_project_iam_member" "cloudrun_metric_writer" {
 #   project = var.project_id
