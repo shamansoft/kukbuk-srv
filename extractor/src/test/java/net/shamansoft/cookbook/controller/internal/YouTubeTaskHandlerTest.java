@@ -6,9 +6,9 @@ import net.shamansoft.cookbook.exception.TranscriptException;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.service.DriveService;
-import net.shamansoft.cookbook.service.RecipePostProcessor;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.ValidatingTransformerService;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -43,7 +43,7 @@ class YouTubeTaskHandlerTest {
     private static final String TASK_NAME = "youtube-job-job-123";
 
     @Mock
-    private Transformer youtubeTransformer;
+    private ValidatingTransformerService validatingTransformer;
 
     @Mock
     private FirestoreYouTubeJobRepository jobRepository;
@@ -54,14 +54,11 @@ class YouTubeTaskHandlerTest {
     @Mock
     private RecipeValidationService validationService;
 
-    @Mock
-    private RecipePostProcessor postProcessor;
-
     private YouTubeTaskHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new YouTubeTaskHandler(youtubeTransformer, jobRepository, driveService, validationService, postProcessor);
+        handler = new YouTubeTaskHandler(validatingTransformer, jobRepository, driveService, validationService);
     }
 
     private Recipe createTestRecipe(String title) {
@@ -103,11 +100,8 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
-            when(validationService.validate(recipe))
-                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
-            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(recipe);
             when(validationService.toYaml(recipe)).thenReturn("recipe: yaml content");
             when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake"))
                     .thenReturn(new DriveService.UploadResult("file-789", "https://drive.google.com/file/789"));
@@ -120,9 +114,7 @@ class YouTubeTaskHandlerTest {
             assertThat(result.getBody()).containsEntry("status", "processed");
 
             verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null);
-            verify(youtubeTransformer).transform(isNull(), eq(VIDEO_URL));
-            verify(validationService).validate(recipe);
-            verify(postProcessor).process(recipe, VIDEO_URL);
+            verify(validatingTransformer).transform(isNull(), eq(VIDEO_URL));
             verify(validationService).toYaml(recipe);
             verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake");
             verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-789");
@@ -132,39 +124,31 @@ class YouTubeTaskHandlerTest {
         @DisplayName("Should use default title when metadata title is null")
         void shouldUseDefaultTitleWhenMetadataTitleIsNull() throws Exception {
             YouTubeTaskRequest request = new YouTubeTaskRequest(JOB_ID, USER_ID, VIDEO_URL);
-            Recipe recipe = new Recipe(
+            // ValidatingTransformerService already handles post-processing, so return the post-processed recipe
+            Recipe postProcessedRecipe = new Recipe(
                     true, "1.0.0", "1.0.0",
-                    null, null,
+                    new RecipeMetadata("YouTube Recipe", VIDEO_URL, null, null, null, null, null, null, null, null, null, null, null),
+                    null,
                     List.of(new Ingredient("Sugar", "1", "cup", null, null, null, null)),
                     null,
                     List.of(new Instruction(1, "Mix", null, null, null)),
                     null, null, null
             );
-            // PostProcessor creates metadata with title "Untitled Recipe" when metadata is null
-            Recipe postProcessedRecipe = new Recipe(
-                    true, "1.0.0", "1.0.0",
-                    new RecipeMetadata("Untitled Recipe", VIDEO_URL, null, null, null, null, null, null, null, null, null, null, null),
-                    null, recipe.ingredients(), null, recipe.instructions(),
-                    null, null, null
-            );
-            Transformer.Response transformerResponse = Transformer.Response.recipe(recipe);
+            Transformer.Response transformerResponse = Transformer.Response.recipe(postProcessedRecipe);
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
-            when(validationService.validate(recipe))
-                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
-            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(postProcessedRecipe);
             when(validationService.toYaml(postProcessedRecipe)).thenReturn("recipe: yaml");
-            when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml", "Untitled Recipe"))
+            when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml", "YouTube Recipe"))
                     .thenReturn(new DriveService.UploadResult("file-1", "url"));
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-1"))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             handler.processYouTubeJob(TASK_NAME, request);
 
-            verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml", "Untitled Recipe");
+            verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml", "YouTube Recipe");
         }
     }
 
@@ -180,7 +164,7 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(notRecipeResponse);
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
@@ -204,7 +188,7 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenThrow(new TranscriptException("All transcript providers failed"));
 
             ResponseEntity<Map<String, String>> result = handler.processYouTubeJob(TASK_NAME, request);
@@ -223,11 +207,8 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenReturn(transformerResponse);
-            when(validationService.validate(recipe))
-                    .thenReturn(RecipeValidationService.ValidationResult.success(recipe));
-            when(postProcessor.process(recipe, VIDEO_URL)).thenReturn(recipe);
             when(validationService.toYaml(recipe)).thenReturn("yaml");
             when(driveService.saveRecipeForUser(USER_ID, "yaml", "Test Recipe"))
                     .thenThrow(new ClientException("Drive API error"));
@@ -246,7 +227,7 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenThrow(new IllegalArgumentException("Invalid video URL format"));
             when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
                     eq("Invalid video URL format")))
@@ -267,7 +248,7 @@ class YouTubeTaskHandlerTest {
 
             when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.PROCESSING, null))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            when(youtubeTransformer.transform(isNull(), eq(VIDEO_URL)))
+            when(validatingTransformer.transform(isNull(), eq(VIDEO_URL)))
                     .thenThrow(new IllegalArgumentException(longMessage));
             when(jobRepository.updateStatus(eq(USER_ID), eq(JOB_ID), eq(JobStatus.FAILED),
                     eq("x".repeat(500))))

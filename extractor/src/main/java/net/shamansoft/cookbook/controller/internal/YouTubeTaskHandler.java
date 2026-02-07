@@ -8,11 +8,10 @@ import net.shamansoft.cookbook.exception.YouTubeApiException;
 import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.service.DriveService;
-import net.shamansoft.cookbook.service.RecipePostProcessor;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.ValidatingTransformerService;
 import net.shamansoft.recipe.model.Recipe;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,23 +31,20 @@ public class YouTubeTaskHandler {
 
     static final String CLOUD_TASKS_HEADER = "X-CloudTasks-TaskName";
 
-    private final Transformer youtubeTransformer;
+    private final ValidatingTransformerService validatingTransformer;
     private final FirestoreYouTubeJobRepository jobRepository;
     private final DriveService driveService;
     private final RecipeValidationService validationService;
-    private final RecipePostProcessor postProcessor;
 
     public YouTubeTaskHandler(
-            @Qualifier("youtubeTransformer") Transformer youtubeTransformer,
+            ValidatingTransformerService validatingTransformer,
             FirestoreYouTubeJobRepository jobRepository,
             DriveService driveService,
-            RecipeValidationService validationService,
-            RecipePostProcessor postProcessor) {
-        this.youtubeTransformer = youtubeTransformer;
+            RecipeValidationService validationService) {
+        this.validatingTransformer = validatingTransformer;
         this.jobRepository = jobRepository;
         this.driveService = driveService;
         this.validationService = validationService;
-        this.postProcessor = postProcessor;
     }
 
     @PostMapping("/process")
@@ -63,26 +59,16 @@ public class YouTubeTaskHandler {
             jobRepository.updateStatus(request.userId(), request.jobId(),
                     JobStatus.PROCESSING, null).join();
 
-            Transformer.Response response = youtubeTransformer.transform(null, request.videoUrl());
+            // Use ValidatingTransformerService which handles validation + retry with feedback
+            Transformer.Response response = validatingTransformer.transform(null, request.videoUrl());
 
             if (response.isRecipe()) {
-                // Validate the recipe
-                RecipeValidationService.ValidationResult validationResult =
-                        validationService.validate(response.recipe());
-                if (!validationResult.isValid()) {
-                    log.warn("YouTube recipe failed validation for job {}: {}",
-                            request.jobId(), validationResult.getErrorMessage());
-                }
+                // Recipe is already validated and post-processed by ValidatingTransformerService
+                Recipe recipe = response.recipe();
 
-                // Post-process to populate deterministic fields (schemaVersion, dateCreated, source URL)
-                Recipe recipe = validationResult.isValid()
-                        ? validationResult.getRecipe()
-                        : response.recipe();
-                Recipe postProcessed = postProcessor.process(recipe, request.videoUrl());
-
-                String yamlContent = validationService.toYaml(postProcessed);
-                String title = postProcessed.metadata() != null
-                        ? postProcessed.metadata().title()
+                String yamlContent = validationService.toYaml(recipe);
+                String title = recipe.metadata() != null
+                        ? recipe.metadata().title()
                         : "YouTube Recipe";
 
                 DriveService.UploadResult uploadResult =
@@ -121,15 +107,17 @@ public class YouTubeTaskHandler {
     }
 
     private void updateJobToFailed(YouTubeTaskRequest request, String errorMessage) {
+        String errorMsg = errorMessage != null
+                ? errorMessage.substring(0, Math.min(500, errorMessage.length()))
+                : "Unknown error";
         try {
-            String errorMsg = errorMessage != null
-                    ? errorMessage.substring(0, Math.min(500, errorMessage.length()))
-                    : "Unknown error";
             jobRepository.updateStatus(request.userId(), request.jobId(),
                     JobStatus.FAILED, errorMsg).join();
         } catch (Exception statusUpdateError) {
-            log.error("Failed to update job {} status to FAILED: {}",
+            log.error("CRITICAL: Failed to update job {} status to FAILED. Job may be orphaned in PROCESSING state: {}",
                     request.jobId(), statusUpdateError.getMessage(), statusUpdateError);
+            // Re-throw to return 5xx, allowing Cloud Tasks to retry the entire operation
+            throw new RuntimeException("Failed to update job status to FAILED", statusUpdateError);
         }
     }
 }
