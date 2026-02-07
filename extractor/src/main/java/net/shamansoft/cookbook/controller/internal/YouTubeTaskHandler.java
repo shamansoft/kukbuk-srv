@@ -9,6 +9,7 @@ import net.shamansoft.cookbook.service.DriveService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/internal/youtube-tasks")
+@ConditionalOnProperty(name = "cookbook.tasks.enabled", havingValue = "true", matchIfMissing = false)
 @Slf4j
 public class YouTubeTaskHandler {
 
@@ -65,7 +67,7 @@ public class YouTubeTaskHandler {
                         driveService.saveRecipeForUser(request.userId(), yamlContent, title);
 
                 jobRepository.updateStatus(request.userId(), request.jobId(),
-                        JobStatus.COMPLETED, null).join();
+                        JobStatus.COMPLETED, null, uploadResult.fileId()).join();
 
                 log.info("YouTube job {} completed - recipe saved to Drive: {}",
                         request.jobId(), uploadResult.fileId());

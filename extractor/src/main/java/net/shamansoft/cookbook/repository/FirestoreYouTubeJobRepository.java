@@ -69,12 +69,17 @@ public class FirestoreYouTubeJobRepository {
                 return YouTubeJob.fromMap(data);
             } catch (Exception e) {
                 log.error("Error retrieving YouTube job {}: {}", jobId, e.getMessage(), e);
-                return Optional.empty();
+                throw new CompletionException("Failed to retrieve YouTube job", e);
             }
         }, executor);
     }
 
     public CompletableFuture<Void> updateStatus(String userId, String jobId, JobStatus status, String errorMessage) {
+        return updateStatus(userId, jobId, status, errorMessage, null);
+    }
+
+    public CompletableFuture<Void> updateStatus(String userId, String jobId, JobStatus status,
+                                                  String errorMessage, String driveFileId) {
         log.debug("Updating YouTube job {} status to: {}", jobId, status);
 
         DocumentReference docRef = firestore
@@ -85,6 +90,9 @@ public class FirestoreYouTubeJobRepository {
         updates.put("status", status.name());
         if (errorMessage != null) {
             updates.put("errorMessage", errorMessage);
+        }
+        if (driveFileId != null) {
+            updates.put("driveFileId", driveFileId);
         }
         if (status == JobStatus.COMPLETED || status == JobStatus.FAILED) {
             updates.put("completedAt", Instant.now().toString());

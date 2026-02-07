@@ -23,6 +23,9 @@ locals {
 
   # Use provided revision_tag or auto-generate from image_tag
   final_revision_tag = var.revision_tag != "" ? var.revision_tag : local.auto_revision_tag
+
+  # Cloud Run service URL (deterministic, avoids self-reference in resource definition)
+  cloud_run_url = "https://${var.service_name}-${data.google_project.current.number}.${var.region}.run.app"
 }
 
 # Data sources

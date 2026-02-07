@@ -134,16 +134,15 @@ class FirestoreYouTubeJobRepositoryTest {
     }
 
     @Test
-    @DisplayName("findById() should return empty on Firestore error")
-    void findByIdShouldReturnEmptyOnError() throws Exception {
+    @DisplayName("findById() should throw CompletionException on Firestore error")
+    void findByIdShouldThrowOnError() throws Exception {
         @SuppressWarnings("unchecked")
         ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
         when(getFuture.get()).thenThrow(new ExecutionException("Firestore error", new RuntimeException()));
         when(jobDoc.get()).thenReturn(getFuture);
 
-        Optional<YouTubeJob> result = repository.findById("user-1", "job-1").get();
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> repository.findById("user-1", "job-1").join())
+                .isInstanceOf(java.util.concurrent.CompletionException.class);
     }
 
     @Test
@@ -199,6 +198,25 @@ class FirestoreYouTubeJobRepositoryTest {
         Map<String, Object> updates = captor.getValue();
         assertThat(updates.get("status")).isEqualTo("FAILED");
         assertThat(updates.get("errorMessage")).isEqualTo("Transcript not available");
+        assertThat(updates).containsKey("completedAt");
+    }
+
+    @Test
+    @DisplayName("updateStatus() should include driveFileId when provided")
+    @SuppressWarnings("unchecked")
+    void updateStatusShouldIncludeDriveFileId() throws Exception {
+        ApiFuture<WriteResult> writeFuture = mock(ApiFuture.class);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+        when(jobDoc.update(anyMap())).thenReturn(writeFuture);
+
+        repository.updateStatus("user-1", "job-1", JobStatus.COMPLETED, null, "drive-file-123").get();
+
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(jobDoc).update(captor.capture());
+
+        Map<String, Object> updates = captor.getValue();
+        assertThat(updates.get("status")).isEqualTo("COMPLETED");
+        assertThat(updates.get("driveFileId")).isEqualTo("drive-file-123");
         assertThat(updates).containsKey("completedAt");
     }
 

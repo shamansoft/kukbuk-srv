@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.exception.TranscriptException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Order(1)
 @Slf4j
 public class YouTubeTranscriptIoService implements TranscriptService {
 

@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 
 @Service
 @Slf4j
@@ -84,9 +85,14 @@ public class YouTubeDataService {
         String title = snippet.has("title") ? snippet.get("title").asText() : "";
         String description = snippet.has("description") ? snippet.get("description").asText() : "";
         String channelName = snippet.has("channelTitle") ? snippet.get("channelTitle").asText() : "";
-        Instant publishedAt = snippet.has("publishedAt")
-                ? Instant.parse(snippet.get("publishedAt").asText())
-                : null;
+        Instant publishedAt = null;
+        if (snippet.has("publishedAt")) {
+            try {
+                publishedAt = Instant.parse(snippet.get("publishedAt").asText());
+            } catch (DateTimeParseException e) {
+                log.warn("Failed to parse publishedAt for video {}: {}", videoId, snippet.get("publishedAt").asText());
+            }
+        }
 
         log.info("Retrieved metadata from YouTube Data API for video {} (title: {})",
                 videoId, title);

@@ -5,12 +5,14 @@ import net.shamansoft.cookbook.exception.TranscriptException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 
 @Service
+@Order(2)
 @Slf4j
 public class SupadataTranscriptService implements TranscriptService {
 

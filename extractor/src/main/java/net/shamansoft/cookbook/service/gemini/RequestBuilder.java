@@ -74,7 +74,14 @@ public class RequestBuilder {
     }
 
     private String withYouTubeData(String title, String description, String transcript) {
-        return youtubePrompt.formatted(title, description, transcript);
+        return youtubePrompt.formatted(
+                escapeFormatSpecifiers(title),
+                escapeFormatSpecifiers(description),
+                escapeFormatSpecifiers(transcript));
+    }
+
+    private static String escapeFormatSpecifiers(String input) {
+        return input.replace("%", "%%");
     }
 
     private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError)

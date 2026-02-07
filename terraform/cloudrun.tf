@@ -182,7 +182,7 @@ resource "google_cloud_run_service" "cookbook" {
 
         env {
           name  = "COOKBOOK_TASKS_SERVICE_URL"
-          value = google_cloud_run_service.cookbook.status[0].url
+          value = local.cloud_run_url
         }
 
         env {

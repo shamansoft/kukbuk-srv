@@ -10,6 +10,7 @@ import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.repository.YouTubeJob;
 import net.shamansoft.cookbook.service.CloudTasksService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,15 +26,16 @@ import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/v1/recipes/youtube")
+@ConditionalOnProperty(name = "cookbook.tasks.enabled", havingValue = "true", matchIfMissing = false)
 @RequiredArgsConstructor
 @Slf4j
 public class YouTubeController {
 
     private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
-            "(?:https?://)?(?:www\\.)?(?:youtube\\.com|m\\.youtube\\.com)/watch\\?.*v=[a-zA-Z0-9_-]{11}" +
-            "|(?:https?://)?youtu\\.be/[a-zA-Z0-9_-]{11}" +
-            "|(?:https?://)?(?:www\\.)?youtube\\.com/embed/[a-zA-Z0-9_-]{11}" +
-            "|(?:https?://)?(?:www\\.)?youtube\\.com/shorts/[a-zA-Z0-9_-]{11}"
+            "(?:https?://)?(?:www\\.)?(?:youtube\\.com|m\\.youtube\\.com)/watch\\?.*v=[a-zA-Z0-9_-]{11}(?:[&#].*)*" +
+            "|(?:https?://)?youtu\\.be/[a-zA-Z0-9_-]{11}(?:[?#].*)?" +
+            "|(?:https?://)?(?:www\\.)?youtube\\.com/embed/[a-zA-Z0-9_-]{11}(?:[?#].*)?" +
+            "|(?:https?://)?(?:www\\.)?youtube\\.com/shorts/[a-zA-Z0-9_-]{11}(?:[?#].*)?"
     );
 
     private final FirestoreYouTubeJobRepository jobRepository;

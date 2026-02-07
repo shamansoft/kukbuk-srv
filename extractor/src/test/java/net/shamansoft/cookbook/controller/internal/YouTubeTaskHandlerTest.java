@@ -104,7 +104,7 @@ class YouTubeTaskHandlerTest {
             when(validationService.toYaml(recipe)).thenReturn("recipe: yaml content");
             when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake"))
                     .thenReturn(new DriveService.UploadResult("file-789", "https://drive.google.com/file/789"));
-            when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null))
+            when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-789"))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             ResponseEntity<Map<String, String>> result = handler.processYouTubeJob(TASK_NAME, request);
@@ -116,7 +116,7 @@ class YouTubeTaskHandlerTest {
             verify(youtubeTransformer).transform(isNull(), eq(VIDEO_URL));
             verify(validationService).toYaml(recipe);
             verify(driveService).saveRecipeForUser(USER_ID, "recipe: yaml content", "Chocolate Cake");
-            verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null);
+            verify(jobRepository).updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-789");
         }
 
         @Test
@@ -140,7 +140,7 @@ class YouTubeTaskHandlerTest {
             when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
             when(driveService.saveRecipeForUser(USER_ID, "recipe: yaml", "YouTube Recipe"))
                     .thenReturn(new DriveService.UploadResult("file-1", "url"));
-            when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null))
+            when(jobRepository.updateStatus(USER_ID, JOB_ID, JobStatus.COMPLETED, null, "file-1"))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             handler.processYouTubeJob(TASK_NAME, request);
