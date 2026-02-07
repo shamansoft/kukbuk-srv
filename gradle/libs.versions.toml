@@ -18,6 +18,7 @@ google-cloud-firestore = "3.33.4"
 google-cloud-storage = "2.60.0"
 firebase-admin = "9.7.0"
 google-cloud-kms = "2.30.0"
+google-cloud-tasks = "2.60.0"
 
 # Testing
 junit-jupiter = "5.10.1"
@@ -60,6 +61,7 @@ google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", v
 google-cloud-storage = { module = "com.google.cloud:google-cloud-storage", version.ref = "google-cloud-storage" }
 firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = "firebase-admin" }
 google-cloud-kms = { module = "com.google.cloud:google-cloud-kms", version.ref = "google-cloud-kms" }
+google-cloud-tasks = { module = "com.google.cloud:google-cloud-tasks", version.ref = "google-cloud-tasks" }
 
 # Web Scraping
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
@@ -104,7 +106,8 @@ google-cloud = [
     "google-cloud-firestore",
     "google-cloud-storage",
     "firebase-admin",
-    "google-cloud-kms"
+    "google-cloud-kms",
+    "google-cloud-tasks"
 ]
 
 testcontainers = [

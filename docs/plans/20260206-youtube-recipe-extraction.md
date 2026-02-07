@@ -98,15 +98,15 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 ## Implementation Steps
 
 ### Task 1: Add Google Cloud Tasks dependency and configuration
-- [ ] Add `com.google.cloud:google-cloud-tasks` dependency to `extractor/build.gradle.kts`
-- [ ] Add Cloud Tasks configuration to `application.yaml`:
+- [x] Add `com.google.cloud:google-cloud-tasks` dependency to `extractor/build.gradle.kts`
+- [x] Add Cloud Tasks configuration to `application.yaml`:
   - `cookbook.tasks.project-id` (default: `${google.cloud.project-id}`)
   - `cookbook.tasks.location` (default: `us-west1`)
   - `cookbook.tasks.queue-name` (default: `youtube-recipes`)
   - `cookbook.tasks.service-url` (Cloud Run URL for callbacks)
-- [ ] Create `CloudTasksConfig.java` in `/config/` with `@Bean CloudTasksClient`
-- [ ] Write tests for CloudTasksConfig (verify bean creation)
-- [ ] Run tests - must pass before task 2
+- [x] Create `CloudTasksConfig.java` in `/config/` with `@Bean CloudTasksClient`
+- [x] Write tests for CloudTasksConfig (verify bean creation)
+- [x] Run tests - must pass before task 2
 
 ### Task 2: Create Firestore YouTubeJobRepository
 - [ ] Create `YouTubeJob` record in `/repository/`:

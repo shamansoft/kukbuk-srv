@@ -252,6 +252,35 @@ cookbook:
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 
   # ---------------------------------------------------------------------------
+  # GOOGLE CLOUD TASKS CONFIGURATION
+  # ---------------------------------------------------------------------------
+  tasks:
+    # Enable/disable Cloud Tasks client
+    # Used by: CloudTasksConfig.java (@ConditionalOnProperty)
+    # Default: false (disabled for local development)
+    enabled: ${COOKBOOK_TASKS_ENABLED:false}
+
+    # GCP project ID for Cloud Tasks
+    # Used by: CloudTasksConfig.java
+    # Default: uses google.cloud.project-id
+    project-id: ${COOKBOOK_TASKS_PROJECT_ID:${google.cloud.project-id}}
+
+    # GCP region for Cloud Tasks queue
+    # Used by: CloudTasksConfig.java
+    # Default: us-west1
+    location: ${COOKBOOK_TASKS_LOCATION:us-west1}
+
+    # Cloud Tasks queue name for YouTube recipe processing
+    # Used by: CloudTasksService.java
+    # Default: youtube-recipes
+    queue-name: ${COOKBOOK_TASKS_QUEUE_NAME:youtube-recipes}
+
+    # Cloud Run service URL for task callbacks
+    # Used by: CloudTasksService.java
+    # Required: Yes (set via environment variable in production)
+    service-url: ${COOKBOOK_TASKS_SERVICE_URL:http://localhost:8080}
+
+  # ---------------------------------------------------------------------------
   # DEBUG CONFIGURATION
   # ---------------------------------------------------------------------------
   debug:
