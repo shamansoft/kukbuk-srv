@@ -220,7 +220,7 @@ Add support for extracting recipes from YouTube cooking videos using async backg
 - [x] Run tests - must pass before task 8
 
 ### Task 8: Create YouTubeController public endpoint
-- [ ] Create `YouTubeController.java` in `/controller/`:
+- [x] Create `YouTubeController.java` in `/controller/`:
   - `@RestController` with `@RequestMapping("/v1/recipes/youtube")`
   - POST `/v1/recipes/youtube` - creates YouTube recipe extraction job
   - Request body: `YouTubeRecipeRequest(String videoUrl)`
@@ -234,18 +234,18 @@ Add support for extracting recipes from YouTube cooking videos using async backg
     6. Task target: `/internal/youtube-tasks/process` on same Cloud Run instance
     7. Return `YouTubeRecipeResponse(String jobId, String status)`
   - Returns 200 OK with jobId
-- [ ] Create `YouTubeRecipeRequest` record in `/dto/`
-- [ ] Create `YouTubeRecipeResponse` record in `/dto/`
-- [ ] Create `CloudTasksService.java` in `/service/`:
+- [x] Create `YouTubeRecipeRequest` record in `/dto/`
+- [x] Create `YouTubeRecipeResponse` record in `/dto/`
+- [x] Create `CloudTasksService.java` in `/service/`:
   - `void enqueueYouTubeJob(String jobId, String userId, String videoUrl)` - creates Cloud Task
   - Uses `CloudTasksClient` to create task
   - Task name: `youtube-job-{jobId}`
   - Target: `POST {service-url}/internal/youtube-tasks/process`
-- [ ] Add URL validation utility: `isValidYouTubeUrl(String url)`
-- [ ] Write tests for YouTubeController (mock CloudTasksService and repository)
-- [ ] Write tests for CloudTasksService (verify task creation)
-- [ ] Write tests for URL validation
-- [ ] Run tests - must pass before task 9
+- [x] Add URL validation utility: `isValidYouTubeUrl(String url)`
+- [x] Write tests for YouTubeController (mock CloudTasksService and repository)
+- [x] Write tests for CloudTasksService (verify task creation)
+- [x] Write tests for URL validation
+- [x] Run tests - must pass before task 9
 
 ### Task 9: Add job status query endpoint (optional but recommended)
 - [ ] Add GET `/v1/recipes/youtube/{jobId}` to `YouTubeController`:
