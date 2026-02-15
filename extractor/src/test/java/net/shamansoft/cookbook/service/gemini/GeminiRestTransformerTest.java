@@ -141,7 +141,7 @@ class GeminiRestTransformerTest {
                 .thenReturn(GeminiResponse.success(correctedRecipe, "{\"is_recipe\": true}"));
 
         // When
-        Transformer.Response response = transformer.transformWithFeedback(htmlContent, previousRecipe, validationError);
+        Transformer.Response response = transformer.transformWithFeedback(htmlContent, "https://example.com", previousRecipe, validationError);
 
         // Then
         assertThat(response).isNotNull();
@@ -219,7 +219,7 @@ class GeminiRestTransformerTest {
                 });
 
         // When/Then
-        assertThatThrownBy(() -> transformer.transformWithFeedback(htmlContent, previousRecipe, validationError))
+        assertThatThrownBy(() -> transformer.transformWithFeedback(htmlContent, "https://example.com", previousRecipe, validationError))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to transform content via Gemini API");
 

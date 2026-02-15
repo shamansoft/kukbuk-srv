@@ -16,3 +16,9 @@ cookbook:
   html-cleanup:
     content-filter:
       min-output-size: 100
+  tasks:
+    enabled: true
+    project-id: test-project
+    location: us-west1
+    queue-name: youtube-recipes
+    service-url: http://localhost:8080

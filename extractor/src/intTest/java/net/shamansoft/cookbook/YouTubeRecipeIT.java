@@ -13,6 +13,7 @@ import net.shamansoft.cookbook.repository.FirestoreYouTubeJobRepository;
 import net.shamansoft.cookbook.repository.JobStatus;
 import net.shamansoft.cookbook.repository.YouTubeJob;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
+import com.google.cloud.tasks.v2.CloudTasksClient;
 import net.shamansoft.cookbook.service.CloudTasksService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -117,6 +118,13 @@ class YouTubeRecipeIT {
         registry.add("firestore.enabled", () -> "true");
         registry.add("google.cloud.project-id", () -> "test-project");
         registry.add("recipe.store.enabled", () -> "true");
+
+        // Enable Cloud Tasks (mocked)
+        registry.add("cookbook.tasks.enabled", () -> "true");
+        registry.add("cookbook.tasks.project-id", () -> "test-project");
+        registry.add("cookbook.tasks.location", () -> "us-west1");
+        registry.add("cookbook.tasks.queue-name", () -> "youtube-recipes");
+        registry.add("cookbook.tasks.service-url", () -> "http://localhost:8080");
 
         // Disable Firebase (use mock)
         registry.add("firebase.enabled", () -> "false");
@@ -487,14 +495,14 @@ class YouTubeRecipeIT {
                 entity,
                 Map.class);
 
-        // Handler always returns 200 to Cloud Tasks
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // Handler returns 503 for transient errors (triggers Cloud Tasks retry)
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).containsEntry("status", "transient_error");
 
-        // But job should be FAILED
-        var failedJob = jobRepository.findById(TEST_USER_ID, jobId).join();
-        assertThat(failedJob).isPresent();
-        assertThat(failedJob.get().status()).isEqualTo(JobStatus.FAILED);
-        assertThat(failedJob.get().errorMessage()).isNotNull().isNotEmpty();
+        // Job status remains PROCESSING (not marked as FAILED yet - awaiting retry)
+        var job = jobRepository.findById(TEST_USER_ID, jobId).join();
+        assertThat(job).isPresent();
+        assertThat(job.get().status()).isIn(JobStatus.PENDING, JobStatus.PROCESSING);
     }
 
     @Test
@@ -638,13 +646,14 @@ class YouTubeRecipeIT {
                 entity,
                 Map.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // Handler returns 503 for transient errors (triggers Cloud Tasks retry)
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).containsEntry("status", "transient_error");
 
-        // Job should be FAILED
-        var failedJob = jobRepository.findById(TEST_USER_ID, jobId).join();
-        assertThat(failedJob).isPresent();
-        assertThat(failedJob.get().status()).isEqualTo(JobStatus.FAILED);
-        assertThat(failedJob.get().errorMessage()).isNotNull();
+        // Job status remains PROCESSING (not marked as FAILED yet - awaiting retry)
+        var job = jobRepository.findById(TEST_USER_ID, jobId).join();
+        assertThat(job).isPresent();
+        assertThat(job.get().status()).isIn(JobStatus.PENDING, JobStatus.PROCESSING);
     }
 
     @TestConfiguration
@@ -684,6 +693,12 @@ class YouTubeRecipeIT {
                         return encrypted.startsWith("encrypted-") ? encrypted.substring(10) : encrypted;
                     });
             return mockService;
+        }
+
+        @Bean
+        @Primary
+        public CloudTasksClient cloudTasksClient() {
+            return Mockito.mock(CloudTasksClient.class);
         }
 
         @Bean

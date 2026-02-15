@@ -94,7 +94,7 @@ class ValidatingTransformerServiceTest {
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
         verify(validationService, times(1)).validate(initialRecipe);
         verify(postProcessor, times(1)).process(initialRecipe, sourceUrl);
-        verify(geminiTransformer, never()).transformWithFeedback(anyString(), any(Recipe.class), anyString());
+        verify(geminiTransformer, never()).transformWithFeedback(anyString(), anyString(), any(Recipe.class), anyString());
     }
 
     @Test
@@ -117,7 +117,7 @@ class ValidatingTransformerServiceTest {
         when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
         when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
         lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
-        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), anyString()))
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), anyString()))
                 .thenReturn(retryResponse);
         when(validationService.validate(validRecipe)).thenReturn(validResult);
         when(postProcessor.process(validRecipe, sourceUrl)).thenReturn(postProcessedRecipe);
@@ -130,7 +130,7 @@ class ValidatingTransformerServiceTest {
         assertNotNull(result.recipe());
         assertEquals("Fixed Recipe", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
-        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), anyString());
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), anyString());
         verify(validationService, times(2)).validate(any(Recipe.class));
         verify(postProcessor, times(1)).process(validRecipe, sourceUrl);
     }
@@ -162,7 +162,7 @@ class ValidatingTransformerServiceTest {
         when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
         when(validationService.validate(any(Recipe.class))).thenReturn(invalidResult1, invalidResult2, invalidResult3, invalidResult4);
         lenient().when(validationService.toYaml(any(Recipe.class))).thenReturn("yaml1", "yaml2", "yaml3", "yaml4");
-        when(geminiTransformer.transformWithFeedback(eq(html), any(Recipe.class), anyString()))
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(sourceUrl), any(Recipe.class), anyString()))
                 .thenReturn(retry1Response, retry2Response, retry3Response);
 
         // When
@@ -172,7 +172,7 @@ class ValidatingTransformerServiceTest {
         assertFalse(result.isRecipe(), "Should return as non-recipe after exhausting retries");
         assertNull(result.recipe());
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
-        verify(geminiTransformer, times(3)).transformWithFeedback(eq(html), any(Recipe.class), anyString());
+        verify(geminiTransformer, times(3)).transformWithFeedback(eq(html), eq(sourceUrl), any(Recipe.class), anyString());
         verify(validationService, times(4)).validate(any(Recipe.class));
         verifyNoInteractions(postProcessor); // Should not post-process when validation fails
     }
@@ -193,7 +193,7 @@ class ValidatingTransformerServiceTest {
         when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
         when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
         lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
-        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), eq("Error")))
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), eq("Error")))
                 .thenReturn(retryResponse);
 
         // When
@@ -203,7 +203,7 @@ class ValidatingTransformerServiceTest {
         assertFalse(result.isRecipe());
         assertNull(result.recipe());
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
-        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), eq("Error"));
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), eq("Error"));
         verify(validationService, times(1)).validate(invalidRecipe);
         verifyNoInteractions(postProcessor); // Should not post-process when model returns non-recipe
         // Should not validate the notRecipe result (only 1 validation call)
@@ -232,7 +232,7 @@ class ValidatingTransformerServiceTest {
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
         verifyNoInteractions(validationService); // Validation should be completely skipped
         verify(postProcessor, times(1)).process(rawRecipe, sourceUrl); // But should still post-process
-        verify(geminiTransformer, never()).transformWithFeedback(anyString(), any(Recipe.class), anyString());
+        verify(geminiTransformer, never()).transformWithFeedback(anyString(), anyString(), any(Recipe.class), anyString());
     }
 
     @Test
@@ -256,7 +256,7 @@ class ValidatingTransformerServiceTest {
         when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
         when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
         lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
-        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), eq("Missing required fields")))
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), eq("Missing required fields")))
                 .thenReturn(retryResponse);
         when(validationService.validate(validRecipe)).thenReturn(validResult);
         when(postProcessor.process(validRecipe, sourceUrl)).thenReturn(postProcessedRecipe);
@@ -269,7 +269,7 @@ class ValidatingTransformerServiceTest {
         assertNotNull(result.recipe());
         assertEquals("Valid After Retry", result.recipe().metadata().title());
         verify(geminiTransformer, times(1)).transform(html, sourceUrl);
-        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(invalidRecipe), eq("Missing required fields"));
+        verify(geminiTransformer, times(1)).transformWithFeedback(eq(html), eq(sourceUrl), eq(invalidRecipe), eq("Missing required fields"));
         verify(validationService, times(2)).validate(any(Recipe.class));
         verify(postProcessor, times(1)).process(validRecipe, sourceUrl);
     }

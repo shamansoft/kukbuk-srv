@@ -12,6 +12,7 @@ import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.ValidatingTransformerService;
 import net.shamansoft.recipe.model.Recipe;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,17 +32,17 @@ public class YouTubeTaskHandler {
 
     static final String CLOUD_TASKS_HEADER = "X-CloudTasks-TaskName";
 
-    private final ValidatingTransformerService validatingTransformer;
+    private final ValidatingTransformerService youtubeValidatingTransformer;
     private final FirestoreYouTubeJobRepository jobRepository;
     private final DriveService driveService;
     private final RecipeValidationService validationService;
 
     public YouTubeTaskHandler(
-            ValidatingTransformerService validatingTransformer,
+            @Qualifier("youtubeValidatingTransformer") ValidatingTransformerService youtubeValidatingTransformer,
             FirestoreYouTubeJobRepository jobRepository,
             DriveService driveService,
             RecipeValidationService validationService) {
-        this.validatingTransformer = validatingTransformer;
+        this.youtubeValidatingTransformer = youtubeValidatingTransformer;
         this.jobRepository = jobRepository;
         this.driveService = driveService;
         this.validationService = validationService;
@@ -59,8 +60,8 @@ public class YouTubeTaskHandler {
             jobRepository.updateStatus(request.userId(), request.jobId(),
                     JobStatus.PROCESSING, null).join();
 
-            // Use ValidatingTransformerService which handles validation + retry with feedback
-            Transformer.Response response = validatingTransformer.transform(null, request.videoUrl());
+            // Use YouTubeValidatingTransformerService which handles validation + retry with feedback
+            Transformer.Response response = youtubeValidatingTransformer.transform(null, request.videoUrl());
 
             if (response.isRecipe()) {
                 // Recipe is already validated and post-processed by ValidatingTransformerService

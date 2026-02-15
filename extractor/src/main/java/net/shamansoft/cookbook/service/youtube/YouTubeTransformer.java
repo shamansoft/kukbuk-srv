@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service.youtube;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.TransformerWithFeedback;
 import net.shamansoft.cookbook.service.gemini.GeminiClient;
 import net.shamansoft.cookbook.service.gemini.GeminiRequest;
 import net.shamansoft.cookbook.service.gemini.GeminiResponse;
@@ -18,7 +19,7 @@ import java.util.regex.Pattern;
 
 @Service("youtubeTransformer")
 @Slf4j
-public class YouTubeTransformer implements Transformer {
+public class YouTubeTransformer implements TransformerWithFeedback {
 
     private static final Pattern YOUTUBE_LONG_URL = Pattern.compile(
             "(?:https?://)?(?:www\\.)?(?:youtube\\.com|m\\.youtube\\.com)/watch\\?.*v=([a-zA-Z0-9_-]{11})");
@@ -67,27 +68,68 @@ public class YouTubeTransformer implements Transformer {
         String transcript = transcriptServiceRouter.getTranscript(videoId);
         log.debug("Fetched transcript - length: {} chars", transcript.length());
 
+        return transformInternal(metadata, transcript, null, null);
+    }
+
+    /**
+     * Transforms YouTube content with validation feedback from a previous attempt.
+     *
+     * @param htmlContent     ignored for YouTube transformation
+     * @param sourceUrl       the YouTube video URL
+     * @param previousRecipe  the Recipe from the previous attempt that failed validation
+     * @param validationError the validation error message to help correct the issue
+     * @return the transformed result
+     */
+    @Override
+    public Response transformWithFeedback(String htmlContent, String sourceUrl,
+                                          Recipe previousRecipe, String validationError) {
+        Objects.requireNonNull(sourceUrl, "sourceUrl cannot be null");
+        Objects.requireNonNull(previousRecipe, "previousRecipe cannot be null for feedback");
+        Objects.requireNonNull(validationError, "validationError cannot be null for feedback");
+
+        String videoId = extractVideoId(sourceUrl);
+        log.info("Retrying YouTube recipe extraction with validation feedback for video: {} (ID: {})",
+                sourceUrl, videoId);
+
+        YouTubeMetadata metadata = youTubeDataService.getMetadata(videoId);
+        String transcript = transcriptServiceRouter.getTranscript(videoId);
+
+        return transformInternal(metadata, transcript, previousRecipe, validationError);
+    }
+
+    private Response transformInternal(YouTubeMetadata metadata, String transcript,
+                                       Recipe previousRecipe, String validationError) {
         try {
-            GeminiRequest request = requestBuilder.buildYouTubeRecipeRequest(
-                    metadata.title(), metadata.description(), transcript);
+            GeminiRequest request;
+            if (previousRecipe != null && validationError != null) {
+                request = requestBuilder.buildYouTubeRecipeRequestWithFeedback(
+                        metadata.title(), metadata.description(), transcript,
+                        previousRecipe, validationError);
+                log.debug("Retrying YouTube transformation with validation feedback");
+            } else {
+                request = requestBuilder.buildYouTubeRecipeRequest(
+                        metadata.title(), metadata.description(), transcript);
+                log.debug("Initial YouTube transformation request");
+            }
+
             GeminiResponse<Recipe> geminiResponse = geminiClient.request(request, Recipe.class);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
-                log.info("YouTube recipe extraction completed for video: {} - isRecipe: {}",
-                        videoId, geminiResponse.data().isRecipe());
+                log.info("YouTube recipe extraction completed - isRecipe: {}",
+                        geminiResponse.data().isRecipe());
                 return Response.withRawResponse(
                         geminiResponse.data().isRecipe(),
                         geminiResponse.data(),
                         geminiResponse.rawResponse()
                 );
             } else {
-                log.error("Gemini Client returned error code: {} for YouTube video: {}",
-                        geminiResponse.code(), videoId);
+                log.error("Gemini Client returned error code: {} for YouTube video",
+                        geminiResponse.code());
                 throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
             }
         } catch (JacksonException e) {
-            log.error("Failed to prepare request for Gemini API. Video: {}, Error: {}",
-                    videoId, e.getMessage(), e);
+            log.error("Failed to prepare request for Gemini API. Error: {}",
+                    e.getMessage(), e);
             throw new ClientException("Failed to transform YouTube content via Gemini API", e);
         }
     }

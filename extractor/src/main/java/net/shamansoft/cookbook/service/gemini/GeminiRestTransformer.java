@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.TransformerWithFeedback;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
@@ -11,7 +12,7 @@ import tools.jackson.core.JacksonException;
 @Service("geminiTransformer")
 @Slf4j
 @RequiredArgsConstructor
-public class GeminiRestTransformer implements Transformer {
+public class GeminiRestTransformer implements TransformerWithFeedback {
 
     private final GeminiClient geminiClient;
     private final RequestBuilder requestBuilder;
@@ -26,11 +27,14 @@ public class GeminiRestTransformer implements Transformer {
      * Transforms HTML content to Recipe with validation feedback from a previous attempt.
      *
      * @param htmlContent     the HTML string to transform
+     * @param sourceUrl       ignored for HTML transformation
      * @param previousRecipe  the Recipe from the previous attempt that failed validation
      * @param validationError the validation error message to help correct the issue
      * @return the transformed result
      */
-    public Response transformWithFeedback(String htmlContent, Recipe previousRecipe, String validationError) {
+    @Override
+    public Response transformWithFeedback(String htmlContent, String sourceUrl,
+                                          Recipe previousRecipe, String validationError) {
         return transformInternal(htmlContent, previousRecipe, validationError);
     }
 

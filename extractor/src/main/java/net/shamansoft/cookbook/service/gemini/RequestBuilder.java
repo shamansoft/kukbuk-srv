@@ -115,6 +115,21 @@ public class RequestBuilder {
         return buildRequestBodyWithSchema(fullPrompt);
     }
 
+    public GeminiRequest buildYouTubeRecipeRequestWithFeedback(
+            String title, String description, String transcript,
+            Recipe previousRecipe, String validationError) throws JacksonException {
+        Objects.requireNonNull(title, "title cannot be null");
+        Objects.requireNonNull(description, "description cannot be null");
+        Objects.requireNonNull(transcript, "transcript cannot be null");
+        Objects.requireNonNull(previousRecipe, "previousRecipe cannot be null");
+        Objects.requireNonNull(validationError, "validationError cannot be null");
+
+        String basePrompt = withYouTubeData(title, description, transcript);
+        String fullPrompt = basePrompt
+                + validationPrompt.formatted(validationError, objectMapper.writeValueAsString(previousRecipe));
+        return buildRequestBodyWithSchema(fullPrompt);
+    }
+
     private GeminiRequest buildRequestBodyWithSchema(String fullPrompt) throws JacksonException {
         return GeminiRequest.builder()
                 .contents(List.of(

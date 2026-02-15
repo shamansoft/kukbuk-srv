@@ -1,53 +1,50 @@
 package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 /**
  * Service that combines recipe transformation with validation and retry logic.
  * When Gemini produces invalid Recipe objects, it retries with validation feedback.
  * This is the primary Transformer implementation that should be used by controllers.
+ * <p>
+ * This class is designed to work with any TransformerWithFeedback implementation
+ * (e.g., GeminiRestTransformer for HTML, YouTubeTransformer for YouTube videos).
  */
-@Service
-@Primary
 @Slf4j
 public class ValidatingTransformerService implements Transformer {
 
-    private final GeminiRestTransformer geminiTransformer;
+    private final TransformerWithFeedback baseTransformer;
     private final RecipeValidationService validationService;
     private final RecipePostProcessor postProcessor;
     @Value("${recipe.llm.retry:1}")
     private int maxRetries;
 
     public ValidatingTransformerService(
-            @Qualifier("geminiTransformer") GeminiRestTransformer geminiTransformer,
+            TransformerWithFeedback baseTransformer,
             RecipeValidationService validationService,
             RecipePostProcessor postProcessor) {
-        this.geminiTransformer = geminiTransformer;
+        this.baseTransformer = baseTransformer;
         this.validationService = validationService;
         this.postProcessor = postProcessor;
     }
 
     /**
-     * Transforms HTML content to validated Recipe object.
+     * Transforms content to validated Recipe object.
      * If validation fails, retries with feedback up to max-retries times.
      * <p>
      * When recipe.llm.retry = 0, validation is skipped entirely and the raw Recipe is returned.
      * When recipe.llm.retry > 0, validation is performed with the specified number of retry attempts.
      *
-     * @param htmlContent the HTML string to transform
+     * @param htmlContent the content to transform (may be null for non-HTML transformers)
      * @param sourceUrl   the source URL of the recipe
      * @return the transformed and validated result
      */
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
-        Response initialResponse = geminiTransformer.transform(htmlContent, sourceUrl);
+        Response initialResponse = baseTransformer.transform(htmlContent, sourceUrl);
 
         // If it's not a recipe, return immediately without validation
         if (!initialResponse.isRecipe()) {
@@ -94,8 +91,9 @@ public class ValidatingTransformerService implements Transformer {
                     errorPreview,
                     validationResult.getErrorMessage().length() > 200 ? "..." : "");
 
-            Response retryResponse = geminiTransformer.transformWithFeedback(
+            Response retryResponse = baseTransformer.transformWithFeedback(
                     htmlContent,
+                    sourceUrl,
                     currentRecipe,
                     validationResult.getErrorMessage()
             );
