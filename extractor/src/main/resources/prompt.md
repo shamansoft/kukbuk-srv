@@ -173,38 +173,64 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
     * Use Markdown in `description` for formatting (only when genuinely helpful)
     * Include media arrays for images/videos found in recipe steps
 
+**MULTIPLE RECIPES PER PAGE:**
+
+A page may contain more than one complete recipe:
+- Scan the ENTIRE page for multiple recipe titles, ingredient lists, and instruction sets.
+- If you find multiple distinct recipes (each with their own ingredients + instructions), populate the `recipes` array with ALL of them.
+- If only one recipe exists, `recipes` contains a single item.
+- Do NOT merge separate recipes into one; preserve each as its own entry in the array.
+- Examples of multi-recipe pages: "Best Pasta Sauces" roundup, a base recipe + 3 variations, dinner + dessert recipe combos.
+
+**RECIPE CONFIDENCE SCORING (`recipe_confidence`):**
+
+Always set this field (0.0–1.0) to reflect certainty that the page contains a cooking recipe:
+- `0.9–1.0`: Page clearly contains one or more complete recipes with ingredients and instructions.
+- `0.7–0.89`: Likely a recipe; minor ambiguity (e.g., partial instructions or incomplete data).
+- `0.5–0.69`: Uncertain — the HTML appears incomplete, navigation-heavy, or unusually short for recipe content.
+  Set `is_recipe: false`. A retry with richer HTML context may succeed.
+- `0.3–0.49`: Unlikely to be a recipe; insufficient evidence.
+- `0.0–0.29`: Clearly not a recipe (blog post, article, product page, etc.).
+
+**When `is_recipe: false` AND `recipe_confidence >= 0.5`:** This signals that the HTML was possibly
+over-cleaned and the original page might contain a recipe. Return the confidence score accurately.
+
 **Task Flow:**
 
-1. Analyze HTML. If NOT a recipe, return JSON with `is_recipe: false`.
-2. If IS a recipe, extract data per rules below.
+1. Analyze HTML. If NOT a recipe, return JSON with `is_recipe: false` and appropriate `recipe_confidence`.
+2. If IS a recipe, extract ALL recipes found per rules below.
 
-**Required Fields (always include):**
+**Required Fields (always include at root level):**
+
+- `is_recipe`: true (if the page contains at least one recipe) or false (if not a recipe)
+- `recipe_confidence`: float 0.0–1.0 (your confidence the page has a recipe)
+
+**Required Fields for each recipe in `recipes[]` (when is_recipe is true):**
 
 - `schema_version`: "1.0.0"
 - `recipe_version`: "1.0.0" (or extract from HTML if present)
-- `is_recipe`: true (if it's a recipe) or false (if not a recipe)
 - `metadata.title`: Extract from HTML (use original capitalization, don't add fluff)
 - `metadata.description`: 1-sentence objective summary (no fluff, no emotions)
 - `metadata.date_created`: Use current date **%s** if not in HTML
 - `metadata.servings`: Extract or estimate based on ingredient quantities (e.g., 8 chicken thighs = 8 servings OR 4
   servings of 2 pieces)
-- `ingredients`: At least one ingredient (if is_recipe is true)
-- `instructions`: At least one instruction (if is_recipe is true)
+- `ingredients`: At least one ingredient
+- `instructions`: At least one instruction
 
 **When Content is NOT a Recipe:**
 If the HTML does not contain a cooking recipe (e.g., blog post, article, product page), return:
 
 ```json
 {
-  "schema_version": "1.0.0",
-  "recipe_version": "1.0.0",
   "is_recipe": false,
-  "metadata": {
-    "title": "Not a Recipe",
-    "date_created": ""
-  }
+  "recipe_confidence": 0.1,
+  "internal_reasoning": "Page is a product listing with no ingredients or cooking instructions.",
+  "recipes": []
 }
 ```
+
+If you are uncertain because the HTML seems incomplete or unusually short, set `recipe_confidence` to 0.5–0.7
+to signal that a retry with richer HTML may reveal a recipe.
 
 **Additional Extraction Guidelines:**
 
@@ -216,11 +242,13 @@ If the HTML does not contain a cooking recipe (e.g., blog post, article, product
 
 **FINAL VALIDATION CHECKLIST (before outputting JSON):**
 
-1. ✓ Did I scan for section headers and assign component groups?
-2. ✓ Does any unit field contain parentheses or commas? (If yes, FIX IT)
-3. ✓ Did I extract amounts for all ingredients that have numbers? (e.g., "1 lemon" must have amount: "1")
-4. ✓ Are all preparation details in notes field, not unit field?
-5. ✓ Did I separate compound ingredients like "salt and pepper"?
+1. ✓ Did I scan the ENTIRE page for multiple recipes? Are all distinct recipes in the `recipes[]` array?
+2. ✓ Did I set `recipe_confidence` accurately? (0.5–0.7 if uncertain due to incomplete HTML)
+3. ✓ Did I scan for section headers and assign component groups?
+4. ✓ Does any unit field contain parentheses or commas? (If yes, FIX IT)
+5. ✓ Did I extract amounts for all ingredients that have numbers? (e.g., "1 lemon" must have amount: "1")
+6. ✓ Are all preparation details in notes field, not unit field?
+7. ✓ Did I separate compound ingredients like "salt and pepper"?
 
 **JSON Output:**
 Return ONLY valid JSON conforming to the provided schema. No text before or after.

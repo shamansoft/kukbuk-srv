@@ -49,7 +49,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("integration-test-hash")
                 .sourceUrl("https://example.com/integration-test")
-                .recipeYaml("recipe: integration test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(1L)
@@ -70,7 +70,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
                 .satisfies(retrieved -> {
                     assertThat(retrieved.getContentHash()).isEqualTo("integration-test-hash");
                     assertThat(retrieved.getSourceUrl()).isEqualTo("https://example.com/integration-test");
-                    assertThat(retrieved.getRecipeYaml()).isEqualTo("recipe: integration test");
+                    assertThat(retrieved.getRecipesJson()).isEqualTo("[]");
                     assertThat(retrieved.getVersion()).isEqualTo(1L);
                     assertThat(retrieved.getCreatedAt()).isNotNull();
                     assertThat(retrieved.getLastUpdatedAt()).isNotNull();
@@ -95,7 +95,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("existence-test-hash")
                 .sourceUrl("https://example.com/existence-test")
-                .recipeYaml("recipe: existence test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(1L)
@@ -120,7 +120,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("delete-test-hash")
                 .sourceUrl("https://example.com/delete-test")
-                .recipeYaml("recipe: delete test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(1L)
@@ -150,7 +150,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
             StoredRecipe recipe = StoredRecipe.builder()
                     .contentHash(hash)
                     .sourceUrl("https://example.com/" + hash)
-                    .recipeYaml("recipe: " + hash)
+                    .recipesJson("[]")
                     .createdAt(Instant.now())
                     .lastUpdatedAt(Instant.now())
                     .version(1L)
@@ -175,7 +175,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("concurrent-test-hash")
                 .sourceUrl("https://example.com/concurrent-test")
-                .recipeYaml("recipe: concurrent test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(0L)
@@ -211,7 +211,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("performance-test-hash")
                 .sourceUrl("https://example.com/performance-test")
-                .recipeYaml("recipe: performance test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(1L)
@@ -240,7 +240,7 @@ class FirestoreRecipeRepositoryIntegrationTest {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash("version-test-hash")
                 .sourceUrl("https://example.com/version-test")
-                .recipeYaml("recipe: version test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(0L)

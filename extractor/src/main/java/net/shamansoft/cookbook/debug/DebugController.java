@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.strategy.Strategy;
-import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.DumpService;
 import net.shamansoft.cookbook.service.RecipeParser;
@@ -26,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -133,15 +133,17 @@ public class DebugController {
             }
 
             if (!request.isSkipCache()) {
-                Optional<StoredRecipe> cached = recipeStoreService.findStoredRecipeByHash(contentHash);
+                Optional<RecipeStoreService.CachedRecipes> cached = recipeStoreService.findCachedRecipes(contentHash);
                 if (cached.isPresent()) {
                     cacheHit = true;
-                    StoredRecipe storedRecipe = cached.get();
+                    RecipeStoreService.CachedRecipes hit = cached.get();
                     log.info("✅ Cache HIT for hash: {}", contentHash);
 
-                    if (storedRecipe.isValid()) {
-                        Recipe recipe = recipeParser.parse(storedRecipe.getRecipeYaml());
-                        transformResponse = Transformer.Response.recipe(recipe);
+                    if (hit.valid()) {
+                        List<Recipe> recipes = hit.recipes();
+                        transformResponse = recipes.size() == 1
+                                ? Transformer.Response.recipe(recipes.get(0))
+                                : Transformer.Response.recipes(recipes);
                     } else {
                         transformResponse = Transformer.Response.notRecipe();
                     }
@@ -239,9 +241,8 @@ public class DebugController {
                 // 2d. Cache result (unless skipCache=true)
                 if (!request.isSkipCache()) {
                     if (transformResponse.isRecipe()) {
-                        String yamlContent = validationService.toYaml(transformResponse.recipe());
-                        recipeStoreService.storeValidRecipe(contentHash, url, yamlContent);
-                        log.info("Cached valid recipe - Hash: {}", contentHash);
+                        recipeStoreService.storeValidRecipes(contentHash, url, transformResponse.recipes());
+                        log.info("Cached {} recipe(s) - Hash: {}", transformResponse.recipes().size(), contentHash);
                     } else {
                         recipeStoreService.storeInvalidRecipe(contentHash, url);
                         log.info("Cached invalid recipe - Hash: {}", contentHash);

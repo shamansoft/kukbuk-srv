@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -24,14 +25,14 @@ class RecipeServicePerformanceTest {
 
     private final String testUrl = "https://example.com/recipe";
     private final String testHash = "test-hash-123";
-    private final String testYaml = "recipe: test";
+    private final String testJson = "[]";
     @Mock
     private RecipeRepository repository;
     private RecipeStoreService service;
 
     @BeforeEach
     void setUp() {
-        service = new RecipeStoreService(repository);
+        service = new RecipeStoreService(repository, new ObjectMapper());
         // Enable the service for testing by setting the enabled field through reflection
         try {
             var enabledField = RecipeStoreService.class.getDeclaredField("enabled");
@@ -49,9 +50,10 @@ class RecipeServicePerformanceTest {
         StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
-                .recipeYaml(testYaml)
+                .recipesJson(testJson)
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
+                .isValid(true)
                 .version(1L)
                 .build();
 
@@ -59,7 +61,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<RecipeStoreService.CachedRecipes> retrievedCache = service.findCachedRecipes(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -76,7 +78,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<RecipeStoreService.CachedRecipes> retrievedCache = service.findCachedRecipes(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -92,9 +94,10 @@ class RecipeServicePerformanceTest {
         StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
-                .recipeYaml(testYaml)
+                .recipesJson(testJson)
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
+                .isValid(true)
                 .version(1L)
                 .build();
 
@@ -102,7 +105,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<RecipeStoreService.CachedRecipes> retrievedCache = service.findCachedRecipes(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -118,9 +121,10 @@ class RecipeServicePerformanceTest {
         StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(testHash)
                 .sourceUrl(testUrl)
-                .recipeYaml(testYaml)
+                .recipesJson(testJson)
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
+                .isValid(true)
                 .version(1L)
                 .build();
 
@@ -128,15 +132,15 @@ class RecipeServicePerformanceTest {
 
         // When - Multiple sequential requests (since API is now synchronous)
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe>[] results = new Optional[10];
+        Optional<RecipeStoreService.CachedRecipes>[] results = new Optional[10];
         for (int i = 0; i < 10; i++) {
-            results[i] = service.findStoredRecipeByHash(testHash);
+            results[i] = service.findCachedRecipes(testHash);
         }
         long endTime = System.currentTimeMillis();
         long totalDuration = endTime - startTime;
 
         // Then
-        for (Optional<StoredRecipe> result : results) {
+        for (Optional<RecipeStoreService.CachedRecipes> result : results) {
             assertTrue(result.isPresent());
         }
 
@@ -152,7 +156,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        service.storeRecipeWithHash(testHash, testUrl, testYaml, true);
+        service.storeRecipeWithHash(testHash, testUrl, testJson, true);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -171,7 +175,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<RecipeStoreService.CachedRecipes> retrievedCache = service.findCachedRecipes(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
@@ -190,7 +194,7 @@ class RecipeServicePerformanceTest {
 
         // When
         long startTime = System.currentTimeMillis();
-        Optional<StoredRecipe> retrievedCache = service.findStoredRecipeByHash(testHash);
+        Optional<RecipeStoreService.CachedRecipes> retrievedCache = service.findCachedRecipes(testHash);
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 

@@ -25,7 +25,7 @@ class FirestoreRecipeRepositorySimpleTest {
         testRecipe = StoredRecipe.builder()
                 .contentHash("test-hash-123")
                 .sourceUrl("https://example.com/recipe")
-                .recipeYaml("recipe: test")
+                .recipesJson("[]")
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
                 .version(1L)
@@ -49,7 +49,7 @@ class FirestoreRecipeRepositorySimpleTest {
         StoredRecipe cacheWithNulls = StoredRecipe.builder()
                 .contentHash("test-hash")
                 .sourceUrl(null)
-                .recipeYaml(null)
+                .recipesJson(null)
                 .createdAt(null)
                 .lastUpdatedAt(null)
                 .version(0L)
@@ -61,7 +61,7 @@ class FirestoreRecipeRepositorySimpleTest {
                 .extracting(
                         StoredRecipe::getContentHash,
                         StoredRecipe::getSourceUrl,
-                        StoredRecipe::getRecipeYaml,
+                        StoredRecipe::getRecipesJson,
                         StoredRecipe::getVersion
                 )
                 .containsExactly(
@@ -80,7 +80,7 @@ class FirestoreRecipeRepositorySimpleTest {
         StoredRecipe cache1 = StoredRecipe.builder()
                 .contentHash("test-hash-1")
                 .sourceUrl("https://example.com")
-                .recipeYaml("recipe: test")
+                .recipesJson("[]")
                 .createdAt(now)
                 .lastUpdatedAt(now)
                 .version(1L)
@@ -89,7 +89,7 @@ class FirestoreRecipeRepositorySimpleTest {
         StoredRecipe cache2 = StoredRecipe.builder()
                 .contentHash("test-hash-2")
                 .sourceUrl("https://example.com")
-                .recipeYaml("recipe: test")
+                .recipesJson("[]")
                 .createdAt(now)
                 .lastUpdatedAt(now)
                 .version(1L)

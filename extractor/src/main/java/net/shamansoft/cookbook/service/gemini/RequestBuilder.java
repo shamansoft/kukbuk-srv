@@ -48,7 +48,7 @@ public class RequestBuilder {
     }
 
     private String loadSchema() throws IOException {
-        String jsonSchemaString = resourceLoader.loadTextFile("classpath:recipe-schema-1.0.0.json");
+        String jsonSchemaString = resourceLoader.loadTextFile("classpath:recipe-schema-2.0.0.json");
         // Parse JSON schema and remove $id and $schema fields as they're not needed for
         // Gemini API
         JsonNode schemaNode = objectMapper.readTree(jsonSchemaString);

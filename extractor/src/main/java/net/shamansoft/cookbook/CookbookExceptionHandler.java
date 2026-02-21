@@ -9,6 +9,7 @@ import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,9 +27,23 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CookbookExceptionHandler {
 
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    @ExceptionHandler(UrlFetchException.class)
+    public ResponseEntity<Object> handleUrlFetchException(UrlFetchException e, HttpServletRequest request) {
+        log.warn("URL fetch failed for request {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                "URL Not Accessible",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(IOException.class)
     public ResponseEntity<Object> handleIOException(IOException e, HttpServletRequest request) {
+        log.error("IO error processing request {}: {}", request.getRequestURI(), e.getMessage(), e);
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "IO Error",

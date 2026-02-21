@@ -53,7 +53,7 @@ class RequestBuilderTest {
                 .thenReturn("Date: %s\nHTML: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:prompt_with_validation.md")))
                 .thenReturn("\nValidation Error: %s\nPrevious Recipe: %s");
-        when(resourcesLoader.loadTextFile(eq("classpath:recipe-schema-1.0.0.json")))
+        when(resourcesLoader.loadTextFile(eq("classpath:recipe-schema-2.0.0.json")))
                 .thenReturn("""
                         {
                           "$id": "https://example.com/recipe.schema.json",

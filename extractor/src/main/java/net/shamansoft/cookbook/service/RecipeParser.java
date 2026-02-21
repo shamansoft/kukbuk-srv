@@ -43,4 +43,5 @@ public class RecipeParser {
                     "Failed to parse recipe YAML: " + e.getMessage() + "\nYAML preview: " + preview, e);
         }
     }
+
 }

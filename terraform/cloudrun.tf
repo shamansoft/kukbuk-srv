@@ -160,8 +160,6 @@ resource "google_cloud_run_service" "cookbook" {
       template[0].metadata[0].annotations["run.googleapis.com/client-version"],
       template[0].metadata[0].annotations["run.googleapis.com/cpu-throttling"],
       template[0].metadata[0].annotations["run.googleapis.com/execution-environment"],
-      # Ignore revision names (let gcloud manage them)
-      template[0].metadata[0].name,
       # Ignore traffic splitting (let gcloud manage tagged revisions)
       traffic,
     ]

@@ -15,7 +15,7 @@ public class StoredRecipe {
 
     private String sourceUrl;
 
-    private String recipeYaml;
+    private String recipesJson;
 
     private boolean isValid;
 
@@ -29,7 +29,7 @@ public class StoredRecipe {
         return StoredRecipe.builder()
                 .contentHash(this.contentHash)
                 .sourceUrl(this.sourceUrl)
-                .recipeYaml(this.recipeYaml)
+                .recipesJson(this.recipesJson)
                 .createdAt(this.createdAt)
                 .lastUpdatedAt(Instant.now())
                 .version(this.version + 1)
