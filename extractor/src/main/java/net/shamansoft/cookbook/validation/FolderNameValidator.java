@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
@@ -17,6 +18,7 @@ import java.util.regex.Pattern;
  *   <li>All other characters including Unicode and special chars are valid</li>
  * </ul>
  */
+@Component
 public class FolderNameValidator implements ConstraintValidator<ValidFolderName, String> {
 
     private static final int MAX_LENGTH = 255;
