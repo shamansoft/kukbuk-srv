@@ -53,11 +53,9 @@ class RequestBuilderTest {
                 .thenReturn("Date: %s\nHTML: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:prompt_with_validation.md")))
                 .thenReturn("\nValidation Error: %s\nPrevious Recipe: %s");
-        when(resourcesLoader.loadTextFile(eq("classpath:recipe-schema-2.0.0.json")))
+        when(resourcesLoader.loadTextFile(eq("classpath:llm-recipe-schema.json")))
                 .thenReturn("""
                         {
-                          "$id": "https://example.com/recipe.schema.json",
-                          "$schema": "http://json-schema.org/draft-07/schema#",
                           "type": "object",
                           "properties": {
                             "title": {"type": "string"}
