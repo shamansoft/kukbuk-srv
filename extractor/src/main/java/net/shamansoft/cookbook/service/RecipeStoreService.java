@@ -4,10 +4,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.repository.RecipeRepository;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
+import net.shamansoft.recipe.model.Recipe;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -17,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 public class RecipeStoreService {
 
     private final RecipeRepository repository;
+    private final ObjectMapper objectMapper;
+
     @Value("${recipe.store.enabled:false}")
     private boolean enabled = false;
     @Value("${recipe.store.timeout.lookup-ms:200}")
@@ -26,7 +31,26 @@ public class RecipeStoreService {
     @Value("${recipe.store.timeout.count-ms:1000}")
     private int countTimeoutMs;
 
-    public Optional<StoredRecipe> findStoredRecipeByHash(String contentHash) {
+    /**
+     * Result of a cache lookup. Either a valid list of recipes or an invalid (non-recipe) marker.
+     */
+    public record CachedRecipes(boolean valid, List<Recipe> recipes) {
+        public static CachedRecipes valid(List<Recipe> recipes) {
+            return new CachedRecipes(true, recipes);
+        }
+
+        public static CachedRecipes invalid() {
+            return new CachedRecipes(false, List.of());
+        }
+    }
+
+    /**
+     * Looks up cached recipes by content hash.
+     *
+     * @return present with {@link CachedRecipes} if the URL was previously processed,
+     *         empty if not cached (triggers fresh extraction)
+     */
+    public Optional<CachedRecipes> findCachedRecipes(String contentHash) {
         if (contentHash == null || contentHash.isEmpty()) {
             log.debug("Content hash is null or empty, skipping cache lookup");
             return Optional.empty();
@@ -44,16 +68,17 @@ public class RecipeStoreService {
                     .handle((result, throwable) -> {
                         if (throwable != null) {
                             log.error("Error retrieving stored recipe for hash {}: {}", contentHash, throwable.getMessage(), throwable);
-                            return Optional.<StoredRecipe>empty();
+                            return Optional.<CachedRecipes>empty();
                         }
 
-                        if (result.isPresent()) {
-                            log.debug("Found stored recipe for hash: {}", contentHash);
-                        } else {
+                        if (result.isEmpty()) {
                             log.debug("No stored recipe found for hash: {}", contentHash);
+                            return Optional.<CachedRecipes>empty();
                         }
 
-                        return result;
+                        StoredRecipe stored = result.get();
+                        log.debug("Found stored recipe for hash: {}", contentHash);
+                        return Optional.of(toCachedRecipes(stored));
                     })
                     .orTimeout(lookupTimeoutMs, TimeUnit.MILLISECONDS)
                     .exceptionally(throwable -> {
@@ -71,11 +96,17 @@ public class RecipeStoreService {
         storeRecipeWithHash(contentHash, url, null, false);
     }
 
-    public void storeValidRecipe(String contentHash, String url, String recipeYaml) {
-        storeRecipeWithHash(contentHash, url, recipeYaml, true);
+    /**
+     * Serializes and caches a list of recipes as JSON.
+     */
+    public void storeValidRecipes(String contentHash, String url, List<Recipe> recipes) {
+        String json = serializeRecipes(recipes);
+        if (json != null) {
+            storeRecipeWithHash(contentHash, url, json, true);
+        }
     }
 
-    void storeRecipeWithHash(String contentHash, String url, String recipeYaml, boolean isValid) {
+    void storeRecipeWithHash(String contentHash, String url, String recipesJson, boolean isValid) {
         if (!enabled) {
             log.debug("Recipe store is disabled, skipping cache store for hash: {}", contentHash);
             return;
@@ -86,7 +117,7 @@ public class RecipeStoreService {
         StoredRecipe recipe = StoredRecipe.builder()
                 .contentHash(contentHash)
                 .sourceUrl(url)
-                .recipeYaml(recipeYaml)
+                .recipesJson(recipesJson)
                 .isValid(isValid)
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
@@ -140,6 +171,35 @@ public class RecipeStoreService {
         } catch (Exception e) {
             log.warn("Cache size check failed: {}", e.getMessage());
             return 0L;
+        }
+    }
+
+    private CachedRecipes toCachedRecipes(StoredRecipe stored) {
+        if (!stored.isValid()) {
+            return CachedRecipes.invalid();
+        }
+        List<Recipe> recipes = deserializeRecipes(stored.getRecipesJson());
+        return CachedRecipes.valid(recipes);
+    }
+
+    private String serializeRecipes(List<Recipe> recipes) {
+        try {
+            return objectMapper.writeValueAsString(recipes);
+        } catch (Exception e) {
+            log.error("Failed to serialize recipes to JSON: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private List<Recipe> deserializeRecipes(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return List.of(objectMapper.readValue(json, Recipe[].class));
+        } catch (Exception e) {
+            log.error("Failed to deserialize recipes from JSON: {}", e.getMessage(), e);
+            return List.of();
         }
     }
 }

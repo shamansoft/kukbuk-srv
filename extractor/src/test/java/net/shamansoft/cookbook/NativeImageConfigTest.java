@@ -65,9 +65,9 @@ class NativeImageConfigTest {
     @Test
     void resourceAutodetection_recipeSchema_shouldBeAvailable() throws IOException {
         // Verify recipe schema is available
-        try (InputStream stream = getClass().getClassLoader().getResourceAsStream("recipe-schema-1.0.0.json")) {
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream("llm-recipe-schema.json")) {
             assertThat(stream)
-                    .as("recipe-schema-1.0.0.json should be available via resource autodetection")
+                    .as("llm-recipe-schema.json should be available via resource autodetection")
                     .isNotNull();
         }
     }

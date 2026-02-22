@@ -41,7 +41,7 @@ class GeminiRestTransformerTest {
         transformer = new GeminiRestTransformer(geminiClient, requestBuilder);
     }
 
-    private Recipe createTestRecipe(String title, boolean isRecipe) {
+    private Recipe createTestRecipe(String title) {
         RecipeMetadata metadata = new RecipeMetadata(
                 title,
                 "https://example.com",
@@ -58,27 +58,27 @@ class GeminiRestTransformerTest {
                 null
         );
 
-        List<Ingredient> ingredients = List.of(
-                new Ingredient("Sugar", "1", "cup", null, null, null, null)
-        );
-
-        List<Instruction> instructions = List.of(
-                new Instruction(1, "Mix ingredients", null, null, null)
-        );
-
         return new Recipe(
-                isRecipe,
+                null,  // is_recipe not set in recipes[] items (comes from wrapper)
                 "1.0.0",
                 "1.0.0",
                 metadata,
                 null,
-                ingredients,
+                List.of(new Ingredient("Sugar", "1", "cup", null, null, null, null)),
                 null,
-                instructions,
+                List.of(new Instruction(1, "Mix ingredients", null, null, null)),
                 null,
                 null,
                 null
         );
+    }
+
+    private GeminiExtractionResult recipeResult(String title) {
+        return new GeminiExtractionResult(true, 0.95, null, List.of(createTestRecipe(title)));
+    }
+
+    private GeminiExtractionResult nonRecipeResult(double confidence) {
+        return new GeminiExtractionResult(false, confidence, "Not a recipe page.", List.of());
     }
 
     @Test
@@ -86,11 +86,11 @@ class GeminiRestTransformerTest {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
-        Recipe expectedRecipe = createTestRecipe("Test Recipe", true);
+        GeminiExtractionResult extraction = recipeResult("Test Recipe");
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(expectedRecipe, "{\"is_recipe\": true}"));
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
@@ -98,11 +98,13 @@ class GeminiRestTransformerTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isRecipe()).isTrue();
-        assertThat(response.recipe()).isEqualTo(expectedRecipe);
+        assertThat(response.confidence()).isEqualTo(0.95);
+        assertThat(response.recipes()).hasSize(1);
         assertThat(response.recipe().metadata().title()).isEqualTo("Test Recipe");
+        assertThat(response.recipe().isRecipe()).isTrue();  // injected by transformer
 
         verify(requestBuilder).buildRequest(eq(htmlContent));
-        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class));
     }
 
     @Test
@@ -110,11 +112,10 @@ class GeminiRestTransformerTest {
         // Given
         String htmlContent = "<html><body>Not a recipe</body></html>";
         GeminiRequest mockRequest = mock(GeminiRequest.class);
-        Recipe nonRecipe = createTestRecipe("Not a recipe", false);
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(nonRecipe, "{\"is_recipe\": false}"));
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(nonRecipeResult(0.1), "{\"is_recipe\": false}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
@@ -122,23 +123,69 @@ class GeminiRestTransformerTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isRecipe()).isFalse();
-        assertThat(response.recipe()).isEqualTo(nonRecipe);
+        assertThat(response.confidence()).isEqualTo(0.1);
+        assertThat(response.recipes()).isEmpty();
+        assertThat(response.recipe()).isNull();
+    }
+
+    @Test
+    void transformReturnsLowConfidenceWhenHTMLMightBeOverCleaned() throws JacksonException {
+        // Given: LLM thinks it's not a recipe but with mid confidence (over-cleaned HTML)
+        String htmlContent = "<html><body>Some stripped content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(nonRecipeResult(0.65), "{\"is_recipe\": false, \"recipe_confidence\": 0.65}"));
+
+        // When
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
+
+        // Then
+        assertThat(response.isRecipe()).isFalse();
+        assertThat(response.confidence()).isEqualTo(0.65);  // adaptive loop can retry above 0.5
+    }
+
+    @Test
+    void transformReturnsMultipleRecipes() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Multi-recipe page</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = new GeminiExtractionResult(
+                true, 0.99, null,
+                List.of(createTestRecipe("Pasta Sauce"), createTestRecipe("Pizza Dough"))
+        );
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipes()).hasSize(2);
+        assertThat(response.recipes().get(0).metadata().title()).isEqualTo("Pasta Sauce");
+        assertThat(response.recipes().get(1).metadata().title()).isEqualTo("Pizza Dough");
+        // Both should have isRecipe=true injected
+        assertThat(response.recipes()).allMatch(Recipe::isRecipe);
     }
 
     @Test
     void transformWithFeedbackUsesCorrectRequestBuilder() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        Recipe previousRecipe = createTestRecipe("Previous Recipe", true);
+        Recipe previousRecipe = createTestRecipe("Previous Recipe");
         String validationError = "Missing required field: instructions";
 
         GeminiRequest mockRequest = mock(GeminiRequest.class);
-        Recipe correctedRecipe = createTestRecipe("Corrected Recipe", true);
+        GeminiExtractionResult correctedResult = recipeResult("Corrected Recipe");
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
                 .thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(correctedRecipe, "{\"is_recipe\": true}"));
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(correctedResult, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transformWithFeedback(htmlContent, previousRecipe, validationError);
@@ -146,11 +193,11 @@ class GeminiRestTransformerTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.isRecipe()).isTrue();
-        assertThat(response.recipe()).isEqualTo(correctedRecipe);
+        assertThat(response.recipe().metadata().title()).isEqualTo("Corrected Recipe");
 
         verify(requestBuilder).buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError));
         verify(requestBuilder, never()).buildRequest(anyString());
-        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class));
     }
 
     @Test
@@ -160,7 +207,7 @@ class GeminiRestTransformerTest {
         GeminiRequest mockRequest = mock(GeminiRequest.class);
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
                 .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Content blocked by safety filter"));
 
         // When/Then
@@ -169,7 +216,7 @@ class GeminiRestTransformerTest {
                 .hasMessageContaining("Gemini Client returned error code: BLOCKED");
 
         verify(requestBuilder).buildRequest(eq(htmlContent));
-        verify(geminiClient).request(eq(mockRequest), eq(Recipe.class));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class));
     }
 
     @Test
@@ -179,7 +226,7 @@ class GeminiRestTransformerTest {
         GeminiRequest mockRequest = mock(GeminiRequest.class);
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
                 .thenReturn(GeminiResponse.failure(GeminiResponse.Code.OTHER, "Network error"));
 
         // When/Then
@@ -211,7 +258,7 @@ class GeminiRestTransformerTest {
     void transformWithFeedbackThrowsExceptionWhenRequestBuilderFails() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        Recipe previousRecipe = createTestRecipe("Test", true);
+        Recipe previousRecipe = createTestRecipe("Test");
         String validationError = "Error";
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
@@ -254,27 +301,14 @@ class GeminiRestTransformerTest {
                 new Ingredient("Eggs", "3", null, null, null, null, null)
         );
 
-        List<Instruction> instructions = List.of(
-                new Instruction(1, "Mix ingredients", null, null, null)
-        );
+        Recipe complexRecipe = new Recipe(null, "1.0.0", "1.0.0", metadata, null, ingredients, null,
+                List.of(new Instruction(1, "Mix ingredients", null, null, null)), null, null, null);
 
-        Recipe complexRecipe = new Recipe(
-                true,
-                "1.0.0",
-                "1.0.0",
-                metadata,
-                null,
-                ingredients,
-                null,
-                instructions,
-                null,
-                null,
-                null
-        );
+        GeminiExtractionResult extraction = new GeminiExtractionResult(true, 0.98, null, List.of(complexRecipe));
 
         when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
-        when(geminiClient.request(eq(mockRequest), eq(Recipe.class)))
-                .thenReturn(GeminiResponse.success(complexRecipe, "{\"is_recipe\": true}"));
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
 
         // When
         Transformer.Response response = transformer.transform(htmlContent, "https://example.com");

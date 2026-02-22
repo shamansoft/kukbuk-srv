@@ -4,19 +4,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.RecipeDto;
+import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
-import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,6 +24,7 @@ import java.util.Optional;
 /**
  * Core business logic for recipe operations.
  * Orchestrates Drive access, YAML parsing, and DTO mapping.
+ * Supports extracting multiple recipes from a single page.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,8 +38,7 @@ public class RecipeService {
     private final RecipeParser recipeParser;
     private final RecipeMapper recipeMapper;
     private final HtmlExtractor htmlExtractor;
-    private final HtmlCleaner htmlPreprocessor;
-    private final Transformer transformer;
+    private final Transformer transformer;  // AdaptiveCleaningTransformerService (@Primary)
     private final RecipeValidationService validationService;
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
@@ -49,63 +49,72 @@ public class RecipeService {
                     "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
         }
 
-        var recipe = createOrGetCached(url, sourceHtml, compression);
+        var transformerResponse = createOrGetCached(url, sourceHtml, compression);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(title)
                 .url(url)
-                .isRecipe(recipe.isRecipe());
-        if (recipe.isRecipe()) {
-            String fileName = googleDriveService.generateFileName(title);
-            // Convert Recipe object to YAML for storage
-            String yamlContent = convertRecipeToYaml(recipe.recipe());
-            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
-                    storage.accessToken(), storage.folderId(), fileName, yamlContent);
-            responseBuilder.driveFileId(uploadResult.fileId())
-                    .driveFileUrl(uploadResult.fileUrl());
-            if (recipe.recipe() != null
-                    && recipe.recipe().metadata() != null
-                    && recipe.recipe().metadata().title() != null) {
-                responseBuilder.title(recipe.recipe().metadata().title());
+                .isRecipe(transformerResponse.isRecipe());
+
+        if (transformerResponse.isRecipe()) {
+            List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
+
+            for (Recipe recipe : transformerResponse.recipes()) {
+                String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
+                        ? recipe.metadata().title() : title;
+                String fileName = googleDriveService.generateFileName(recipeTitle);
+                String yamlContent = convertRecipeToYaml(recipe);
+                DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+                        storage.accessToken(), storage.folderId(), fileName, yamlContent);
+                uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
+            }
+
+            responseBuilder.recipes(uploadedRecipes);
+
+            // Backward compat: populate top-level fields from the first recipe
+            if (!uploadedRecipes.isEmpty()) {
+                RecipeItemResult first = uploadedRecipes.get(0);
+                responseBuilder
+                        .title(first.title())
+                        .driveFileId(first.driveFileId())
+                        .driveFileUrl(first.driveFileUrl());
             }
         } else {
             log.info("Content is not a recipe. Skipping Drive storage - URL: {}", url);
         }
+
         return responseBuilder.build();
     }
 
     private Transformer.Response createOrGetCached(String url, String sourceHtml, String compression) throws IOException {
         String contentHash = contentHashService.generateContentHash(url);
-        Optional<StoredRecipe> stored = recipeStoreService.findStoredRecipeByHash(contentHash);
-        if (stored.isEmpty()) {
-            // 1. Extract raw HTML
-            String html = htmlExtractor.extractHtml(url, sourceHtml, compression);
-            log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
-
-            // 2. Preprocess HTML to reduce token usage
-            HtmlCleaner.Results preprocessed = htmlPreprocessor.process(html, url);
-            log.info("HTML preprocessing - URL: {}, {}", url, preprocessed.metricsMessage());
-
-            // 3. Transform preprocessed HTML to recipe
-            var response = transformer.transform(preprocessed.cleanedHtml(), url);
-            if (response.isRecipe()) {
-                // Convert Recipe to YAML for caching
-                String yamlContent = convertRecipeToYaml(response.recipe());
-                recipeStoreService.storeValidRecipe(contentHash, url, yamlContent);
-            } else {
-                log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", url, contentHash);
-                recipeStoreService.storeInvalidRecipe(contentHash, url);
-            }
-            return response;
-        } else {
-            StoredRecipe storedRecipe = stored.get();
-            if (storedRecipe.isValid()) {
-                // Parse cached YAML back to Recipe object
-                Recipe recipe = recipeParser.parse(storedRecipe.getRecipeYaml());
-                return Transformer.Response.recipe(recipe);
+        Optional<RecipeStoreService.CachedRecipes> cached = recipeStoreService.findCachedRecipes(contentHash);
+        if (cached.isPresent()) {
+            RecipeStoreService.CachedRecipes hit = cached.get();
+            if (hit.valid()) {
+                List<Recipe> recipes = hit.recipes();
+                log.debug("Cache HIT: {} recipe(s) for hash: {}", recipes.size(), contentHash);
+                return recipes.size() == 1
+                        ? Transformer.Response.recipe(recipes.get(0))
+                        : Transformer.Response.recipes(recipes);
             } else {
                 return Transformer.Response.notRecipe();
             }
         }
+
+        // Cache miss — extract and transform
+        String html = htmlExtractor.extractHtml(url, sourceHtml, compression);
+        log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
+
+        var response = transformer.transform(html, url);
+
+        if (response.isRecipe()) {
+            recipeStoreService.storeValidRecipes(contentHash, url, response.recipes());
+            log.debug("Cached {} recipe(s) for hash: {}", response.recipes().size(), contentHash);
+        } else {
+            log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", url, contentHash);
+            recipeStoreService.storeInvalidRecipe(contentHash, url);
+        }
+        return response;
     }
 
     /**
@@ -122,14 +131,12 @@ public class RecipeService {
         log.info("Listing recipes for user: {}, pageSize: {}, pageToken: {}",
                 userId, pageSize, pageToken);
 
-        // 1. Get user's OAuth token
         StorageInfo storage = storageService.getStorageInfo(userId);
 
         if (storage.type() != StorageType.GOOGLE_DRIVE) {
             throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
         }
 
-        // 2. Validate folder is configured
         if (storage.folderId() == null) {
             throw new StorageNotConnectedException(
                     "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
@@ -138,20 +145,17 @@ public class RecipeService {
         String folderId = storage.folderId();
         log.debug("Using folder ID from user profile: {}", folderId);
 
-        // 3. List YAML files from Drive
         GoogleDrive.DriveFileListResult driveFiles = googleDriveService.listRecipeFiles(
                 storage.accessToken(), folderId, pageSize, pageToken);
 
         log.info("Found {} YAML files in folder: {}", driveFiles.files().size(), folderId);
 
-        // 4. Download and parse each YAML file
         List<RecipeDto> recipes = driveFiles.files().stream()
                 .map(file -> parseRecipeFile(storage.accessToken(), file))
-                .filter(Objects::nonNull)  // Skip parsing errors
+                .filter(Objects::nonNull)
                 .toList();
 
-        log.info("Successfully parsed {} out of {} recipes",
-                recipes.size(), driveFiles.files().size());
+        log.info("Successfully parsed {} out of {} recipes", recipes.size(), driveFiles.files().size());
 
         return new RecipeListResult(recipes, driveFiles.nextPageToken());
     }
@@ -169,7 +173,6 @@ public class RecipeService {
     public RecipeDto getRecipe(String userId, String fileId) {
         log.info("Getting recipe: {} for user: {}", fileId, userId);
 
-        // 1. Get user's OAuth token
         StorageInfo storage = storageService.getStorageInfo(userId);
 
         if (storage.type() != StorageType.GOOGLE_DRIVE) {
@@ -177,19 +180,13 @@ public class RecipeService {
         }
 
         try {
-            // 2. Get file metadata
             GoogleDrive.DriveFileMetadata metadata = googleDriveService.getFileMetadata(
                     storage.accessToken(), fileId);
 
             log.debug("Found file: {} ({})", metadata.name(), metadata.mimeType());
 
-            // 3. Download and parse YAML
-            String yamlContent = googleDriveService.getFileContent(
-                    storage.accessToken(), fileId);
-
+            String yamlContent = googleDriveService.getFileContent(storage.accessToken(), fileId);
             Recipe recipe = recipeParser.parse(yamlContent);
-
-            // 4. Map to DTO
             RecipeDto dto = recipeMapper.toDto(recipe, metadata);
 
             log.info("Successfully retrieved recipe: {}", dto.getTitle());
@@ -198,7 +195,6 @@ public class RecipeService {
         } catch (Exception e) {
             log.error("Failed to get recipe: {}", fileId, e);
 
-            // Check if it's a "not found" error from Drive API
             if (e.getMessage() != null &&
                     (e.getMessage().contains("404") || e.getMessage().contains("not found"))) {
                 throw new RecipeNotFoundException("Recipe not found: " + fileId, e);
@@ -208,40 +204,21 @@ public class RecipeService {
         }
     }
 
-    /**
-     * Parse a single recipe file from Drive.
-     * Returns null if parsing fails (errors are logged but not thrown).
-     *
-     * @param authToken OAuth access token
-     * @param fileInfo  Drive file info
-     * @return Parsed RecipeDto or null if parsing failed
-     */
     private RecipeDto parseRecipeFile(String authToken, GoogleDrive.DriveFileInfo fileInfo) {
         try {
             log.debug("Parsing recipe file: {} ({})", fileInfo.name(), fileInfo.id());
-
             String yamlContent = googleDriveService.getFileContent(authToken, fileInfo.id());
             Recipe recipe = recipeParser.parse(yamlContent);
             RecipeDto dto = recipeMapper.toDto(recipe, fileInfo);
-
             log.debug("Successfully parsed: {}", dto.getTitle());
             return dto;
-
         } catch (Exception e) {
             log.error("Failed to parse recipe file: {} - Skipping. Error: {}",
                     fileInfo.name(), e.getMessage());
-            return null;  // Skip invalid recipes in list endpoint
+            return null;
         }
     }
 
-    /**
-     * Converts a Recipe object to YAML format for storage.
-     * Handles serialization errors gracefully.
-     *
-     * @param recipe the Recipe object to convert
-     * @return YAML string representation
-     * @throws RuntimeException if serialization fails
-     */
     private String convertRecipeToYaml(Recipe recipe) {
         try {
             return validationService.toYaml(recipe);

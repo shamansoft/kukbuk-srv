@@ -1,7 +1,6 @@
 package net.shamansoft.cookbook.service;
 
 import net.shamansoft.cookbook.dto.StorageInfo;
-import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.recipe.model.Recipe;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,6 @@ class RecipeServiceTest {
         RecipeParser recipeParser = mock(RecipeParser.class);
         RecipeMapper recipeMapper = mock(RecipeMapper.class);
         HtmlExtractor htmlExtractor = mock(HtmlExtractor.class);
-        HtmlCleaner htmlCleaner = mock(HtmlCleaner.class);
         Transformer transformer = mock(Transformer.class);
         RecipeValidationService validationService = mock(RecipeValidationService.class);
 
@@ -49,9 +47,6 @@ class RecipeServiceTest {
 
         when(htmlExtractor.extractHtml(anyString(), any(), org.mockito.ArgumentMatchers.isNull())).thenReturn("<html><body>content</body></html>");
 
-        HtmlCleaner.Results results = new HtmlCleaner.Results("<body>cleaned</body>", 100, 20, 0.8, net.shamansoft.cookbook.html.strategy.Strategy.CONTENT_FILTER, "msg");
-        when(htmlCleaner.process(anyString(), anyString())).thenReturn(results);
-
         Recipe recipe = mock(Recipe.class);
         when(transformer.transform(anyString(), anyString())).thenReturn(Transformer.Response.recipe(recipe));
 
@@ -62,9 +57,9 @@ class RecipeServiceTest {
         DriveService.UploadResult uploadResult = new DriveService.UploadResult("id1", "https://drive/file");
         when(driveService.uploadRecipeYaml(anyString(), anyString(), anyString(), anyString())).thenReturn(uploadResult);
 
-        // Build service
+        // Build service (AdaptiveCleaningTransformerService now owns cleaning; no HtmlCleaner in RecipeService)
         RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, htmlCleaner, transformer, validationService);
+                recipeParser, recipeMapper, htmlExtractor, transformer, validationService);
 
         // Act
         var resp = svc.createRecipe("user1", "http://u", "rawHtml", null, "My Title");
@@ -84,7 +79,6 @@ class RecipeServiceTest {
         RecipeParser recipeParser = mock(RecipeParser.class);
         RecipeMapper recipeMapper = mock(RecipeMapper.class);
         HtmlExtractor htmlExtractor = mock(HtmlExtractor.class);
-        HtmlCleaner htmlCleaner = mock(HtmlCleaner.class);
         Transformer transformer = mock(Transformer.class);
         RecipeValidationService validationService = mock(RecipeValidationService.class);
 
@@ -94,7 +88,7 @@ class RecipeServiceTest {
         when(storageService.getStorageInfo(anyString())).thenReturn(storage);
 
         RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, htmlCleaner, transformer, validationService);
+                recipeParser, recipeMapper, htmlExtractor, transformer, validationService);
 
         try {
             svc.createRecipe("user1", "http://u", "rawHtml", null, "title");

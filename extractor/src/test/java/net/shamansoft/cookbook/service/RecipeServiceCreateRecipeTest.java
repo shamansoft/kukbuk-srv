@@ -4,9 +4,7 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
-import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
-import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -70,8 +68,6 @@ class RecipeServiceCreateRecipeTest {
     @Mock
     private HtmlExtractor htmlExtractor;
     @Mock
-    private HtmlCleaner htmlPreprocessor;
-    @Mock
     private Transformer transformer;
     @Mock
     private RecipeValidationService validationService;
@@ -101,12 +97,8 @@ class RecipeServiceCreateRecipeTest {
         Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
-                .thenReturn(new HtmlCleaner.Results(
-                        EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -127,7 +119,7 @@ class RecipeServiceCreateRecipeTest {
         verify(storageService).getStorageInfo(USER_ID);
         verify(htmlExtractor).extractHtml(URL, SOURCE_HTML, null);
         verify(transformer).transform(eq(EXTRACTED_HTML), anyString());
-        verify(recipeStoreService).storeValidRecipe(HASH, URL, YAML);
+        verify(recipeStoreService).storeValidRecipes(eq(HASH), eq(URL), any());
         verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
     }
 
@@ -137,12 +129,8 @@ class RecipeServiceCreateRecipeTest {
         // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
-                .thenReturn(new HtmlCleaner.Results(
-                        EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.notRecipe());
 
         // When
@@ -163,14 +151,10 @@ class RecipeServiceCreateRecipeTest {
     void shouldUseCachedResult() throws Exception {
         // Given
         Recipe testRecipe = createTestRecipe();
-        StoredRecipe storedRecipe = mock(StoredRecipe.class);
-        when(storedRecipe.isValid()).thenReturn(true);
-        when(storedRecipe.getRecipeYaml()).thenReturn(YAML);
-
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.of(storedRecipe));
-        when(recipeParser.parse(YAML)).thenReturn(testRecipe);
+        when(recipeStoreService.findCachedRecipes(HASH))
+                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(testRecipe))));
         when(validationService.toYaml(testRecipe)).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
@@ -187,7 +171,6 @@ class RecipeServiceCreateRecipeTest {
         // Should NOT extract HTML or transform when cached
         verify(htmlExtractor, never()).extractHtml(any(), any(), any());
         verify(transformer, never()).transform(anyString(), anyString());
-        verify(recipeParser).parse(YAML);
         verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
     }
 
@@ -199,12 +182,8 @@ class RecipeServiceCreateRecipeTest {
         String compression = "gzip";
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, compression)).thenReturn(EXTRACTED_HTML);
-        when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
-                .thenReturn(new HtmlCleaner.Results(
-                        EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -240,7 +219,7 @@ class RecipeServiceCreateRecipeTest {
         // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null))
                 .thenThrow(new IOException("Failed to extract HTML"));
 
@@ -258,12 +237,8 @@ class RecipeServiceCreateRecipeTest {
         // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
-                .thenReturn(new HtmlCleaner.Results(
-                        EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenThrow(new RuntimeException("AI transformation failed"));
 
         // When/Then
@@ -281,12 +256,8 @@ class RecipeServiceCreateRecipeTest {
         Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.empty());
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
         when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(htmlPreprocessor.process(EXTRACTED_HTML, URL))
-                .thenReturn(new HtmlCleaner.Results(
-                        EXTRACTED_HTML, EXTRACTED_HTML.length(), EXTRACTED_HTML.length(),
-                        0.0, net.shamansoft.cookbook.html.strategy.Strategy.DISABLED, "No preprocessing"));
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
@@ -303,12 +274,10 @@ class RecipeServiceCreateRecipeTest {
     @DisplayName("Should handle cached invalid recipe")
     void shouldHandleCachedInvalidRecipe() throws IOException {
         // Given
-        StoredRecipe storedRecipe = mock(StoredRecipe.class);
-        when(storedRecipe.isValid()).thenReturn(false);
-
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findStoredRecipeByHash(HASH)).thenReturn(Optional.of(storedRecipe));
+        when(recipeStoreService.findCachedRecipes(HASH))
+                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.invalid()));
 
         // When
         RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);

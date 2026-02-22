@@ -20,7 +20,7 @@ public class Transformer {
         return StoredRecipe.builder()
                 .contentHash(document.getId())
                 .sourceUrl(document.getString("sourceUrl"))
-                .recipeYaml(document.getString("recipeYaml"))
+                .recipesJson(document.getString("recipesJson"))
                 .isValid(Boolean.TRUE.equals(document.getBoolean("valid")))
                 .createdAt(toInstant(document.get("createdAt")))
                 .lastUpdatedAt(toInstant(document.get("lastUpdatedAt")))

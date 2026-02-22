@@ -118,6 +118,47 @@ public class HtmlCleaner {
         meterRegistry.summary("html.preprocessing.cleaned_size").record(cleanedSize);
     }
 
+    /**
+     * Applies a specific named strategy to the HTML, bypassing the cascade.
+     * Used by AdaptiveCleaningTransformerService for sequential strategy retries.
+     * If the named strategy produces no output, returns raw HTML tagged as FALLBACK.
+     *
+     * @param html           Raw HTML content
+     * @param url            URL of the page (for logging)
+     * @param targetStrategy The specific strategy to apply
+     * @return Results with cleaned HTML and metrics
+     */
+    public Results processWithStrategy(String html, String url, Strategy targetStrategy) {
+        int originalSize = html != null ? html.length() : 0;
+
+        if (html == null || html.isBlank()) {
+            log.warn("Empty HTML input for URL: {}", url);
+            return buildResult("", 0, Strategy.FALLBACK);
+        }
+
+        if (!config.isEnabled() || targetStrategy == Strategy.FALLBACK || targetStrategy == Strategy.DISABLED) {
+            return buildResult(html, originalSize, targetStrategy == Strategy.DISABLED ? Strategy.DISABLED : Strategy.FALLBACK);
+        }
+
+        for (var strategy : strategies) {
+            if (strategy.getStrategy() == targetStrategy) {
+                try {
+                    Optional<String> out = strategy.clean(html);
+                    if (out.isPresent()) {
+                        log.debug("Adaptive strategy {} applied for URL: {}", targetStrategy, url);
+                        return buildResult(out.get(), originalSize, targetStrategy);
+                    }
+                } catch (Exception e) {
+                    log.debug("Adaptive strategy {} failed for URL: {}", targetStrategy, url, e);
+                }
+                break;
+            }
+        }
+
+        log.debug("Strategy {} produced no output for URL: {}, using raw HTML", targetStrategy, url);
+        return buildResult(html, originalSize, Strategy.FALLBACK);
+    }
+
     // removed legacy HtmlCleaner.Strategy enum; use net.shamansoft.cookbook.html.strategy.Strategy
 
     /**

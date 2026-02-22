@@ -166,7 +166,7 @@ class AddRecipeIT {
                                             "candidates": [{
                                                 "content": {
                                                     "parts": [{
-                                                        "text": "{\\"is_recipe\\": true, \\"metadata\\": {\\"title\\": \\"Chocolate Chip Cookies\\", \\"source\\": \\"https://example.com/recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 24, \\"prep_time\\": \\"15m\\", \\"cook_time\\": \\"12m\\", \\"total_time\\": \\"27m\\"}, \\"description\\": \\"Classic homemade chocolate chip cookies\\", \\"ingredients\\": [{\\"item\\": \\"All-purpose flour\\", \\"amount\\": 2.25, \\"unit\\": \\"cups\\"}, {\\"item\\": \\"Chocolate chips\\", \\"amount\\": 2, \\"unit\\": \\"cups\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"Preheat oven to 375°F\\"}, {\\"step\\": 2, \\"description\\": \\"Mix ingredients and bake for 12 minutes\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                                                        "text": "{\\"is_recipe\\": true, \\"recipe_confidence\\": 0.95, \\"recipes\\": [{\\"is_recipe\\": true, \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\", \\"metadata\\": {\\"title\\": \\"Chocolate Chip Cookies\\", \\"source\\": \\"https://example.com/recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 24, \\"prep_time\\": \\"15m\\", \\"cook_time\\": \\"12m\\", \\"total_time\\": \\"27m\\"}, \\"description\\": \\"Classic homemade chocolate chip cookies\\", \\"ingredients\\": [{\\"item\\": \\"All-purpose flour\\", \\"amount\\": \\"2.25\\", \\"unit\\": \\"cups\\"}, {\\"item\\": \\"Chocolate chips\\", \\"amount\\": \\"2\\", \\"unit\\": \\"cups\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"Preheat oven to 375°F\\"}, {\\"step\\": 2, \\"description\\": \\"Mix ingredients and bake for 12 minutes\\"}]}]}"
                                                     }]
                                                 }
                                             }]
@@ -415,27 +415,18 @@ class AddRecipeIT {
         String testUrl = "https://example.com/cached-recipe";
         String contentHash = contentHashService.generateContentHash(testUrl);
 
-        String cachedRecipeYaml = """
-                metadata:
-                  title: "Cached Recipe"
-                  source: "https://example.com/cached-recipe"
-                  servings: 4
-                description: "A cached recipe"
-                ingredients:
-                  - item: "Flour"
-                    amount: 2
-                    unit: "cups"
-                instructions:
-                  - step: 1
-                    description: "Mix and bake"
-                schema_version: "1.0.0"
-                recipe_version: "1.0.0"
+        String cachedRecipeJson = """
+                [{"is_recipe":true,"schema_version":"1.0.0","recipe_version":"1.0.0",\
+                "metadata":{"title":"Cached Recipe","source":"https://example.com/cached-recipe","servings":4},\
+                "description":"A cached recipe",\
+                "ingredients":[{"item":"Flour","amount":"2","unit":"cups"}],\
+                "instructions":[{"step":1,"description":"Mix and bake"}]}]
                 """;
 
         StoredRecipe cachedRecipe = StoredRecipe.builder()
                 .contentHash(contentHash)
                 .sourceUrl(testUrl)
-                .recipeYaml(cachedRecipeYaml)
+                .recipesJson(cachedRecipeJson)
                 .isValid(true)
                 .createdAt(Instant.now())
                 .lastUpdatedAt(Instant.now())
@@ -488,7 +479,7 @@ class AddRecipeIT {
                                             "candidates": [{
                                                 "content": {
                                                     "parts": [{
-                                                        "text": "{\\"is_recipe\\": false, \\"metadata\\": {\\"title\\": \\"Not a Recipe\\", \\"source\\": \\"https://example.com/not-recipe\\", \\"date_created\\": \\"2024-01-15\\", \\"servings\\": 1}, \\"ingredients\\": [{\\"item\\": \\"placeholder\\"}], \\"instructions\\": [{\\"step\\": 1, \\"description\\": \\"placeholder\\"}], \\"schema_version\\": \\"1.0.0\\", \\"recipe_version\\": \\"1.0.0\\"}"
+                                                        "text": "{\\"is_recipe\\": false, \\"recipe_confidence\\": 0.3, \\"recipes\\": []}"
                                                     }]
                                                 }
                                             }]
@@ -636,13 +627,13 @@ class AddRecipeIT {
         Optional<StoredRecipe> storedRecipe = recipeRepository.findByContentHash(contentHash).join();
         assertThat(storedRecipe).isPresent();
 
-        // Verify the stored YAML contains post-processing fields
-        String yaml = storedRecipe.get().getRecipeYaml();
-        assertThat(yaml)
-                .contains("source: \"" + testUrl + "\"")
-                .contains("date_created: \"" + java.time.LocalDate.now(java.time.Clock.systemUTC()) + "\"")
-                .contains("schema_version: \"1.0.0\"")
-                .contains("recipe_version: \"1.0.0\"");
+        // Verify the stored JSON contains post-processing fields
+        String json = storedRecipe.get().getRecipesJson();
+        assertThat(json)
+                .contains("\"source\":\"" + testUrl + "\"")
+                .contains("\"date_created\":\"" + java.time.LocalDate.now(java.time.Clock.systemUTC()) + "\"")
+                .contains("\"schema_version\":\"1.0.0\"")
+                .contains("\"recipe_version\":\"1.0.0\"");
     }
 
     @Test

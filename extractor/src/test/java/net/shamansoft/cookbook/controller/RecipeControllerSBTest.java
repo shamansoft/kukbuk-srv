@@ -114,7 +114,7 @@ class RecipeControllerSBTest {
                 .thenReturn(true);
 
         // Set up default mock behavior for store services
-        when(recipeStoreService.findStoredRecipeByHash(anyString()))
+        when(recipeStoreService.findCachedRecipes(anyString()))
                 .thenReturn(Optional.empty());
 
         // Set up content hash service mock

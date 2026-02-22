@@ -8,11 +8,8 @@ import net.shamansoft.recipe.model.Recipe;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -43,21 +40,8 @@ public class RequestBuilder {
     public void init() {
         this.prompt = resourceLoader.loadTextFile("classpath:prompt.md");
         this.validationPrompt = resourceLoader.loadTextFile("classpath:prompt_with_validation.md");
-        String jsonSchemaString = loadSchema();
+        String jsonSchemaString = resourceLoader.loadTextFile("classpath:llm-recipe-schema.json");
         this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
-    }
-
-    private String loadSchema() throws IOException {
-        String jsonSchemaString = resourceLoader.loadTextFile("classpath:recipe-schema-1.0.0.json");
-        // Parse JSON schema and remove $id and $schema fields as they're not needed for
-        // Gemini API
-        JsonNode schemaNode = objectMapper.readTree(jsonSchemaString);
-        if (schemaNode instanceof ObjectNode objectNode) {
-            objectNode.remove("$id");
-            objectNode.remove("$schema");
-            return objectMapper.writeValueAsString(objectNode);
-        }
-        return jsonSchemaString;
     }
 
     private String withDate() {

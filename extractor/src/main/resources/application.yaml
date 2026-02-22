@@ -113,6 +113,16 @@ recipe:
     # Default: 1
     retry: ${RECIPE_LLM_RETRY:1}
 
+  adaptive-cleaning:
+    # Enable/disable adaptive HTML cleaning with confidence feedback loop.
+    # When true: if LLM returns is_recipe=false with confidence >= threshold,
+    # retry with progressively less restrictive HTML cleaning strategies:
+    # STRUCTURED_DATA → SECTION_BASED → CONTENT_FILTER → FALLBACK
+    enabled: ${RECIPE_ADAPTIVE_CLEANING_ENABLED:true}
+    # Confidence threshold (0.0-1.0) that triggers a retry with less restrictive cleaning.
+    # If LLM confidence >= this value AND is_recipe=false, retry with more HTML context.
+    confidence-threshold: ${RECIPE_ADAPTIVE_CLEANING_THRESHOLD:0.5}
+
   store:
     # Enable/disable recipe caching in Firestore
     # Used by: RecipeStoreService.java:41 (@Value("${recipe.store.enabled:false}"))

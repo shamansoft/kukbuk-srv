@@ -1,0 +1,315 @@
+{
+  "title": "RecipeExtractionResult",
+  "type": "object",
+  "required": [
+    "is_recipe",
+    "recipe_confidence"
+  ],
+  "properties": {
+    "internal_reasoning": {
+      "type": "string",
+      "description": "Short analysis: ingredient groups, unit system, potential parsing pitfalls, confidence rationale. Keep under 50 words."
+    },
+    "is_recipe": {
+      "type": "boolean",
+      "description": "True if the page contains at least one cooking recipe. False otherwise."
+    },
+    "recipe_confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence (0.0-1.0) that the page contains a recipe. 1.0=certain recipe, 0.0=certain non-recipe. Set 0.5-0.7 when uncertain due to possibly incomplete/over-cleaned HTML."
+    },
+    "recipes": {
+      "type": "array",
+      "description": "All recipes found on the page. Empty when is_recipe is false.",
+      "items": {
+        "type": "object",
+        "required": [
+          "metadata",
+          "ingredients",
+          "instructions",
+          "schema_version",
+          "recipe_version"
+        ],
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "description": "Semantic version of the schema"
+          },
+          "recipe_version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "description": "Semantic version of the recipe"
+          },
+          "metadata": {
+            "type": "object",
+            "required": [
+              "title",
+              "source",
+              "date_created",
+              "servings"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Recipe name"
+              },
+              "source": {
+                "type": "string",
+                "format": "uri",
+                "description": "Original recipe url"
+              },
+              "author": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string",
+                "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
+                "description": "Language code 'en' or region format 'en/us'"
+              },
+              "date_created": {
+                "type": "string",
+                "format": "date"
+              },
+              "category": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "servings": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "prep_time": {
+                "type": "string",
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+              },
+              "cook_time": {
+                "type": "string",
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+              },
+              "total_time": {
+                "type": "string",
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": [
+                  "easy",
+                  "medium",
+                  "hard"
+                ]
+              },
+              "cover_image": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "alt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Markdown-formatted description"
+          },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "item"
+              ],
+              "properties": {
+                "item": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "string"
+                },
+                "optional": {
+                  "type": "boolean"
+                },
+                "substitutions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "item"
+                    ],
+                    "properties": {
+                      "item": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "unit": {
+                        "type": "string"
+                      },
+                      "notes": {
+                        "type": "string"
+                      },
+                      "ratio": {
+                        "type": "string",
+                        "description": "Conversion ratio like '1:1' or '2:1'"
+                      }
+                    }
+                  }
+                },
+                "component": {
+                  "type": "string",
+                  "description": "Ingredient grouping like 'dough', 'filling', 'sauce'"
+                }
+              }
+            },
+            "minItems": 1
+          },
+          "equipment": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "instructions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "description"
+              ],
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Markdown-formatted instruction"
+                },
+                "time": {
+                  "type": "string",
+                  "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+                },
+                "temperature": {
+                  "type": "string"
+                },
+                "media": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "path"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "image",
+                          "video"
+                        ]
+                      },
+                      "path": {
+                        "type": "string"
+                      },
+                      "alt": {
+                        "type": "string"
+                      },
+                      "thumbnail": {
+                        "type": "string"
+                      },
+                      "duration": {
+                        "type": "string",
+                        "pattern": "^\\d+:\\d{2}$"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "minItems": 1
+          },
+          "nutrition": {
+            "type": "object",
+            "properties": {
+              "serving_size": {
+                "type": "string"
+              },
+              "calories": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "protein": {
+                "type": "number",
+                "minimum": 0
+              },
+              "carbohydrates": {
+                "type": "number",
+                "minimum": 0
+              },
+              "fat": {
+                "type": "number",
+                "minimum": 0
+              },
+              "fiber": {
+                "type": "number",
+                "minimum": 0
+              },
+              "sugar": {
+                "type": "number",
+                "minimum": 0
+              },
+              "sodium": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "notes": {
+            "type": "string",
+            "description": "Markdown-formatted notes, tips and tricks"
+          },
+          "storage": {
+            "type": "object",
+            "properties": {
+              "refrigerator": {
+                "type": "string"
+              },
+              "freezer": {
+                "type": "string"
+              },
+              "room_temperature": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
