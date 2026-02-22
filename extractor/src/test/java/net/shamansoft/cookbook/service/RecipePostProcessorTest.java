@@ -33,7 +33,7 @@ class RecipePostProcessorTest {
         // Use a fixed clock to make tests deterministic
         Instant fixedInstant = Instant.parse("2026-02-03T10:00:00Z");
         clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
-        postProcessor = new RecipePostProcessor(SCHEMA_VERSION, clock);
+        postProcessor = new RecipePostProcessor(SCHEMA_VERSION, clock, new RecipeAdjustmentService());
     }
 
     @Test
@@ -292,7 +292,7 @@ class RecipePostProcessorTest {
     @Test
     void testProcess_customSchemaVersion() {
         // Given
-        RecipePostProcessor customProcessor = new RecipePostProcessor("2.5.0", clock);
+        RecipePostProcessor customProcessor = new RecipePostProcessor("2.5.0", clock, new RecipeAdjustmentService());
         Recipe recipe = new Recipe(
                 true,
                 "0.9.0",

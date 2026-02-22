@@ -19,12 +19,15 @@ public class RecipePostProcessor {
 
     private final String schemaVersion;
     private final Clock clock;
+    private final RecipeAdjustmentService adjustmentService;
 
     public RecipePostProcessor(
             @Value("${recipe.schema.version:1.0.0}") String schemaVersion,
-            Clock clock) {
+            Clock clock,
+            RecipeAdjustmentService adjustmentService) {
         this.schemaVersion = schemaVersion;
         this.clock = clock;
+        this.adjustmentService = adjustmentService;
     }
 
     /**
@@ -40,6 +43,8 @@ public class RecipePostProcessor {
         }
 
         log.debug("Post-processing recipe: schemaVersion={}, sourceUrl={}", schemaVersion, sourceUrl);
+
+        recipe = adjustmentService.adjust(recipe);
 
         // Handle null metadata case
         RecipeMetadata originalMetadata = recipe.metadata();
