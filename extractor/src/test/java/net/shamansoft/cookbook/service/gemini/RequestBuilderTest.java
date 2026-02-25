@@ -16,8 +16,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,13 +32,10 @@ class RequestBuilderTest {
     private ObjectMapper objectMapper;
     private RequestBuilder requestBuilder;
 
-    private Clock clock;
-
     @BeforeEach
     void setUp() throws IOException {
         objectMapper = new ObjectMapper();
-        clock = Clock.fixed(Instant.parse("2026-02-03T10:00:00Z"), ZoneId.of("UTC"));
-        requestBuilder = new RequestBuilder(resourcesLoader, objectMapper, clock);
+        requestBuilder = new RequestBuilder(resourcesLoader, objectMapper, Clock.systemUTC());
 
         // Set configuration values
         ReflectionTestUtils.setField(requestBuilder, "temperature", 0.7f);
@@ -50,7 +45,7 @@ class RequestBuilderTest {
 
         // Mock resource loading
         when(resourcesLoader.loadTextFile(eq("classpath:prompt.md")))
-                .thenReturn("Date: %s\nHTML: %s");
+                .thenReturn("HTML: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:prompt_with_validation.md")))
                 .thenReturn("\nValidation Error: %s\nPrevious Recipe: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:llm-recipe-schema.json")))
@@ -118,7 +113,6 @@ class RequestBuilderTest {
 
         String promptText = request.getContents().get(0).getParts().get(0).getText();
         assertThat(promptText).contains("HTML: " + htmlContent);
-        assertThat(promptText).contains("Date:");
 
         // Verify generation config
         assertThat(request.getGenerationConfig()).isNotNull();
@@ -239,23 +233,9 @@ class RequestBuilderTest {
     }
 
     @Test
-    void buildRequestIncludesCurrentDate() throws JacksonException {
-        // Given
-        String htmlContent = "<html></html>";
-
-        // When
-        GeminiRequest request = requestBuilder.buildRequest(htmlContent);
-
-        // Then
-        String promptText = request.getContents().get(0).getParts().get(0).getText();
-        // Should contain a date in YYYY-MM-DD format
-        assertThat(promptText).containsPattern("Date: \\d{4}-\\d{2}-\\d{2}");
-    }
-
-    @Test
     void postConstructLoadsPromptAndSchemaResources() throws IOException {
         // Given
-        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, Clock.systemUTC());
         ReflectionTestUtils.setField(builder, "temperature", 0.7f);
         ReflectionTestUtils.setField(builder, "topP", 0.9f);
         ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
@@ -277,7 +257,7 @@ class RequestBuilderTest {
     @Test
     void postConstructRemovesIdAndSchemaFromJsonSchema() throws IOException {
         // Given
-        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
+        RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, Clock.systemUTC());
         ReflectionTestUtils.setField(builder, "temperature", 0.7f);
         ReflectionTestUtils.setField(builder, "topP", 0.9f);
         ReflectionTestUtils.setField(builder, "maxOutputTokens", 4096);
