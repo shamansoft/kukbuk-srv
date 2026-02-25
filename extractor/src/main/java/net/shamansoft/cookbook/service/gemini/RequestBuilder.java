@@ -44,15 +44,8 @@ public class RequestBuilder {
         this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
     }
 
-    private String withDate() {
-        LocalDate today = LocalDate.now(clock);
-        return today.format(DateTimeFormatter.ISO_LOCAL_DATE); // YYYY-MM-DD
-    }
-
     private String withHtml(String html) {
-        // Note: prompt still references schema as string for documentation, but we use
-        // parsedJsonSchema in the request
-        return prompt.formatted(withDate(), html);
+        return prompt.formatted(html);
     }
 
     private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError)
