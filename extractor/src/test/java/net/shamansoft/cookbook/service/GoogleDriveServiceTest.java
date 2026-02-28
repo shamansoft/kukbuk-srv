@@ -282,4 +282,98 @@ class GoogleDriveServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Expected Google Drive storage");
     }
+
+    // ---- read methods -------------------------------------------------------
+
+    @Test
+    void listRecipeFiles_delegatesToDrive() {
+        String authToken = "token";
+        String folderId = "folder-123";
+        GoogleDrive.DriveFileInfo fileInfo =
+                new GoogleDrive.DriveFileInfo("file-1", "pasta.yaml", "2024-01-15T10:00:00Z");
+        GoogleDrive.DriveFileListResult expected =
+                new GoogleDrive.DriveFileListResult(java.util.List.of(fileInfo), "next-token");
+
+        when(googleDrive.listFiles(authToken, folderId, 20, null)).thenReturn(expected);
+
+        GoogleDrive.DriveFileListResult result =
+                googleDriveService.listRecipeFiles(authToken, folderId, 20, null);
+
+        assertThat(result.files()).hasSize(1);
+        assertThat(result.files().get(0).name()).isEqualTo("pasta.yaml");
+        assertThat(result.nextPageToken()).isEqualTo("next-token");
+        verify(googleDrive).listFiles(authToken, folderId, 20, null);
+    }
+
+    @Test
+    void listRecipeFiles_withPageToken_forwardsTokenToDrive() {
+        String authToken = "token";
+        String folderId = "folder-123";
+        GoogleDrive.DriveFileListResult expected =
+                new GoogleDrive.DriveFileListResult(java.util.List.of(), null);
+
+        when(googleDrive.listFiles(authToken, folderId, 10, "page-tok")).thenReturn(expected);
+
+        GoogleDrive.DriveFileListResult result =
+                googleDriveService.listRecipeFiles(authToken, folderId, 10, "page-tok");
+
+        assertThat(result.files()).isEmpty();
+        verify(googleDrive).listFiles(authToken, folderId, 10, "page-tok");
+    }
+
+    @Test
+    void getFileContent_delegatesToDrive() {
+        String authToken = "token";
+        String fileId = "file-abc";
+        when(googleDrive.downloadFileAsString(authToken, fileId))
+                .thenReturn("is_recipe: true\ntitle: Test");
+
+        String content = googleDriveService.getFileContent(authToken, fileId);
+
+        assertThat(content).contains("is_recipe: true");
+        verify(googleDrive).downloadFileAsString(authToken, fileId);
+    }
+
+    @Test
+    void downloadFile_delegatesToDrive() {
+        String authToken = "token";
+        String fileId = "file-abc";
+        byte[] expected = new byte[]{1, 2, 3};
+        when(googleDrive.downloadFileAsBytes(authToken, fileId)).thenReturn(expected);
+
+        byte[] result = googleDriveService.downloadFile(authToken, fileId);
+
+        assertThat(result).isEqualTo(expected);
+        verify(googleDrive).downloadFileAsBytes(authToken, fileId);
+    }
+
+    @Test
+    void getFileMimeType_delegatesToDriveMetadata() {
+        String authToken = "token";
+        String fileId = "file-abc";
+        GoogleDrive.DriveFileMetadata metadata =
+                new GoogleDrive.DriveFileMetadata(fileId, "recipe.yaml", "application/x-yaml", "2024-01-15");
+        when(googleDrive.getFileMetadata(authToken, fileId)).thenReturn(metadata);
+
+        String mimeType = googleDriveService.getFileMimeType(authToken, fileId);
+
+        assertThat(mimeType).isEqualTo("application/x-yaml");
+        verify(googleDrive).getFileMetadata(authToken, fileId);
+    }
+
+    @Test
+    void getFileMetadata_delegatesToDrive() {
+        String authToken = "token";
+        String fileId = "file-abc";
+        GoogleDrive.DriveFileMetadata expected =
+                new GoogleDrive.DriveFileMetadata(fileId, "recipe.yaml", "application/x-yaml", "2024-01-15");
+        when(googleDrive.getFileMetadata(authToken, fileId)).thenReturn(expected);
+
+        GoogleDrive.DriveFileMetadata result = googleDriveService.getFileMetadata(authToken, fileId);
+
+        assertThat(result.id()).isEqualTo(fileId);
+        assertThat(result.name()).isEqualTo("recipe.yaml");
+        assertThat(result.mimeType()).isEqualTo("application/x-yaml");
+        verify(googleDrive).getFileMetadata(authToken, fileId);
+    }
 }

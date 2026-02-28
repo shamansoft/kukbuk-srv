@@ -15,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -335,5 +336,99 @@ class ValidatingTransformerServiceTest {
                 null,
                 null
         );
+    }
+
+    @Test
+    void transform_partialSuccess_returnsValidSubsetAfterAllRetries() throws Exception {
+        // Given: 2 recipes, first valid, second always invalid
+        ReflectionTestUtils.setField(validatingTransformer, "maxRetries", 1);
+        String html = "<html>Multi-recipe page</html>";
+        String sourceUrl = "https://example.com/recipes";
+        Recipe validRecipe = createValidRecipe("Valid Dish");
+        Recipe invalidRecipe = createRecipeWithMissingFields();
+
+        Transformer.Response initialResponse = Transformer.Response.recipes(List.of(validRecipe, invalidRecipe));
+        Transformer.Response retryResponse = Transformer.Response.recipes(List.of(validRecipe, invalidRecipe));
+
+        RecipeValidationService.ValidationResult valid =
+                RecipeValidationService.ValidationResult.success(validRecipe);
+        RecipeValidationService.ValidationResult invalid =
+                RecipeValidationService.ValidationResult.failure("Missing title");
+        Recipe postProcessed = createValidRecipe("Valid Dish");
+
+        when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
+        when(validationService.validate(validRecipe)).thenReturn(valid);
+        when(validationService.validate(invalidRecipe)).thenReturn(invalid);
+        lenient().when(validationService.toYaml(any(Recipe.class))).thenReturn("yaml");
+        when(geminiTransformer.transformWithFeedback(eq(html), any(Recipe.class), anyString()))
+                .thenReturn(retryResponse);
+        when(postProcessor.process(validRecipe, sourceUrl)).thenReturn(postProcessed);
+
+        // When
+        Transformer.Response result = validatingTransformer.transform(html, sourceUrl);
+
+        // Then: partial success - valid recipe is returned, invalid is dropped
+        assertTrue(result.isRecipe());
+        assertThat(result.recipes()).hasSize(1);
+        assertEquals("Valid Dish", result.recipes().get(0).metadata().title());
+    }
+
+    @Test
+    void validateAll_withMultipleRecipes_includesTitleInErrorMessages() throws Exception {
+        // Given: 2 recipes, both invalid, so error messages should include recipe titles
+        String html = "<html>content</html>";
+        String sourceUrl = "https://example.com/recipe";
+        Recipe invalidA = createRecipeWithMissingFields();
+        Recipe invalidB = createRecipeWithMissingFields();
+
+        Transformer.Response initialResponse = Transformer.Response.recipes(List.of(invalidA, invalidB));
+        RecipeValidationService.ValidationResult failure =
+                RecipeValidationService.ValidationResult.failure("Missing required field");
+
+        when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
+        when(validationService.validate(any(Recipe.class))).thenReturn(failure);
+        lenient().when(validationService.toYaml(any(Recipe.class))).thenReturn("yaml");
+        // After retry: still all invalid
+        Transformer.Response retryResponse = Transformer.Response.recipes(List.of(invalidA, invalidB));
+        when(geminiTransformer.transformWithFeedback(eq(html), any(Recipe.class), anyString()))
+                .thenReturn(retryResponse);
+
+        Transformer.Response result = validatingTransformer.transform(html, sourceUrl);
+
+        // Both recipes failed -> notRecipe
+        assertFalse(result.isRecipe());
+    }
+
+    @Test
+    void transform_logRecipeDetails_handlesSerializationException() throws Exception {
+        // Given: initial recipe fails validation, and toYaml also throws
+        String html = "<html>Recipe content</html>";
+        String sourceUrl = "https://example.com/recipe";
+        Recipe invalidRecipe = createRecipeWithMissingFields();
+        Recipe validRecipe = createValidRecipe("Valid Recipe");
+        Recipe postProcessedRecipe = createValidRecipe("Valid Recipe");
+
+        Transformer.Response initialResponse = Transformer.Response.recipe(invalidRecipe);
+        Transformer.Response retryResponse = Transformer.Response.recipe(validRecipe);
+        RecipeValidationService.ValidationResult invalidResult =
+                RecipeValidationService.ValidationResult.failure("Missing title");
+        RecipeValidationService.ValidationResult validResult =
+                RecipeValidationService.ValidationResult.success(validRecipe);
+
+        when(geminiTransformer.transform(html, sourceUrl)).thenReturn(initialResponse);
+        when(validationService.validate(invalidRecipe)).thenReturn(invalidResult);
+        when(validationService.toYaml(invalidRecipe))
+                .thenThrow(new net.shamansoft.recipe.parser.RecipeSerializeException("Serialization failed"));
+        when(geminiTransformer.transformWithFeedback(eq(html), eq(invalidRecipe), eq("Missing title")))
+                .thenReturn(retryResponse);
+        when(validationService.validate(validRecipe)).thenReturn(validResult);
+        when(postProcessor.process(validRecipe, sourceUrl)).thenReturn(postProcessedRecipe);
+
+        // When: should not crash even though toYaml fails
+        Transformer.Response result = validatingTransformer.transform(html, sourceUrl);
+
+        // Then: still returns valid result
+        assertTrue(result.isRecipe());
+        assertEquals("Valid Recipe", result.recipe().metadata().title());
     }
 }

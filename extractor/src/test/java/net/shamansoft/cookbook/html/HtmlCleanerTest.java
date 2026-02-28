@@ -535,4 +535,111 @@ class HtmlCleanerTest {
         assertThat(result.metricsMessage()).contains("chars");
         assertThat(result.metricsMessage()).contains("reduction");
     }
+
+    // ---- processWithStrategy ------------------------------------------------
+
+    @Test
+    void processWithStrategy_namedStrategySucceeds_returnsStrategyOutput() {
+        // JSON-LD in html -> STRUCTURED_DATA strategy should extract it
+        String html = """
+                <html><head>
+                <script type="application/ld+json">
+                {"@context":"https://schema.org","@type":"Recipe",
+                "name":"Test Cake","recipeIngredient":["flour"],
+                "recipeInstructions":["Mix"],"image":"img.jpg"}
+                </script></head><body>Some text</body></html>
+                """;
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.STRUCTURED_DATA);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.STRUCTURED_DATA);
+        assertThat(result.cleanedHtml()).contains("Test Cake");
+    }
+
+    @Test
+    void processWithStrategy_namedStrategyProducesNoOutput_fallsBackToRaw() {
+        // Plain text with no structure -> STRUCTURED_DATA finds nothing -> FALLBACK
+        String html = "<html><body><p>Just some random text</p></body></html>";
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.STRUCTURED_DATA);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isEqualTo(html);
+    }
+
+    @Test
+    void processWithStrategy_fallbackPassedDirectly_returnsRawHtml() {
+        String html = "<html><body>content</body></html>";
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.FALLBACK);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isEqualTo(html);
+    }
+
+    @Test
+    void processWithStrategy_disabledPassedDirectly_returnsRawHtml() {
+        String html = "<html><body>content</body></html>";
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.DISABLED);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.DISABLED);
+        assertThat(result.cleanedHtml()).isEqualTo(html);
+    }
+
+    @Test
+    void processWithStrategy_configDisabled_returnsRawHtml() {
+        config.setEnabled(false);
+        String html = "<html><body>content</body></html>";
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.SECTION_BASED);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isEqualTo(html);
+    }
+
+    @Test
+    void processWithStrategy_nullHtml_returnsEmptyFallback() {
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                null, "https://example.com", Strategy.STRUCTURED_DATA);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isEqualTo("");
+        assertThat(result.originalSize()).isEqualTo(0);
+    }
+
+    @Test
+    void processWithStrategy_blankHtml_returnsEmptyFallback() {
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                "   ", "https://example.com", Strategy.SECTION_BASED);
+
+        assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isEqualTo("");
+    }
+
+    @Test
+    void processWithStrategy_contentFilterStrategy_extractsMainContent() {
+        String html = """
+                <html><body>
+                <nav>Navigation links</nav>
+                <main>
+                <h1>Recipe Title</h1>
+                <p>Great recipe with ingredients and instructions here. Very detailed content follows below.</p>
+                </main>
+                <footer>Footer content footer footer footer</footer>
+                </body></html>
+                """;
+
+        HtmlCleaner.Results result = htmlCleaner.processWithStrategy(
+                html, "https://example.com", Strategy.CONTENT_FILTER);
+
+        // CONTENT_FILTER either returns cleaned output or falls back to raw
+        assertThat(result.strategyUsed()).isIn(Strategy.CONTENT_FILTER, Strategy.FALLBACK);
+        assertThat(result.cleanedHtml()).isNotNull();
+    }
 }

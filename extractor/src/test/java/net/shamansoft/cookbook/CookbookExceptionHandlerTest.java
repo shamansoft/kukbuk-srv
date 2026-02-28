@@ -3,7 +3,11 @@ package net.shamansoft.cookbook;
 import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.GoogleDriveException;
+import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
+import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +20,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import javax.naming.AuthenticationException;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,16 +38,12 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void handleIOExceptionReturnsProperResponse() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/recipe");
 
-        // Create test exception
         IOException testException = new IOException("Test error message");
 
-        // Call exception handler
         var response = controller.handleIOException(testException, httpServletRequest);
 
-        // Verify response status and content
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 400);
@@ -53,16 +54,12 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void handleGeneralExceptionReturnsInternalServerError() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/recipe");
 
-        // Create test exception
         RuntimeException testException = new RuntimeException("Unexpected error");
 
-        // Call exception handler
         var response = controller.handleGeneralException(testException, httpServletRequest);
 
-        // Verify response status and content
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 500);
@@ -72,16 +69,12 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void handleClientExceptionReturns500() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/recipe");
 
-        // Create test exception
         RuntimeException testException = new RuntimeException("Client error");
 
-        // Call exception handler
         var response = controller.handleGeneralException(testException, httpServletRequest);
 
-        // Verify response status and content
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 500);
@@ -142,17 +135,13 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void generalExceptionHandlerReturnsInternalServerError() {
-        // Setup mock request
         HttpServletRequest mockRequest = mock(HttpServletRequest.class);
         when(mockRequest.getRequestURI()).thenReturn("/recipe");
 
-        // Create a runtime exception
         RuntimeException exception = new RuntimeException("Something unexpected happened");
 
-        // Call the exception handler
         ResponseEntity<Object> response = controller.handleGeneralException(exception, mockRequest);
 
-        // Verify response
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
         Object body = response.getBody();
@@ -163,23 +152,18 @@ public class CookbookExceptionHandlerTest {
         assertThat(errorResponse.getError()).isEqualTo("Internal Server Error");
         assertThat(errorResponse.getMessage()).isEqualTo("An unexpected error occurred. Please try again later.");
         assertThat(errorResponse.getPath()).isEqualTo("/recipe");
-        // Error message should not expose internal details
         assertThat(errorResponse.getMessage()).doesNotContain("Something unexpected happened");
     }
 
     @Test
     void handleStorageNotConnectedReturnsPreconditionRequired() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/status");
 
-        // Create test exception
         StorageNotConnectedException testException =
                 new StorageNotConnectedException("No storage configured");
 
-        // Call exception handler
         var response = controller.handleStorageNotConnected(testException, httpServletRequest);
 
-        // Verify response
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_REQUIRED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 428);
@@ -190,17 +174,13 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void handleUserNotFoundReturnsNotFound() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/connect");
 
-        // Create test exception
         UserNotFoundException testException =
                 new UserNotFoundException("User profile not found: test-user-123");
 
-        // Call exception handler
         var response = controller.handleUserNotFound(testException, httpServletRequest);
 
-        // Verify response
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 404);
@@ -211,26 +191,106 @@ public class CookbookExceptionHandlerTest {
 
     @Test
     void handleDatabaseUnavailableReturnsServiceUnavailable() {
-        // Mock HTTP request
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/storage/google-drive/connect");
 
-        // Create test exception
         DatabaseUnavailableException testException =
                 new DatabaseUnavailableException("Firestore connection timeout");
 
-        // Call exception handler
         var response = controller.handleDatabaseUnavailable(testException, httpServletRequest);
 
-        // Verify response
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 503);
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Service Unavailable");
         assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/storage/google-drive/connect");
-        // Error message should be generic to not expose internal details
         assertThat(response.getBody()).hasFieldOrPropertyWithValue(
                 "message",
                 "Database temporarily unavailable. Please try again later."
         );
+    }
+
+    @Test
+    void handleUrlFetchExceptionReturnsUnprocessableEntity() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
+
+        UrlFetchException testException = new UrlFetchException("https://example.com", 403);
+
+        var response = controller.handleUrlFetchException(testException, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 422);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "URL Not Accessible");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", testException.getMessage());
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/recipes");
+    }
+
+    @Test
+    void handleAuthExceptionReturnsUnauthorized() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
+
+        AuthenticationException testException = new AuthenticationException("Invalid or expired token");
+
+        var response = controller.handleAuthException(testException, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 401);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Authentication Error");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "Invalid or expired token");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/recipes");
+    }
+
+    @Test
+    void handleRecipeNotFoundReturnsNotFound() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes/file-abc-123");
+
+        RecipeNotFoundException testException = new RecipeNotFoundException("Recipe not found: file-abc-123");
+
+        var response = controller.handleRecipeNotFound(testException, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 404);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Recipe Not Found");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("message", "Recipe not found: file-abc-123");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/recipes/file-abc-123");
+    }
+
+    @Test
+    void handleInvalidRecipeFormatReturnsUnprocessableEntity() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes/file-abc-123");
+
+        InvalidRecipeFormatException testException =
+                new InvalidRecipeFormatException("Unexpected YAML token at line 5");
+
+        var response = controller.handleInvalidRecipeFormat(testException, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 422);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Invalid Recipe Format");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/recipes/file-abc-123");
+        Object body = response.getBody();
+        assertThat(body).isInstanceOf(ErrorResponse.class);
+        assertThat(((ErrorResponse) body).getMessage()).contains("Unexpected YAML token at line 5");
+    }
+
+    @Test
+    void handleGoogleDriveExceptionReturnsBadGateway() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
+
+        GoogleDriveException testException = new GoogleDriveException("Drive API quota exceeded");
+
+        var response = controller.handleGoogleDriveException(testException, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("status", 502);
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("error", "Google Drive Error");
+        assertThat(response.getBody()).hasFieldOrPropertyWithValue("path", "/v1/recipes");
+        Object body = response.getBody();
+        assertThat(body).isInstanceOf(ErrorResponse.class);
+        assertThat(((ErrorResponse) body).getMessage()).contains("Drive API quota exceeded");
     }
 }
