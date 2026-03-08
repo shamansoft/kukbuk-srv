@@ -53,6 +53,8 @@ class RequestBuilderTest {
                 .thenReturn("Date: %s\nHTML: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:prompt_with_validation.md")))
                 .thenReturn("\nValidation Error: %s\nPrevious Recipe: %s");
+        when(resourcesLoader.loadTextFile(eq("classpath:description-prompt.md")))
+                .thenReturn("Description: %s");
         when(resourcesLoader.loadTextFile(eq("classpath:llm-recipe-schema.json")))
                 .thenReturn("""
                         {
@@ -253,6 +255,30 @@ class RequestBuilderTest {
     }
 
     @Test
+    void buildRequestFromDescriptionCreatesValidRequest() throws JacksonException {
+        // Given
+        String description = "Mix flour and eggs. Fry until golden.";
+
+        // When
+        GeminiRequest request = requestBuilder.buildRequestFromDescription(description);
+
+        // Then
+        assertThat(request).isNotNull();
+        assertThat(request.getContents()).hasSize(1);
+        String promptText = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(promptText).contains("Description: " + description);
+        assertThat(request.getGenerationConfig().getResponseMimeType()).isEqualTo("application/json");
+        assertThat(request.getSafetySettings()).hasSize(4);
+    }
+
+    @Test
+    void buildRequestFromDescriptionThrowsExceptionWhenDescriptionIsNull() {
+        assertThatThrownBy(() -> requestBuilder.buildRequestFromDescription(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("description cannot be null");
+    }
+
+    @Test
     void postConstructLoadsPromptAndSchemaResources() throws IOException {
         // Given
         RequestBuilder builder = new RequestBuilder(resourcesLoader, objectMapper, clock);
@@ -267,10 +293,12 @@ class RequestBuilderTest {
         // Then
         String prompt = (String) ReflectionTestUtils.getField(builder, "prompt");
         String validationPrompt = (String) ReflectionTestUtils.getField(builder, "validationPrompt");
+        String descriptionPrompt = (String) ReflectionTestUtils.getField(builder, "descriptionPrompt");
         Object parsedJsonSchema = ReflectionTestUtils.getField(builder, "parsedJsonSchema");
 
         assertThat(prompt).isNotNull();
         assertThat(validationPrompt).isNotNull();
+        assertThat(descriptionPrompt).isNotNull();
         assertThat(parsedJsonSchema).isNotNull();
     }
 

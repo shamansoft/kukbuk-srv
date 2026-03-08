@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.service;
 
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +46,7 @@ class RecipeServiceTest {
 
         when(storageService.getStorageInfo(anyString())).thenReturn(storage);
 
-        when(htmlExtractor.extractHtml(anyString(), any(), org.mockito.ArgumentMatchers.isNull())).thenReturn("<html><body>content</body></html>");
+        when(htmlExtractor.extractHtml(anyString(), any())).thenReturn("<html><body>content</body></html>");
 
         Recipe recipe = mock(Recipe.class);
         when(transformer.transform(anyString(), anyString())).thenReturn(Transformer.Response.recipe(recipe));
@@ -58,8 +59,10 @@ class RecipeServiceTest {
         when(driveService.uploadRecipeYaml(anyString(), anyString(), anyString(), anyString())).thenReturn(uploadResult);
 
         // Build service (AdaptiveCleaningTransformerService now owns cleaning; no HtmlCleaner in RecipeService)
+        Compressor compressor = mock(Compressor.class);
+        GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
         RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, transformer, validationService);
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
 
         // Act
         var resp = svc.createRecipe("user1", "http://u", "rawHtml", null, "My Title");
@@ -87,8 +90,10 @@ class RecipeServiceTest {
 
         when(storageService.getStorageInfo(anyString())).thenReturn(storage);
 
+        Compressor compressor = mock(Compressor.class);
+        GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
         RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, transformer, validationService);
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
 
         try {
             svc.createRecipe("user1", "http://u", "rawHtml", null, "title");
