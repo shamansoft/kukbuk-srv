@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.GoogleDrive;
+import net.shamansoft.cookbook.dto.Compression;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeResponse;
@@ -11,6 +12,7 @@ import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.stereotype.Service;
@@ -38,10 +40,12 @@ public class RecipeService {
     private final RecipeParser recipeParser;
     private final RecipeMapper recipeMapper;
     private final HtmlExtractor htmlExtractor;
+    private final Compressor compressor;
     private final Transformer transformer;  // AdaptiveCleaningTransformerService (@Primary)
     private final RecipeValidationService validationService;
+    private final GeminiRestTransformer geminiRestTransformer;
 
-    public RecipeResponse createRecipe(String userId, String url, String sourceHtml, String compression, String title) throws IOException {
+    public RecipeResponse createRecipe(String userId, String url, String sourceHtml, Compression compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
 
         if (storage.folderId() == null) {
@@ -85,7 +89,46 @@ public class RecipeService {
         return responseBuilder.build();
     }
 
-    private Transformer.Response createOrGetCached(String url, String sourceHtml, String compression) throws IOException {
+    public RecipeResponse createRecipeFromDescription(String userId, String description, String title, String url, Compression compression) throws IOException {
+        StorageInfo storage = storageService.getStorageInfo(userId);
+
+        if (storage.folderId() == null) {
+            throw new StorageNotConnectedException(
+                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+        }
+
+        String plainDescription = decompressContent(description, compression);
+        var transformerResponse = geminiRestTransformer.transformDescription(plainDescription);
+
+        List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
+        for (Recipe recipe : transformerResponse.recipes()) {
+            String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
+                    ? recipe.metadata().title() : title;
+            String fileName = googleDriveService.generateFileName(recipeTitle);
+            String yamlContent = convertRecipeToYaml(recipe);
+            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+                    storage.accessToken(), storage.folderId(), fileName, yamlContent);
+            uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
+        }
+
+        RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
+                .title(title)
+                .url(url)
+                .isRecipe(true)
+                .recipes(uploadedRecipes);
+
+        if (!uploadedRecipes.isEmpty()) {
+            RecipeItemResult first = uploadedRecipes.get(0);
+            responseBuilder
+                    .title(first.title())
+                    .driveFileId(first.driveFileId())
+                    .driveFileUrl(first.driveFileUrl());
+        }
+
+        return responseBuilder.build();
+    }
+
+    private Transformer.Response createOrGetCached(String url, String sourceHtml, Compression compression) throws IOException {
         String contentHash = contentHashService.generateContentHash(url);
         Optional<RecipeStoreService.CachedRecipes> cached = recipeStoreService.findCachedRecipes(contentHash);
         if (cached.isPresent()) {
@@ -101,8 +144,14 @@ public class RecipeService {
             }
         }
 
-        // Cache miss — extract and transform
-        String html = htmlExtractor.extractHtml(url, sourceHtml, compression);
+        // Cache miss — decompress then extract
+        String decompressed = null;
+        try {
+            decompressed = decompressContent(sourceHtml, compression);
+        } catch (IOException e) {
+            log.warn("Failed to decompress HTML, falling back to URL fetch: {}", e.getMessage());
+        }
+        String html = htmlExtractor.extractHtml(url, decompressed);
         log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
 
         var response = transformer.transform(html, url);
@@ -217,6 +266,16 @@ public class RecipeService {
                     fileInfo.name(), e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Decompresses content only when compression is BASE64_GZIP.
+     * Null or NONE compression passes content through unchanged.
+     */
+    private String decompressContent(String content, Compression compression) throws IOException {
+        if (content == null || content.isBlank()) return content;
+        if (compression != Compression.BASE64_GZIP) return content;
+        return compressor.decompress(content);
     }
 
     private String convertRecipeToYaml(Recipe recipe) {

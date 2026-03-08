@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.dto.Compression;
+import net.shamansoft.cookbook.dto.CustomRecipeRequest;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
@@ -143,7 +145,7 @@ public class RecipeController {
             allowCredentials = "false"
     )
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
-                                       @RequestParam(value = "compression", required = false) String compression,
+                                       @RequestParam(value = "compression", required = false) Compression compression,
                                        @RequestAttribute("userId") String userId,
                                        @RequestAttribute("userEmail") String userEmail
     )
@@ -154,7 +156,37 @@ public class RecipeController {
                 request.url(),
                 request.title() != null ? request.title() : "Not Provided",
                 request.html() != null && !request.html().isEmpty(),
-                compression != null ? compression : "default");
+                compression != null ? compression : Compression.BASE64_GZIP);
         return recipeService.createRecipe(userId, request.url(), request.html(), compression, request.title());
+    }
+
+    /**
+     * POST /v1/recipes/custom - Create a recipe from a user-authored description.
+     * No HTML or URL extraction is performed; the description is structured by AI.
+     * URL is optional and used only for reference/storage.
+     */
+    @PostMapping(
+            path = "/custom",
+            consumes = "application/json",
+            produces = "application/json"
+    )
+    @CrossOrigin(originPatterns = "chrome-extension://*",
+            allowedHeaders = "*",
+            exposedHeaders = "*",
+            allowCredentials = "false"
+    )
+    public RecipeResponse createCustomRecipe(@RequestBody @Valid CustomRecipeRequest request,
+                                             @RequestParam(value = "compression", required = false) Compression compression,
+                                             @RequestAttribute("userId") String userId,
+                                             @RequestAttribute("userEmail") String userEmail)
+            throws IOException {
+
+        log.info("Creating custom recipe for user: {} ({})", userEmail, userId);
+        log.info("Processing custom recipe - Title: {}, Has URL: {}, Description length: {}, Compression: {}",
+                request.title() != null ? request.title() : "Not Provided",
+                request.url() != null,
+                request.description().length(),
+                compression != null ? compression : Compression.NONE);
+        return recipeService.createRecipeFromDescription(userId, request.description(), request.title(), request.url(), compression);
     }
 }

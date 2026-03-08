@@ -1,0 +1,615 @@
+openapi: 3.0.3
+info:
+  title: Recipe API
+  description: |
+    REST API for recipe extraction, storage, and retrieval.
+    
+    ## Authentication
+    All endpoints require Firebase authentication via ID token in the Authorization header.
+    The user ID and email are extracted from the token by the FirebaseAuthFilter.
+    
+    ## Storage
+    Recipes are stored in Google Drive as YAML files. OAuth tokens are managed server-side
+    and retrieved from Firestore (encrypted). Clients only need to provide Firebase ID token.
+    
+    ## Error Codes
+    - 200 OK: Success
+    - 401 Unauthorized: Missing or invalid Firebase token
+    - 404 Not Found: Recipe not found
+    - 422 Unprocessable Entity: Invalid YAML format or extraction failed
+    - 428 Precondition Required: Storage not connected
+    - 500 Internal Server Error: Drive API or parsing failure
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@shamansoft.net
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - FirebaseAuth: [ ]
+
+tags:
+  - name: recipes
+    description: Recipe extraction, storage, and retrieval operations
+
+paths:
+  /v1/recipes:
+    get:
+      tags:
+        - recipes
+      summary: List all recipes
+      description: |
+        Returns a paginated list of all recipes for the authenticated user.
+        Each recipe is fully parsed from YAML in Google Drive.
+        
+        ## Pagination
+        Uses Google Drive's opaque pagination tokens. To get the next page,
+        pass the `nextPageToken` from the previous response as the `pageToken` parameter.
+      operationId: listRecipes
+      parameters:
+        - name: pageSize
+          in: query
+          description: Number of recipes per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: pageToken
+          in: query
+          description: Pagination token from previous response (omit for first page)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with paginated recipes
+          headers:
+            Cache-Control:
+              description: Cache control directive
+              schema:
+                type: string
+                example: max-age=300
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeListResponse'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error - Drive API or parsing failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - recipes
+      summary: Create recipe from URL
+      description: |
+        Extracts recipe from a web page and saves it to Google Drive.
+        
+        ## Process
+        1. Extract HTML (from request or by fetching URL)
+        2. Transform HTML to structured recipe using AI
+        3. Save recipe as YAML to Google Drive
+        4. Return metadata and Drive file links
+        
+        ## HTML Compression
+        The `html` field can contain compressed data. Use the `compression` parameter
+        to indicate compression type. If `html` is not provided, the URL will be fetched.
+      operationId: createRecipe
+      parameters:
+        - name: compression
+          in: query
+          description: Compression type for HTML field (omit or use "none" for uncompressed)
+          required: false
+          schema:
+            type: string
+            enum: [ none, gzip, deflate ]
+            default: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+      responses:
+        '200':
+          description: Recipe successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeResponse'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity - Extraction or parsing failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/recipes/{id}:
+    get:
+      tags:
+        - recipes
+      summary: Get recipe by ID
+      description: |
+        Retrieves a single recipe by its Google Drive file ID.
+        Returns complete recipe data.
+        
+        ## Use Cases
+        - Deep links to specific recipes
+        - Single recipe refresh
+        - Notifications linking to recipes
+      operationId: getRecipe
+      parameters:
+        - name: id
+          in: path
+          description: Google Drive file ID
+          required: true
+          schema:
+            type: string
+            example: "1a2b3c4d5e6f7g8h9i0j"
+      responses:
+        '200':
+          description: Recipe found and returned
+          headers:
+            Cache-Control:
+              description: Cache control directive
+              schema:
+                type: string
+                example: max-age=3600
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeDto'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity - Invalid YAML format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/recipes/custom:
+    post:
+      tags:
+        - recipes
+      summary: Create recipe from custom description
+      description: |
+        Creates a recipe from a user-authored text description.
+        No HTML extraction is performed - the AI structures the text directly.
+        
+        ## Process
+        1. Receive plain text recipe description
+        2. Transform text to structured recipe using AI
+        3. Save recipe as YAML to Google Drive
+        4. Return metadata and Drive file links
+        
+        ## Optional URL
+        The URL field is optional and used only for reference/storage metadata,
+        not for fetching content.
+      operationId: createCustomRecipe
+      parameters:
+        - name: compression
+          in: query
+          description: Compression type (not typically used for custom recipes)
+          required: false
+          schema:
+            type: string
+            enum: [ none, gzip, deflate ]
+            default: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRecipeRequest'
+      responses:
+        '200':
+          description: Custom recipe successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeResponse'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity - AI transformation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    FirebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase ID token obtained from Firebase Authentication.
+        Include in Authorization header as: `Bearer <token>`
+
+  schemas:
+    Request:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL of the recipe web page
+          example: "https://example.com/chocolate-chip-cookies"
+        title:
+          type: string
+          description: Optional recipe title (if known)
+          example: "Chocolate Chip Cookies"
+        html:
+          type: string
+          description: |
+            Optional HTML content (raw or compressed).
+            If not provided, the URL will be fetched.
+            Use the `compression` query parameter to specify compression type.
+
+    CustomRecipeRequest:
+      type: object
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          description: User-authored recipe description or instructions
+          example: "Mix 2 cups flour with 1 cup sugar. Add 3 eggs and vanilla. Bake at 350F for 30 minutes."
+        title:
+          type: string
+          description: Optional recipe title
+          example: "My Vanilla Cake"
+        url:
+          type: string
+          format: uri
+          description: Optional reference URL (not fetched)
+          example: "https://example.com/reference"
+
+    RecipeResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Source URL of the recipe
+          example: "https://example.com/chocolate-chip-cookies"
+        title:
+          type: string
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        driveFileId:
+          type: string
+          description: Google Drive file ID (first recipe for multi-recipe support)
+          example: "1a2b3c4d5e6f7g8h9i0j"
+        driveFileUrl:
+          type: string
+          format: uri
+          description: Google Drive file URL (first recipe for multi-recipe support)
+          example: "https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9i0j/view"
+        isRecipe:
+          type: boolean
+          description: Whether the extraction identified valid recipe content
+          example: true
+        recipes:
+          type: array
+          description: List of all uploaded recipes (multi-recipe support)
+          items:
+            $ref: '#/components/schemas/RecipeItemResult'
+
+    RecipeItemResult:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        driveFileId:
+          type: string
+          description: Google Drive file ID
+          example: "1a2b3c4d5e6f7g8h9i0j"
+        driveFileUrl:
+          type: string
+          format: uri
+          description: Google Drive file URL
+          example: "https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9i0j/view"
+
+    RecipeListResponse:
+      type: object
+      properties:
+        recipes:
+          type: array
+          description: List of recipes in current page
+          items:
+            $ref: '#/components/schemas/RecipeDto'
+        nextPageToken:
+          type: string
+          nullable: true
+          description: |
+            Opaque pagination token for next page.
+            Null if this is the last page.
+          example: "CgwIyJz8rgYQgICAgICA"
+        count:
+          type: integer
+          description: Number of recipes in current page
+          example: 20
+
+    RecipeDto:
+      type: object
+      description: Complete recipe data with all details
+      properties:
+        id:
+          type: string
+          description: Google Drive file ID
+          example: "1a2b3c4d5e6f7g8h9i0j"
+        lastModified:
+          type: string
+          format: date-time
+          description: Last modification timestamp (ISO-8601)
+          example: "2026-03-07T12:34:56Z"
+        title:
+          type: string
+          description: Recipe title
+          example: "Chocolate Chip Cookies"
+        description:
+          type: string
+          description: Recipe description
+          example: "Classic homemade chocolate chip cookies"
+        author:
+          type: string
+          description: Recipe author
+          example: "John Doe"
+        source:
+          type: string
+          format: uri
+          description: Original recipe source URL
+          example: "https://example.com/chocolate-chip-cookies"
+        servings:
+          type: integer
+          description: Number of servings
+          example: 24
+        prepTime:
+          type: string
+          description: Preparation time
+          example: "15 minutes"
+        cookTime:
+          type: string
+          description: Cooking time
+          example: "12 minutes"
+        totalTime:
+          type: string
+          description: Total time (prep + cook)
+          example: "27 minutes"
+        difficulty:
+          type: string
+          description: Recipe difficulty level
+          enum: [ easy, medium, hard ]
+          example: "easy"
+        ingredients:
+          type: array
+          description: List of ingredients
+          items:
+            $ref: '#/components/schemas/IngredientDto'
+        equipment:
+          type: array
+          description: Required equipment
+          items:
+            type: string
+          example: [ "mixing bowl", "baking sheet", "oven" ]
+        instructions:
+          type: array
+          description: Step-by-step instructions
+          items:
+            $ref: '#/components/schemas/InstructionDto'
+        nutrition:
+          $ref: '#/components/schemas/NutritionDto'
+        notes:
+          type: string
+          description: Additional notes or tips
+          example: "Can substitute dark chocolate chips for semi-sweet"
+        coverImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Main recipe image URL (external)
+          example: "https://example.com/images/cookies.jpg"
+        allImageUrls:
+          type: array
+          description: All images in recipe (cover + instruction media)
+          items:
+            type: string
+            format: uri
+          example:
+            - "https://example.com/images/cookies.jpg"
+            - "https://example.com/images/step1.jpg"
+
+    IngredientDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Ingredient name
+          example: "all-purpose flour"
+        amount:
+          type: string
+          description: Amount/quantity
+          example: "2"
+        unit:
+          type: string
+          description: Unit of measurement
+          example: "cups"
+        notes:
+          type: string
+          description: Additional notes
+          example: "sifted"
+        optional:
+          type: boolean
+          description: Whether ingredient is optional
+          example: false
+        component:
+          type: string
+          description: Component/section (e.g., "dough", "frosting")
+          example: "dough"
+
+    InstructionDto:
+      type: object
+      properties:
+        step:
+          type: integer
+          description: Step number
+          example: 1
+        description:
+          type: string
+          description: Step instructions
+          example: "Preheat oven to 350°F (175°C)"
+        time:
+          type: string
+          description: Time for this step
+          example: "5 minutes"
+        temperature:
+          type: string
+          description: Temperature setting
+          example: "350°F"
+
+    NutritionDto:
+      type: object
+      description: Nutritional information per serving
+      properties:
+        servingSize:
+          type: string
+          description: Serving size description
+          example: "1 cookie"
+        calories:
+          type: integer
+          description: Calories per serving
+          example: 150
+        protein:
+          type: number
+          format: double
+          description: Protein in grams
+          example: 2.5
+        carbohydrates:
+          type: number
+          format: double
+          description: Carbohydrates in grams
+          example: 20.0
+        fat:
+          type: number
+          format: double
+          description: Fat in grams
+          example: 7.0
+        fiber:
+          type: number
+          format: double
+          description: Fiber in grams
+          example: 1.0
+        sugar:
+          type: number
+          format: double
+          description: Sugar in grams
+          example: 12.0
+        sodium:
+          type: number
+          format: double
+          description: Sodium in milligrams
+          example: 100.0
+        notes:
+          type: string
+          description: Additional nutritional notes
+          example: "Values are approximate"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Storage not connected"
+        message:
+          type: string
+          description: Detailed error description
+          example: "Please connect your Google Drive storage in settings"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2026-03-07T12:34:56Z"
+        path:
+          type: string
+          description: Request path
+          example: "/v1/recipes"
+

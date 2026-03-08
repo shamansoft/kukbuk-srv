@@ -35,11 +35,14 @@ public class RequestBuilder {
     @Value("${cookbook.gemini.safety-threshold}")
     private String safetyThreshold;
 
+    private String descriptionPrompt;
+
     @PostConstruct
     @SneakyThrows
     public void init() {
         this.prompt = resourceLoader.loadTextFile("classpath:prompt.md");
         this.validationPrompt = resourceLoader.loadTextFile("classpath:prompt_with_validation.md");
+        this.descriptionPrompt = resourceLoader.loadTextFile("classpath:description-prompt.md");
         String jsonSchemaString = resourceLoader.loadTextFile("classpath:llm-recipe-schema.json");
         this.parsedJsonSchema = objectMapper.readValue(jsonSchemaString, Object.class);
     }
@@ -67,6 +70,12 @@ public class RequestBuilder {
         Objects.requireNonNull(feedback, "feedback cannot be null");
         Objects.requireNonNull(validationError, "validationError cannot be null");
         String fullPrompt = withHtmlAndFeedback(htmlContent, feedback, validationError);
+        return buildRequestBodyWithSchema(fullPrompt);
+    }
+
+    public GeminiRequest buildRequestFromDescription(String description) throws JacksonException {
+        Objects.requireNonNull(description, "description cannot be null");
+        String fullPrompt = descriptionPrompt.formatted(description);
         return buildRequestBodyWithSchema(fullPrompt);
     }
 

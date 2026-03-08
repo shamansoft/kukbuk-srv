@@ -1,7 +1,5 @@
 package net.shamansoft.cookbook.html;
 
-import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.service.Compressor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,9 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 
-import static net.shamansoft.cookbook.html.HtmlExtractor.NONE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -21,90 +17,60 @@ import static org.mockito.Mockito.when;
 class HtmlExtractorTest {
 
     @Mock
-    private Compressor compressor;
-
-    @Mock
     private HtmlFetcher htmlFetcher;
 
     private HtmlExtractor htmlExtractor;
 
     @BeforeEach
     void setUp() {
-        htmlExtractor = new HtmlExtractor(compressor, htmlFetcher);
+        htmlExtractor = new HtmlExtractor(htmlFetcher);
     }
 
     @Test
-    void decompressesHtmlFromRequestWhenCompressionRequested() throws IOException {
-        Request request = new Request("compressed-html", "Title", "https://example.com");
-        when(compressor.decompress("compressed-html")).thenReturn("decompressed-html");
+    void returnsProvidedHtmlWhenPresent() throws IOException {
+        String result = htmlExtractor.extractHtml("https://example.com", "<html>content</html>");
 
-        String result = htmlExtractor.extractHtml(request, "gzip");
-
-        assertThat(result).isEqualTo("decompressed-html");
-        verify(compressor).decompress("compressed-html");
+        assertThat(result).isEqualTo("<html>content</html>");
         verifyNoInteractions(htmlFetcher);
     }
 
     @Test
-    void returnsRawHtmlWhenCompressionExplicitlyDisabled() throws IOException {
-        Request request = new Request("<html></html>", "Title", "https://example.com");
-
-        String result = htmlExtractor.extractHtml(request, NONE);
-
-        assertThat(result).isEqualTo("<html></html>");
-        verifyNoInteractions(compressor, htmlFetcher);
-    }
-
-    @Test
-    void fetchesHtmlFromUrlWhenRequestHtmlMissing() throws IOException {
-        Request request = new Request(null, "Title", "https://example.com/page");
+    void fetchesFromUrlWhenHtmlIsNull() throws IOException {
         when(htmlFetcher.fetch("https://example.com/page")).thenReturn("fetched-html");
 
-        String result = htmlExtractor.extractHtml(request, "gzip");
+        String result = htmlExtractor.extractHtml("https://example.com/page", null);
 
         assertThat(result).isEqualTo("fetched-html");
         verify(htmlFetcher).fetch("https://example.com/page");
-        verifyNoInteractions(compressor);
     }
 
     @Test
-    void fetchesHtmlFromUrlWhenRequestHtmlEmptyString() throws IOException {
-        Request request = new Request("", "Title", "https://example.com/page");
+    void fetchesFromUrlWhenHtmlIsBlank() throws IOException {
         when(htmlFetcher.fetch("https://example.com/page")).thenReturn("fetched-html");
 
-        String result = htmlExtractor.extractHtml(request, "gzip");
+        String result = htmlExtractor.extractHtml("https://example.com/page", "   ");
 
         assertThat(result).isEqualTo("fetched-html");
         verify(htmlFetcher).fetch("https://example.com/page");
-        verifyNoInteractions(compressor);
     }
 
     @Test
-    void fallsBackToUrlFetchWhenDecompressionFailsButUrlProvided() throws IOException {
-        Request request = new Request("broken", "Title", "https://example.com");
-        IOException original = new IOException("boom");
-        when(compressor.decompress("broken")).thenThrow(original);
-        when(htmlFetcher.fetch("https://example.com")).thenReturn("fetched-html");
+    void fetchesFromUrlWhenHtmlIsEmptyString() throws IOException {
+        when(htmlFetcher.fetch("https://example.com/page")).thenReturn("fetched-html");
 
-        String result = htmlExtractor.extractHtml(request, "gzip");
+        String result = htmlExtractor.extractHtml("https://example.com/page", "");
 
         assertThat(result).isEqualTo("fetched-html");
-        verify(compressor).decompress("broken");
-        verify(htmlFetcher).fetch("https://example.com");
+        verify(htmlFetcher).fetch("https://example.com/page");
     }
 
     @Test
-    void fallsBackToUrlFetchWhenDecompressionFailsEvenIfUrlEmpty() throws IOException {
-        Request request = new Request("broken", "Title", "");
-        IOException decompressionError = new IOException("boom");
-        IOException fetchError = new IOException("URL fetch failed");
-        when(compressor.decompress("broken")).thenThrow(decompressionError);
-        when(htmlFetcher.fetch("")).thenThrow(fetchError);
+    void propagatesExceptionFromFetcher() throws IOException {
+        when(htmlFetcher.fetch("https://example.com")).thenThrow(new IOException("fetch failed"));
 
-        assertThatThrownBy(() -> htmlExtractor.extractHtml(request, "gzip"))
-                .isSameAs(fetchError);
-
-        verify(compressor).decompress("broken");
-        verify(htmlFetcher).fetch("");
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> htmlExtractor.extractHtml("https://example.com", null))
+                .isInstanceOf(IOException.class)
+                .hasMessage("fetch failed");
     }
 }

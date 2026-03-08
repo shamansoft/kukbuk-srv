@@ -1,8 +1,6 @@
 package net.shamansoft.cookbook.html;
 
 import lombok.extern.slf4j.Slf4j;
-import net.shamansoft.cookbook.dto.Request;
-import net.shamansoft.cookbook.service.Compressor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -11,34 +9,22 @@ import java.io.IOException;
 @Service
 public class HtmlExtractor {
 
-    public static final String NONE = "none";
-    private final Compressor compressor;
     private final HtmlFetcher htmlFetcher;
 
-    public HtmlExtractor(Compressor compressor, HtmlFetcher htmlFetcher) {
-        this.compressor = compressor;
+    public HtmlExtractor(HtmlFetcher htmlFetcher) {
         this.htmlFetcher = htmlFetcher;
     }
 
-    public String extractHtml(Request request, String compression) throws IOException {
-        return extractHtml(request.url(), request.html(), compression);
-    }
-
-    public String extractHtml(String url, String source, String compression) throws IOException {
-        if (source != null && !source.isBlank()) {
-            try {
-                if (NONE.equals(compression)) {
-                    log.debug("Skipping decompression, using HTML from request");
-                    return source;
-                } else {
-                    log.debug("Successfully decompressed HTML from request");
-                    return compressor.decompress(source);
-                }
-            } catch (IOException e) {
-                log.warn("Failed to decompress HTML from request: {}, try to fetch from source url", e.getMessage(), e);
-            }
+    /**
+     * Returns the provided HTML if non-blank, otherwise fetches from the URL.
+     * Decompression is the caller's responsibility and must happen before this call.
+     */
+    public String extractHtml(String url, String html) throws IOException {
+        if (html != null && !html.isBlank()) {
+            log.debug("Using provided HTML - length: {} chars", html.length());
+            return html;
         }
-        log.debug("No HTML in request, fetching from URL: {}", url);
+        log.debug("No HTML provided, fetching from URL: {}", url);
         return htmlFetcher.fetch(url);
     }
 }

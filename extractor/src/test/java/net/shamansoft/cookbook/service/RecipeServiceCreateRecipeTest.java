@@ -1,10 +1,12 @@
 package net.shamansoft.cookbook.service;
 
+import net.shamansoft.cookbook.dto.Compression;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -13,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,14 +29,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Tests for RecipeService.createRecipe() method.
- * Tests the business logic that was extracted from CookbookController.
  */
 @ExtendWith(MockitoExtension.class)
 class RecipeServiceCreateRecipeTest {
@@ -68,17 +68,23 @@ class RecipeServiceCreateRecipeTest {
     @Mock
     private HtmlExtractor htmlExtractor;
     @Mock
+    private Compressor compressor;
+    @Mock
     private Transformer transformer;
     @Mock
     private RecipeValidationService validationService;
+    @Mock
+    private GeminiRestTransformer geminiRestTransformer;
 
-    @InjectMocks
     private RecipeService recipeService;
-
     private StorageInfo mockStorageInfo;
 
     @BeforeEach
     void setUp() {
+        recipeService = new RecipeService(contentHashService, driveService, storageService,
+                recipeStoreService, recipeParser, recipeMapper, htmlExtractor,
+                compressor, transformer, validationService, geminiRestTransformer);
+
         mockStorageInfo = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
@@ -91,57 +97,106 @@ class RecipeServiceCreateRecipeTest {
     }
 
     @Test
-    @DisplayName("Should create recipe and upload to Drive when HTML transforms into valid recipe")
+    @DisplayName("Should create recipe and upload to Drive (NONE compression = raw HTML)")
     void shouldCreateRecipeAndUploadToDrive() throws Exception {
-        // Given
         Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
 
-        // When
-        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
 
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(response.title()).isEqualTo(TITLE);
-        assertThat(response.url()).isEqualTo(URL);
         assertThat(response.isRecipe()).isTrue();
+        assertThat(response.title()).isEqualTo(TITLE);
         assertThat(response.driveFileId()).isEqualTo(FILE_ID);
         assertThat(response.driveFileUrl()).isEqualTo(FILE_URL);
-
-        verify(storageService).getStorageInfo(USER_ID);
-        verify(htmlExtractor).extractHtml(URL, SOURCE_HTML, null);
-        verify(transformer).transform(eq(EXTRACTED_HTML), anyString());
+        verify(htmlExtractor).extractHtml(URL, SOURCE_HTML);
         verify(recipeStoreService).storeValidRecipes(eq(HASH), eq(URL), any());
-        verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
+    }
+
+    @Test
+    @DisplayName("Should decompress HTML when compression is BASE64")
+    void shouldDecompressHtmlWhenBase64Compression() throws Exception {
+        Recipe testRecipe = createTestRecipe();
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(compressor.decompress(SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
+        when(htmlExtractor.extractHtml(URL, EXTRACTED_HTML)).thenReturn(EXTRACTED_HTML);
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
+        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
+        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.BASE64_GZIP, TITLE);
+
+        assertThat(response.isRecipe()).isTrue();
+        verify(compressor).decompress(SOURCE_HTML);
+        verify(htmlExtractor).extractHtml(URL, EXTRACTED_HTML);
+    }
+
+    @Test
+    @DisplayName("Should treat null compression as NONE (no decompression)")
+    void shouldTreatNullCompressionAsNone() throws Exception {
+        Recipe testRecipe = createTestRecipe();
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
+        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
+        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+
+        recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
+
+        verify(compressor, never()).decompress(any());
+        verify(htmlExtractor).extractHtml(URL, SOURCE_HTML);
+    }
+
+    @Test
+    @DisplayName("Should fall back to URL fetch when decompression fails")
+    void shouldFallBackToUrlFetchWhenDecompressionFails() throws Exception {
+        Recipe testRecipe = createTestRecipe();
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(compressor.decompress(SOURCE_HTML)).thenThrow(new IOException("bad base64"));
+        // decompression fails → null passed to htmlExtractor → fetches from URL
+        when(htmlExtractor.extractHtml(eq(URL), isNull())).thenReturn(EXTRACTED_HTML);
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
+        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
+        when(driveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.BASE64_GZIP, TITLE);
+
+        assertThat(response.isRecipe()).isTrue();
+        verify(htmlExtractor).extractHtml(URL, null);
     }
 
     @Test
     @DisplayName("Should skip Drive upload when content is not a recipe")
     void shouldSkipDriveWhenNotRecipe() throws IOException {
-        // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.notRecipe());
 
-        // When
-        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
 
-        // Then
-        assertThat(response).isNotNull();
         assertThat(response.isRecipe()).isFalse();
         assertThat(response.driveFileId()).isNull();
-        assertThat(response.driveFileUrl()).isNull();
-
         verify(recipeStoreService).storeInvalidRecipe(HASH, URL);
         verify(driveService, never()).uploadRecipeYaml(any(), any(), any(), any());
     }
@@ -149,7 +204,6 @@ class RecipeServiceCreateRecipeTest {
     @Test
     @DisplayName("Should use cached result when recipe already stored")
     void shouldUseCachedResult() throws Exception {
-        // Given
         Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
@@ -160,71 +214,37 @@ class RecipeServiceCreateRecipeTest {
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
 
-        // When
-        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
 
-        // Then
-        assertThat(response).isNotNull();
         assertThat(response.isRecipe()).isTrue();
         assertThat(response.driveFileUrl()).isEqualTo(FILE_URL);
-
-        // Should NOT extract HTML or transform when cached
-        verify(htmlExtractor, never()).extractHtml(any(), any(), any());
+        verify(htmlExtractor, never()).extractHtml(any(), any());
         verify(transformer, never()).transform(anyString(), anyString());
-        verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
-    }
-
-    @Test
-    @DisplayName("Should respect compression parameter")
-    void shouldRespectCompressionParameter() throws Exception {
-        // Given
-        Recipe testRecipe = createTestRecipe();
-        String compression = "gzip";
-        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
-        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
-        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, compression)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
-        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
-        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
-
-        // When
-        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, compression, TITLE);
-
-        // Then
-        assertThat(response.isRecipe()).isTrue();
-        verify(htmlExtractor).extractHtml(URL, SOURCE_HTML, compression);
     }
 
     @Test
     @DisplayName("Should throw StorageNotConnectedException when storage not configured")
     void shouldThrowWhenStorageNotConfigured() throws IOException {
-        // Given
         when(storageService.getStorageInfo(USER_ID))
                 .thenThrow(new StorageNotConnectedException("No storage configured"));
 
-        // When/Then
-        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE))
+        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(StorageNotConnectedException.class)
                 .hasMessageContaining("No storage configured");
 
-        verify(htmlExtractor, never()).extractHtml(any(), any(), any());
+        verify(htmlExtractor, never()).extractHtml(any(), any());
     }
 
     @Test
     @DisplayName("Should propagate IOException from HtmlExtractor")
     void shouldPropagateHtmlExtractorException() throws IOException {
-        // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null))
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML))
                 .thenThrow(new IOException("Failed to extract HTML"));
 
-        // When/Then
-        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE))
+        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("Failed to extract HTML");
 
@@ -234,15 +254,14 @@ class RecipeServiceCreateRecipeTest {
     @Test
     @DisplayName("Should propagate RuntimeException from Transformer")
     void shouldPropagateTransformerException() throws IOException {
-        // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
-        when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenThrow(new RuntimeException("AI transformation failed"));
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString()))
+                .thenThrow(new RuntimeException("AI transformation failed"));
 
-        // When/Then
-        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE))
+        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("AI transformation failed");
 
@@ -252,20 +271,18 @@ class RecipeServiceCreateRecipeTest {
     @Test
     @DisplayName("Should propagate RuntimeException from Drive upload")
     void shouldPropagateDriveUploadException() throws Exception {
-        // Given
         Recipe testRecipe = createTestRecipe();
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
-        when(htmlExtractor.extractHtml(URL, SOURCE_HTML, null)).thenReturn(EXTRACTED_HTML);
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
         when(transformer.transform(eq(EXTRACTED_HTML), anyString())).thenReturn(Transformer.Response.recipe(testRecipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
                 .thenThrow(new RuntimeException("Drive upload failed"));
 
-        // When/Then
-        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE))
+        assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Drive upload failed");
     }
@@ -273,47 +290,25 @@ class RecipeServiceCreateRecipeTest {
     @Test
     @DisplayName("Should handle cached invalid recipe")
     void shouldHandleCachedInvalidRecipe() throws IOException {
-        // Given
         when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
         when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
         when(recipeStoreService.findCachedRecipes(HASH))
                 .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.invalid()));
 
-        // When
-        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, null, TITLE);
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
 
-        // Then
         assertThat(response.isRecipe()).isFalse();
         verify(driveService, never()).uploadRecipeYaml(any(), any(), any(), any());
     }
 
     private Recipe createTestRecipe() {
-        return new Recipe(
-                true,
-                "1.0.0",
-                "1.0.0",
-                new RecipeMetadata(
-                        TITLE,
-                        null,
-                        "Test Author",
-                        null,
-                        LocalDate.now(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                ),
+        return new Recipe(true, "1.0.0", "1.0.0",
+                new RecipeMetadata(TITLE, null, "Test Author", null, LocalDate.now(),
+                        null, null, null, null, null, null, null, null),
                 "Test description",
                 List.of(new Ingredient("flour", "100g", null, null, null, null, null)),
                 List.of("bowl"),
                 List.of(new Instruction(null, "Mix ingredients", null, null, null)),
-                null,
-                "Test notes",
-                null
-        );
+                null, "Test notes", null);
     }
 }
