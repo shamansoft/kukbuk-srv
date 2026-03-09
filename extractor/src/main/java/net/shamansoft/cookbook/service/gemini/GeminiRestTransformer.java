@@ -35,6 +35,36 @@ public class GeminiRestTransformer implements Transformer {
         return transformInternal(htmlContent, previousRecipe, validationError);
     }
 
+    /**
+     * Structures a user-provided recipe description into a Recipe object.
+     *
+     * @param description free-form text describing the recipe
+     * @return the transformed result (always isRecipe=true for user-authored content)
+     */
+    public Response transformDescription(String description) {
+        try {
+            GeminiRequest request = requestBuilder.buildRequestFromDescription(description);
+            log.debug("Transforming recipe description, length: {}", description.length());
+
+            GeminiResponse<GeminiExtractionResult> geminiResponse =
+                    geminiClient.request(request, GeminiExtractionResult.class);
+
+            if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
+                GeminiExtractionResult result = geminiResponse.data();
+                List<Recipe> recipes = toRecipes(result.recipes());
+                log.debug("Description transformation returned {} recipe(s)", recipes.size());
+                return Transformer.Response.withRawResponse(true, 1.0, recipes, geminiResponse.rawResponse());
+            } else {
+                log.error("Gemini Client returned error code: {} for description input", geminiResponse.code());
+                throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
+            }
+        } catch (JacksonException e) {
+            log.error("Failed to prepare request for Gemini API. Description length: {}, Error: {}",
+                    description.length(), e.getMessage(), e);
+            throw new ClientException("Failed to transform description via Gemini API", e);
+        }
+    }
+
     private Response transformInternal(String htmlContent, Recipe previousRecipe, String validationError) {
         try {
             GeminiRequest request;

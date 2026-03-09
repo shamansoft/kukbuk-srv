@@ -274,6 +274,65 @@ class GeminiRestTransformerTest {
     }
 
     @Test
+    void transformDescriptionReturnsRecipeAlwaysWithIsRecipeTrue() throws JacksonException {
+        // Given
+        String description = "Mix flour and eggs. Fry on medium heat until golden.";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = recipeResult("Crepes");
+
+        when(requestBuilder.buildRequestFromDescription(eq(description))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transformDescription(description);
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.confidence()).isEqualTo(1.0);
+        assertThat(response.recipes()).hasSize(1);
+        assertThat(response.recipe().metadata().title()).isEqualTo("Crepes");
+        assertThat(response.recipe().isRecipe()).isTrue();
+
+        verify(requestBuilder).buildRequestFromDescription(eq(description));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class));
+    }
+
+    @Test
+    void transformDescriptionThrowsClientExceptionOnGeminiError() throws JacksonException {
+        // Given
+        String description = "Some description";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequestFromDescription(eq(description))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Blocked"));
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transformDescription(description))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+    }
+
+    @Test
+    void transformDescriptionThrowsClientExceptionOnJacksonError() throws JacksonException {
+        // Given
+        String description = "Some description";
+
+        when(requestBuilder.buildRequestFromDescription(eq(description)))
+                .thenThrow(new JacksonException("serialize error") {
+                });
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transformDescription(description))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Failed to transform description via Gemini API")
+                .hasCauseInstanceOf(JacksonException.class);
+
+        verify(geminiClient, never()).request(any(), any());
+    }
+
+    @Test
     void transformHandlesComplexRecipe() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Complex recipe</body></html>";

@@ -1,6 +1,9 @@
 package net.shamansoft.cookbook.controller;
 
+import net.shamansoft.cookbook.dto.Compression;
+import net.shamansoft.cookbook.dto.CustomRecipeRequest;
 import net.shamansoft.cookbook.dto.RecipeDto;
+import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
@@ -36,32 +39,49 @@ class RecipeControllerTest {
 
     @Mock
     private StorageService storageService;
-
     @Mock
     private RecipeService recipeService;
 
     @InjectMocks
     private RecipeController controller;
 
-    // ---- createRecipe -------------------------------------------------------
+    // --- createRecipe (HTML extraction) ---
 
     @Test
-    @DisplayName("Should delegate createRecipe to RecipeService with correct parameters")
-    void shouldDelegateToRecipeService() throws IOException, AuthenticationException {
+    @DisplayName("Should delegate createRecipe to RecipeService with BASE64_GZIP compression")
+    void shouldDelegateToRecipeServiceWithBase64Compression() throws IOException, AuthenticationException {
         Request request = new Request("html-payload", "Recipe Title", "http://example.com");
-        String compression = "gzip";
-        RecipeResponse expectedResponse = RecipeResponse.builder()
+        RecipeResponse expected = RecipeResponse.builder()
                 .title("Recipe Title").url("http://example.com").isRecipe(true)
-                .driveFileId("file-123").driveFileUrl("https://drive.google.com/file/file-123").build();
-        when(recipeService.createRecipe(USER_ID, request.url(), request.html(), compression, request.title()))
-                .thenReturn(expectedResponse);
-        RecipeResponse response = controller.createRecipe(request, compression, USER_ID, USER_EMAIL);
-        assertThat(response).isEqualTo(expectedResponse);
-        verify(recipeService).createRecipe(USER_ID, request.url(), request.html(), compression, request.title());
+                .driveFileId("file-123").driveFileUrl("https://drive.google.com/file/file-123")
+                .build();
+
+        when(recipeService.createRecipe(USER_ID, request.url(), request.html(), Compression.BASE64_GZIP, request.title()))
+                .thenReturn(expected);
+
+        RecipeResponse response = controller.createRecipe(request, Compression.BASE64_GZIP, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
+        verify(recipeService).createRecipe(USER_ID, request.url(), request.html(), Compression.BASE64_GZIP, request.title());
     }
 
     @Test
-    @DisplayName("Should rethrow StorageNotConnectedException")
+    @DisplayName("Should pass null compression to RecipeService (treated as NONE, no decompression)")
+    void shouldHandleNullCompression() throws IOException, AuthenticationException {
+        Request request = new Request("html-payload", "Recipe Title", "http://example.com");
+        RecipeResponse expected = RecipeResponse.builder().title("Recipe Title").isRecipe(true).build();
+
+        when(recipeService.createRecipe(eq(USER_ID), eq(request.url()), eq(request.html()), eq(null), eq(request.title())))
+                .thenReturn(expected);
+
+        RecipeResponse response = controller.createRecipe(request, null, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
+        verify(recipeService).createRecipe(USER_ID, request.url(), request.html(), null, request.title());
+    }
+
+    @Test
+    @DisplayName("Should bubble up StorageNotConnectedException from createRecipe")
     void shouldBubbleUpStorageNotConnectedException() throws IOException {
         Request request = new Request("html-payload", "Recipe Title", "http://example.com");
         when(recipeService.createRecipe(anyString(), anyString(), anyString(), any(), anyString()))
@@ -72,27 +92,80 @@ class RecipeControllerTest {
     }
 
     @Test
-    @DisplayName("Should propagate IOException from RecipeService")
+    @DisplayName("Should propagate IOException from RecipeService createRecipe")
     void shouldPropagateIOException() throws IOException {
         Request request = new Request("html-payload", "Recipe Title", "http://example.com");
         when(recipeService.createRecipe(anyString(), anyString(), anyString(), any(), anyString()))
                 .thenThrow(new IOException("HTML extraction failed"));
+
         assertThatThrownBy(() -> controller.createRecipe(request, null, USER_ID, USER_EMAIL))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("HTML extraction failed");
     }
 
+    // --- createCustomRecipe (description-based) ---
+
     @Test
-    @DisplayName("Should handle null compression parameter")
-    void shouldHandleNullCompression() throws IOException, AuthenticationException {
-        Request request = new Request("html-payload", "Recipe Title", "http://example.com");
-        RecipeResponse expectedResponse = RecipeResponse.builder()
-                .title("Recipe Title").url("http://example.com").isRecipe(true).build();
-        when(recipeService.createRecipe(eq(USER_ID), eq(request.url()), eq(request.html()),
-                eq(null), eq(request.title()))).thenReturn(expectedResponse);
-        RecipeResponse response = controller.createRecipe(request, null, USER_ID, USER_EMAIL);
-        assertThat(response).isEqualTo(expectedResponse);
-        verify(recipeService).createRecipe(USER_ID, request.url(), request.html(), null, request.title());
+    @DisplayName("Should delegate createCustomRecipe with compression to RecipeService")
+    void shouldDelegateCustomRecipeWithCompression() throws IOException {
+        CustomRecipeRequest request = new CustomRecipeRequest(
+                "Mix flour and eggs. Fry until golden.", "Crepes", "https://example.com");
+        RecipeResponse expected = RecipeResponse.builder()
+                .title("Crepes").url("https://example.com").isRecipe(true).driveFileId("file-123")
+                .recipes(List.of(new RecipeItemResult("Crepes", "file-123", "https://drive.google.com/file/file-123")))
+                .build();
+
+        when(recipeService.createRecipeFromDescription(
+                USER_ID, request.description(), request.title(), request.url(), Compression.BASE64_GZIP))
+                .thenReturn(expected);
+
+        RecipeResponse response = controller.createCustomRecipe(request, Compression.BASE64_GZIP, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
+        verify(recipeService).createRecipeFromDescription(
+                USER_ID, request.description(), request.title(), request.url(), Compression.BASE64_GZIP);
+    }
+
+    @Test
+    @DisplayName("Should pass null compression and null URL/title for custom recipe")
+    void shouldPassNullCompressionAndNullUrlTitle() throws IOException {
+        CustomRecipeRequest request = new CustomRecipeRequest("Some recipe description", null, null);
+        RecipeResponse expected = RecipeResponse.builder().title("AI Title").isRecipe(true).build();
+
+        when(recipeService.createRecipeFromDescription(USER_ID, request.description(), null, null, null))
+                .thenReturn(expected);
+
+        RecipeResponse response = controller.createCustomRecipe(request, null, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
+        verify(recipeService).createRecipeFromDescription(USER_ID, request.description(), null, null, null);
+    }
+
+    @Test
+    @DisplayName("Should pass NONE compression through to RecipeService for custom recipe")
+    void shouldPassNoneCompressionForCustomRecipe() throws IOException {
+        CustomRecipeRequest request = new CustomRecipeRequest("raw description", "Title", null);
+        RecipeResponse expected = RecipeResponse.builder().isRecipe(true).build();
+
+        when(recipeService.createRecipeFromDescription(
+                USER_ID, request.description(), request.title(), null, Compression.NONE))
+                .thenReturn(expected);
+
+        RecipeResponse response = controller.createCustomRecipe(request, Compression.NONE, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should propagate StorageNotConnectedException from custom recipe endpoint")
+    void shouldPropagateStorageExceptionFromCustomRecipe() throws IOException {
+        CustomRecipeRequest request = new CustomRecipeRequest("Some recipe", null, null);
+        when(recipeService.createRecipeFromDescription(anyString(), anyString(), any(), any(), any()))
+                .thenThrow(new StorageNotConnectedException("Storage not connected"));
+
+        assertThatThrownBy(() -> controller.createCustomRecipe(request, null, USER_ID, USER_EMAIL))
+                .isInstanceOf(StorageNotConnectedException.class)
+                .hasMessageContaining("Storage not connected");
     }
 
     // ---- listRecipes --------------------------------------------------------

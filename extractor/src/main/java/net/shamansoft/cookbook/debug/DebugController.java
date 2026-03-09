@@ -370,7 +370,7 @@ public class DebugController {
     private String extractHtml(RecipeRequest request) throws IOException {
         if (request.hasUrl() && !request.hasText()) {
             log.info("Fetching HTML from URL: {}", request.url());
-            String html = htmlExtractor.extractHtml(request.url(), null, request.compression());
+            String html = htmlExtractor.extractHtml(request.url(), null);
             log.info("Fetched HTML - Length: {} chars", html.length());
             return html;
         } else if (request.hasText()) {

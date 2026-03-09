@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -166,7 +167,8 @@ class RecipeControllerSBTest {
     void createRecipeFromCompressedHtml() throws IOException, AuthenticationException {
         Request request = new Request("compressed html", "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
-        when(htmlExtractor.extractHtml("http://example.com", "compressed html", null)).thenReturn("raw html");
+        when(compressor.decompress("compressed html")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", "raw html")).thenReturn("raw html");
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
@@ -175,7 +177,7 @@ class RecipeControllerSBTest {
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
-                RECIPE_PATH,
+                RECIPE_PATH + "?compression=gzip",
                 requestEntity,
                 RecipeResponse.class);
 
@@ -189,7 +191,7 @@ class RecipeControllerSBTest {
     void createRecipeFromUrl() throws IOException, AuthenticationException {
         Request request = new Request(null, "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
-        when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(eq("http://example.com"), isNull())).thenReturn("raw html");
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
@@ -211,7 +213,7 @@ class RecipeControllerSBTest {
     @Test
     void createRecipe_returns_500_when_transform_throws_ClientException() throws IOException {
         Request request = new Request("raw html", "Title", "http://example.com");
-        when(htmlExtractor.extractHtml("http://example.com", "raw html", null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", "raw html")).thenReturn("raw html");
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenThrow(new ClientException("Transformation error"));
 
@@ -244,15 +246,16 @@ class RecipeControllerSBTest {
 
     @Test
     void createRecipe_withDecompressionFailure_shouldThrowException() throws IOException, AuthenticationException {
-        // Given
+        // Given: ?compression=gzip triggers decompression; decompression fails → fallback to URL fetch → also fails → 400
         Request request = new Request("compressed html", "Title", "http://example.com");
-        when(htmlExtractor.extractHtml("http://example.com", "compressed html", null))
-                .thenThrow(new IOException("Decompression failed"));
+        when(compressor.decompress("compressed html")).thenThrow(new IOException("Decompression failed"));
+        when(htmlExtractor.extractHtml(eq("http://example.com"), isNull()))
+                .thenThrow(new IOException("URL fetch also failed"));
 
         // When/Then
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
         ResponseEntity<Map> response = restTemplate.postForEntity(
-                RECIPE_PATH,
+                RECIPE_PATH + "?compression=gzip",
                 requestEntity,
                 Map.class);
 
@@ -266,7 +269,7 @@ class RecipeControllerSBTest {
         // Given
         Request request = new Request("raw html", "Title", "http://example.com");
         Recipe testRecipe = createTestRecipe();
-        when(htmlExtractor.extractHtml("http://example.com", "raw html", "none")).thenReturn("raw html");
+        when(htmlExtractor.extractHtml("http://example.com", "raw html")).thenReturn("raw html");
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
@@ -289,7 +292,7 @@ class RecipeControllerSBTest {
     void createRecipe_whenContentIsNotRecipe_shouldNotStoreToDrive() throws IOException, AuthenticationException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml("http://example.com", null, null)).thenReturn("raw html");
+        when(htmlExtractor.extractHtml(eq("http://example.com"), isNull())).thenReturn("raw html");
         when(transformer.transform(eq("raw html"), anyString())).thenReturn(Transformer.Response.notRecipe());
 
         // When
@@ -330,7 +333,7 @@ class RecipeControllerSBTest {
     void createRecipe_whenUrlFetchFails_shouldReturnBadRequest() throws IOException {
         // Given
         Request request = new Request(null, "Title", "http://example.com");
-        when(htmlExtractor.extractHtml("http://example.com", null, null))
+        when(htmlExtractor.extractHtml(eq("http://example.com"), isNull()))
                 .thenThrow(new IOException("Failed to fetch URL"));
 
         // When
