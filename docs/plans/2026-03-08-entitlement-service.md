@@ -117,12 +117,13 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 5: AOP — CheckEntitlement annotation + EntitlementAspect + EntitlementException
 
-- [ ] create `CheckEntitlement.java` annotation: `@Retention(RUNTIME) @Target(METHOD)`, single `Operation value()` attribute
-- [ ] create `EntitlementException.java` `RuntimeException` carrying `EntitlementResult`; add `getResult()` accessor
-- [ ] create `EntitlementAspect.java` `@Aspect @Component`; `@Around("@annotation(checkEntitlement)")`; read `userId` + `userTier` from `RequestContextHolder` (set by `FirebaseAuthFilter`); call `entitlementService.check()`; throw `EntitlementException` if `!result.allowed()`; store `entitlementResult` as request attribute for header advice
-- [ ] add `@EnableAspectJAutoProxy` to a `@Configuration` class if not already present (Spring Boot autoconfigures AOP via `spring-boot-starter-aop` — verify the dependency is in `build.gradle.kts`)
-- [ ] write tests (`EntitlementAspectTest`): userId=null → `IllegalStateException`, denied → throws `EntitlementException`, allowed → `pjp.proceed()` called + result stored as request attribute
-- [ ] run tests — must pass before task 6
+- [x] create `CheckEntitlement.java` annotation: `@Retention(RUNTIME) @Target(METHOD)`, single `Operation value()` attribute
+- [x] create `EntitlementException.java` `RuntimeException` carrying `EntitlementResult`; add `getResult()` accessor
+- [x] create `EntitlementAspect.java` `@Aspect @Component`; `@Around("@annotation(checkEntitlement)")`; read `userId` + `userTier` from `RequestContextHolder` (set by `FirebaseAuthFilter`); call `entitlementService.check()`; throw `EntitlementException` if `!result.allowed()`; store `entitlementResult` as request attribute for header advice
+- [x] add `@EnableAspectJAutoProxy` to a `@Configuration` class if not already present (Spring Boot autoconfigures AOP via `spring-boot-starter-aop` — verify the dependency is in `build.gradle.kts`)
+  - Note: Spring Boot 4 renamed `spring-boot-starter-aop` → `spring-boot-starter-aspectj`; exclude `spring-boot-starter-logging` to avoid SLF4J conflict
+- [x] write tests (`EntitlementAspectTest`): userId=null → `IllegalStateException`, denied → throws `EntitlementException`, allowed → `pjp.proceed()` called + result stored as request attribute
+- [x] run tests — must pass before task 6
 
 ### Task 6: Exception handling + response headers
 
