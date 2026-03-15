@@ -99,21 +99,21 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 4: EntitlementService
 
-- [ ] create `EntitlementService.java` `@Service @Slf4j @RequiredArgsConstructor` with constructor-injected `EntitlementRepository`, `UserProfileRepository`, `EntitlementPlanConfig`, `MeterRegistry`, `Clock` (`Clock` bean already provided by `ClockConfig.java` — no new config needed)
-- [ ] implement `check(userId, tierHint, operation)` following RFC §4.5 flow:
+- [x] create `EntitlementService.java` `@Service @Slf4j @RequiredArgsConstructor` with constructor-injected `EntitlementRepository`, `UserProfileRepository`, `EntitlementPlanConfig`, `MeterRegistry`, `Clock` (`Clock` bean already provided by `ClockConfig.java` — no new config needed)
+- [x] implement `check(userId, tierHint, operation)` following RFC §4.5 flow:
   1. if `tierHint != null` → skip profile load, set `tier = tierHint`
   2. else → load profile via `userProfileRepository.findByUserId(userId).orTimeout(300ms)`, default to `UserTier.FREE` on empty/timeout
   3. if `tier != UserTier.FREE` → `record(ALLOWED_PAID)`, return `EntitlementResult.paid()`
   4. call `checkAndIncrement()` — catches exception → `CIRCUIT_OPEN`
   5. if `window.withinLimit()` → `ALLOWED_FREE_QUOTA`
   6. else credits fast-path using already-loaded profile snapshot → `ALLOWED_CREDIT` or `DENIED_QUOTA`
-- [ ] add `private void record(Operation, EntitlementOutcome)` for tagged `meterRegistry.counter("entitlement.check", ...)` emission
-- [ ] ensure `UserProfile` is loaded at most once per call; paid users (non-null `tierHint`) skip DB entirely
-- [ ] ensure `resetsAt` from `QuotaWindow.resetAt()` is propagated into every `EntitlementResult` where applicable; `paid()` and `circuitOpen()` factory methods return null for `resetsAt`
-- [ ] write tests (`EntitlementServiceTest`) for all 5 outcomes: `ALLOWED_PAID` (tierHint=PRO, no profile load, `resetsAt=null`), `ALLOWED_FREE_QUOTA` (tierHint=null, quota available, `resetsAt` non-null), `ALLOWED_CREDIT` (quota exhausted + profile shows credits > 0 + deduct succeeds), `DENIED_QUOTA` (quota exhausted + no credits in profile, `resetsAt` from window), `CIRCUIT_OPEN` (repo throws exception, `resetsAt=null`)
-- [ ] write test verifying `UserProfileRepository.findByUserId()` is NOT called when `tierHint != null`
-- [ ] write test for Micrometer counter called with correct tags for each outcome
-- [ ] run tests — must pass before task 5
+- [x] add `private void record(Operation, EntitlementOutcome)` for tagged `meterRegistry.counter("entitlement.check", ...)` emission
+- [x] ensure `UserProfile` is loaded at most once per call; paid users (non-null `tierHint`) skip DB entirely
+- [x] ensure `resetsAt` from `QuotaWindow.resetAt()` is propagated into every `EntitlementResult` where applicable; `paid()` and `circuitOpen()` factory methods return null for `resetsAt`
+- [x] write tests (`EntitlementServiceTest`) for all 5 outcomes: `ALLOWED_PAID` (tierHint=PRO, no profile load, `resetsAt=null`), `ALLOWED_FREE_QUOTA` (tierHint=null, quota available, `resetsAt` non-null), `ALLOWED_CREDIT` (quota exhausted + profile shows credits > 0 + deduct succeeds), `DENIED_QUOTA` (quota exhausted + no credits in profile, `resetsAt` from window), `CIRCUIT_OPEN` (repo throws exception, `resetsAt=null`)
+- [x] write test verifying `UserProfileRepository.findByUserId()` is NOT called when `tierHint != null`
+- [x] write test for Micrometer counter called with correct tags for each outcome
+- [x] run tests — must pass before task 5
 
 ### Task 5: AOP — CheckEntitlement annotation + EntitlementAspect + EntitlementException
 
