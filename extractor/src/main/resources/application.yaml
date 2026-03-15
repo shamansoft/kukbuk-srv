@@ -318,6 +318,34 @@ cookbook:
       min-safe-size: 300
 
 # ------------------------------------------------------------------------------
+# ENTITLEMENT / QUOTA CONFIGURATION
+# ------------------------------------------------------------------------------
+# Daily quota limits per user tier and operation.
+# -1 means unlimited (PRO/ENTERPRISE). All tier × operation pairs must be present.
+entitlement:
+  plans:
+    FREE:
+      RECIPE_EXTRACTION:
+        daily: ${ENTITLEMENT_FREE_RECIPE_DAILY:5}
+      YOUTUBE_EXTRACTION:
+        daily: ${ENTITLEMENT_FREE_YOUTUBE_DAILY:1}
+    PRO:
+      RECIPE_EXTRACTION:
+        daily: -1   # unlimited
+      YOUTUBE_EXTRACTION:
+        daily: -1   # unlimited
+    ENTERPRISE:
+      RECIPE_EXTRACTION:
+        daily: -1   # unlimited
+      YOUTUBE_EXTRACTION:
+        daily: -1   # unlimited
+  window:
+    timezone: UTC
+  timeouts:
+    check-ms: 500
+    increment-ms: 1000
+
+# ------------------------------------------------------------------------------
 # SPRING BOOT ACTUATOR ENDPOINTS
 # ------------------------------------------------------------------------------
 management:

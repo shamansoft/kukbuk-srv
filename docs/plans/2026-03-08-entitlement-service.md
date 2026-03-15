@@ -77,13 +77,13 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 2: EntitlementRepository interface + plan config + application.yaml
 
-- [ ] create `EntitlementRepository.java` interface with `checkAndIncrement()`, `deductCredit()`, `updateTierAndCredits()` as defined in RFC §4.2
-- [ ] create `EntitlementPlanConfig.java` `@ConfigurationProperties(prefix = "entitlement")` record with `plans`, `window`, `timeouts` nested records; add `dailyLimit()` helper and `@PostConstruct validate()` that asserts every `UserTier × Operation` pair has an explicit config entry (throws `IllegalStateException` on startup if missing — turns silent zero-quota bug into a loud startup failure)
+- [x] create `EntitlementRepository.java` interface with `checkAndIncrement()`, `deductCredit()`, `updateTierAndCredits()` as defined in RFC §4.2
+- [x] create `EntitlementPlanConfig.java` `@ConfigurationProperties(prefix = "entitlement")` record with `plans`, `window`, `timeouts` nested records; add `dailyLimit()` helper and `@PostConstruct validate()` that asserts every `UserTier × Operation` pair has an explicit config entry (throws `IllegalStateException` on startup if missing — turns silent zero-quota bug into a loud startup failure)
   - Note: existing project pattern uses `@Component + @ConfigurationProperties` for classes. Since `EntitlementPlanConfig` is a record (can't use `@Component`), add `@EnableConfigurationProperties(EntitlementPlanConfig.class)` to a new `EntitlementConfig.java` `@Configuration` class (or an existing config class)
-- [ ] add `entitlement.plans` / `entitlement.window` / `entitlement.timeouts` block to `application.yaml` (FREE: 5 recipe/day, 1 YouTube/day; PRO/ENTERPRISE: -1 unlimited) — must include ALL tiers × operations to pass startup validation
-- [ ] write tests for `EntitlementPlanConfig.dailyLimit()` covering: FREE RECIPE (5), FREE YOUTUBE (1), PRO RECIPE (-1 unlimited), missing key defaults to 0
-- [ ] write test for `validate()`: complete config passes, missing entry throws `IllegalStateException`
-- [ ] run tests — must pass before task 3
+- [x] add `entitlement.plans` / `entitlement.window` / `entitlement.timeouts` block to `application.yaml` (FREE: 5 recipe/day, 1 YouTube/day; PRO/ENTERPRISE: -1 unlimited) — must include ALL tiers × operations to pass startup validation
+- [x] write tests for `EntitlementPlanConfig.dailyLimit()` covering: FREE RECIPE (5), FREE YOUTUBE (1), PRO RECIPE (-1 unlimited), missing key defaults to 0
+- [x] write test for `validate()`: complete config passes, missing entry throws `IllegalStateException`
+- [x] run tests — must pass before task 3
 
 ### Task 3: FirestoreEntitlementRepository
 
