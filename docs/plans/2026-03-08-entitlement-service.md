@@ -87,15 +87,15 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 3: FirestoreEntitlementRepository
 
-- [ ] create `FirestoreEntitlementRepository.java` `@Repository @Primary` implementing `EntitlementRepository`
-- [ ] implement `checkAndIncrement()`: deterministic doc ID `{userId}::{operation}::{YYYYMMDD}`, Firestore transaction with explicit `currentCount + 1` (not `FieldValue.increment`), set `expireAt` = resetAt + 2 days, wrap in `CompletableFuture.supplyAsync(EXECUTOR).orTimeout(800ms)`
+- [x] create `FirestoreEntitlementRepository.java` `@Repository @Primary` implementing `EntitlementRepository`
+- [x] implement `checkAndIncrement()`: deterministic doc ID `{userId}::{operation}::{YYYYMMDD}`, Firestore transaction with explicit `currentCount + 1` (not `FieldValue.increment`), set `expireAt` = resetAt + 2 days, wrap in `CompletableFuture.supplyAsync(EXECUTOR).orTimeout(800ms)`
   - ⚠️ **CIRCUIT_OPEN decision point**: RFC has an inconsistency. The repo code uses `.exceptionally()` to catch `TimeoutException` and return a sentinel `QuotaWindow(withinLimit=true)`, which means the future completes normally — the service's `try/catch` on `.get()` never fires, so `CIRCUIT_OPEN` is unreachable. But RFC §2.3 explicitly says timeout → `CIRCUIT_OPEN`. **Recommended resolution**: drop `exceptionally` from `checkAndIncrement`; let `TimeoutException` propagate to the service so its `catch` block emits `CIRCUIT_OPEN`. This matches the stated intent.
-- [ ] implement `deductCredit()`: transaction reads `credits`, skips if ≤ 0, uses `FieldValue.increment(-1)` in `tx.update()`, `orTimeout(800ms)`, returns `false` on timeout (`.exceptionally` here is correct — deduct failure maps to `false`, not `CIRCUIT_OPEN`)
-- [ ] implement `updateTierAndCredits()`: simple Firestore update on `users/{userId}`, `runAsync(EXECUTOR)`
-- [ ] write tests (`FirestoreEntitlementRepositoryTest`) for `checkAndIncrement`: within quota (first request), at limit (denied), timeout propagates exception
-- [ ] write tests for `deductCredit`: credit available, no credits, timeout returns false
-- [ ] write tests for `updateTierAndCredits`: verifies Firestore fields written
-- [ ] run tests — must pass before task 4
+- [x] implement `deductCredit()`: transaction reads `credits`, skips if ≤ 0, uses `FieldValue.increment(-1)` in `tx.update()`, `orTimeout(800ms)`, returns `false` on timeout (`.exceptionally` here is correct — deduct failure maps to `false`, not `CIRCUIT_OPEN`)
+- [x] implement `updateTierAndCredits()`: simple Firestore update on `users/{userId}`, `runAsync(EXECUTOR)`
+- [x] write tests (`FirestoreEntitlementRepositoryTest`) for `checkAndIncrement`: within quota (first request), at limit (denied), timeout propagates exception
+- [x] write tests for `deductCredit`: credit available, no credits, timeout returns false
+- [x] write tests for `updateTierAndCredits`: verifies Firestore fields written
+- [x] run tests — must pass before task 4
 
 ### Task 4: EntitlementService
 
