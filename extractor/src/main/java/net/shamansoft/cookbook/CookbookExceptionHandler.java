@@ -4,6 +4,9 @@ package net.shamansoft.cookbook;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
+import net.shamansoft.cookbook.entitlement.EntitlementException;
+import net.shamansoft.cookbook.entitlement.EntitlementResult;
+import net.shamansoft.cookbook.entitlement.dto.QuotaErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
 import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
@@ -11,12 +14,16 @@ import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.exception.UserNotFoundException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import javax.naming.AuthenticationException;
 import java.io.IOException;
@@ -236,5 +243,34 @@ public class CookbookExceptionHandler {
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_GATEWAY);
+    }
+
+    /**
+     * Handle EntitlementException — quota exhausted for FREE tier.
+     * HTTP 429 Too Many Requests (RFC 6585): quota-based rate limiting.
+     * Includes Retry-After header when the reset time is known.
+     */
+    @ExceptionHandler(EntitlementException.class)
+    public ResponseEntity<QuotaErrorResponse> handleEntitlementException(
+            EntitlementException e,
+            HttpServletRequest request) {
+
+        EntitlementResult result = e.getResult();
+        log.warn("Quota exceeded for request {}: outcome={}", request.getRequestURI(), result.outcome());
+
+        QuotaErrorResponse body = new QuotaErrorResponse(
+                "QUOTA_EXCEEDED",
+                result.remainingQuota(),
+                result.remainingCredits(),
+                result.resetsAt()
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        if (result.resetsAt() != null) {
+            long seconds = Duration.between(Instant.now(), result.resetsAt()).getSeconds();
+            headers.add(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(0, seconds)));
+        }
+
+        return new ResponseEntity<>(body, headers, HttpStatus.TOO_MANY_REQUESTS);
     }
 }

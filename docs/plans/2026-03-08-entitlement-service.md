@@ -127,12 +127,12 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 6: Exception handling + response headers
 
-- [ ] create `entitlement/dto/QuotaErrorResponse.java` record: `error` (String), `remainingQuota` (int), `remainingCredits` (Integer, nullable), `resetsAt` (Instant, nullable — when the window resets)
-- [ ] add `@ExceptionHandler(EntitlementException.class)` to `CookbookExceptionHandler` returning `ResponseEntity<QuotaErrorResponse>` with **HTTP 429 Too Many Requests** (not 403); include `Retry-After` header (seconds until `resetsAt`) when `resetsAt` is non-null
-- [ ] create `entitlement/EntitlementResponseAdvice.java` `@ControllerAdvice` implementing `ResponseBodyAdvice<Object>`; reads `entitlementResult` request attribute (set by `EntitlementAspect`); appends `X-Quota-Remaining`, `X-Quota-Outcome`, `X-Credits-Remaining`, `X-Quota-Resets-At` response headers; no-ops if attribute absent; omits headers for null fields (paid users, circuit-open)
-- [ ] write tests for exception handler: **429 status** (not 403), `Retry-After` header present when `resetsAt` non-null, JSON body has `error="QUOTA_EXCEEDED"`, correct `remainingQuota`, `remainingCredits` (null for paid), `resetsAt`
-- [ ] write tests for response advice: all headers present on `ALLOWED_FREE_QUOTA` outcome including `X-Quota-Resets-At`, `X-Quota-Outcome: CIRCUIT_OPEN` with `X-Quota-Remaining: -1` for that outcome, `X-Credits-Remaining` absent for paid users (`remainingCredits == null`), no headers appended when attribute absent
-- [ ] run tests — must pass before task 7
+- [x] create `entitlement/dto/QuotaErrorResponse.java` record: `error` (String), `remainingQuota` (int), `remainingCredits` (Integer, nullable), `resetsAt` (Instant, nullable — when the window resets)
+- [x] add `@ExceptionHandler(EntitlementException.class)` to `CookbookExceptionHandler` returning `ResponseEntity<QuotaErrorResponse>` with **HTTP 429 Too Many Requests** (not 403); include `Retry-After` header (seconds until `resetsAt`) when `resetsAt` is non-null
+- [x] create `entitlement/EntitlementResponseAdvice.java` `@ControllerAdvice` implementing `ResponseBodyAdvice<Object>`; reads `entitlementResult` request attribute (set by `EntitlementAspect`); appends `X-Quota-Remaining`, `X-Quota-Outcome`, `X-Credits-Remaining`, `X-Quota-Resets-At` response headers; no-ops if attribute absent; omits headers for null fields (paid users, circuit-open)
+- [x] write tests for exception handler: **429 status** (not 403), `Retry-After` header present when `resetsAt` non-null, JSON body has `error="QUOTA_EXCEEDED"`, correct `remainingQuota`, `remainingCredits` (null for paid), `resetsAt`
+- [x] write tests for response advice: all headers present on `ALLOWED_FREE_QUOTA` outcome including `X-Quota-Resets-At`, `X-Quota-Outcome: CIRCUIT_OPEN` with `X-Quota-Remaining: -1` for that outcome, `X-Credits-Remaining` absent for paid users (`remainingCredits == null`), no headers appended when attribute absent
+- [x] run tests — must pass before task 7
 
 ### Task 7: Wire @CheckEntitlement into existing services
 
