@@ -9,6 +9,8 @@ import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.entitlement.CheckEntitlement;
+import net.shamansoft.cookbook.entitlement.Operation;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
@@ -45,6 +47,7 @@ public class RecipeService {
     private final RecipeValidationService validationService;
     private final GeminiRestTransformer geminiRestTransformer;
 
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, Compression compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
 
@@ -89,6 +92,7 @@ public class RecipeService {
         return responseBuilder.build();
     }
 
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createRecipeFromDescription(String userId, String description, String title, String url, Compression compression) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
 

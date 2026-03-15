@@ -136,12 +136,14 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 7: Wire @CheckEntitlement into existing services
 
-- [ ] add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeService.createRecipe()`
-- [ ] add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeService.createRecipeFromDescription()`
-- [ ] add `@CheckEntitlement(Operation.YOUTUBE_EXTRACTION)` to the YouTube **service** method that creates the job — RFC §2.1 says "annotation on service methods" (zero controller changes); if YouTube job creation lives only in `YouTubeController`, place the annotation on the controller method but add a note that it should be extracted to a service method for consistency
-- [ ] update `RecipeService` tests to mock `EntitlementService` where needed (stub to return `ALLOWED_PAID` to avoid quota interference in non-entitlement tests)
-- [ ] run unit tests — must pass
-- [ ] run integration tests (`./gradlew :cookbook:intTest`) — must pass before task 8
+- [x] add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeService.createRecipe()`
+- [x] add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeService.createRecipeFromDescription()`
+- [x] add `@CheckEntitlement(Operation.YOUTUBE_EXTRACTION)` to the YouTube **service** method that creates the job — RFC §2.1 says "annotation on service methods" (zero controller changes); if YouTube job creation lives only in `YouTubeController`, place the annotation on the controller method but add a note that it should be extracted to a service method for consistency
+  - Note: No YouTubeController exists in this codebase at this time; skipped with note to add when implemented
+- [x] update `RecipeService` tests to mock `EntitlementService` where needed (stub to return `ALLOWED_PAID` to avoid quota interference in non-entitlement tests)
+  - Added `@MockitoBean EntitlementService` to `RecipeControllerSBTest` (SpringBootTest) with `paid()` stub; pure unit tests use direct instantiation and bypass AOP naturally
+- [x] run unit tests — must pass
+- [x] run integration tests (`./gradlew :cookbook:intTest`) — must pass before task 8
 
 ### Task 8: UserProfile model + FirebaseAuthFilter tier extraction
 
