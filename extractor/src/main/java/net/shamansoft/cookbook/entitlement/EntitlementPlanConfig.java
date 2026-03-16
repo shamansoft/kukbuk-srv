@@ -15,13 +15,10 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "entitlement")
 public record EntitlementPlanConfig(
         Map<UserTier, Map<Operation, PlanLimit>> plans,
-        Window window,
         Timeouts timeouts
 ) {
 
     public record PlanLimit(int daily) {}
-
-    public record Window(String timezone) {}
 
     public record Timeouts(int checkMs, int incrementMs) {}
 

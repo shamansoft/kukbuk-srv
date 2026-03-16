@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
+import net.shamansoft.cookbook.entitlement.EntitlementAuthException;
 import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
 import net.shamansoft.cookbook.entitlement.dto.QuotaErrorResponse;
@@ -99,13 +100,13 @@ public class CookbookExceptionHandler {
     }
 
     /**
-     * Handle IllegalStateException thrown by EntitlementAspect when userId is absent.
+     * Handle EntitlementAuthException thrown by EntitlementAspect when userId is absent.
      * This means an unauthenticated request slipped past FirebaseAuthFilter — return 401.
      */
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Object> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
-        log.warn("Illegal state for request {}: {}", request.getRequestURI(), e.getMessage());
+    @ExceptionHandler(EntitlementAuthException.class)
+    public ResponseEntity<Object> handleEntitlementAuthException(EntitlementAuthException e, HttpServletRequest request) {
+        log.warn("Unauthenticated request reached protected method {}: {}", request.getRequestURI(), e.getMessage());
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "Unauthorized",

@@ -50,10 +50,10 @@ class EntitlementAspectTest {
     }
 
     @Test
-    void around_userIdNull_throwsIllegalStateException() {
+    void around_userIdNull_throwsEntitlementAuthException() {
         // userId not set — simulates unauthenticated request slipping through
         assertThatThrownBy(() -> aspect.around(pjp, annotation))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(EntitlementAuthException.class)
                 .hasMessageContaining("userId not set");
     }
 

@@ -3,6 +3,7 @@ package net.shamansoft.cookbook;
 import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import java.time.Clock;
+import net.shamansoft.cookbook.entitlement.EntitlementAuthException;
 import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementOutcome;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
@@ -363,12 +364,12 @@ public class CookbookExceptionHandlerTest {
     }
 
     @Test
-    void handleIllegalStateException_returnsUnauthorized() {
+    void handleEntitlementAuthException_returnsUnauthorized() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
 
-        IllegalStateException ex = new IllegalStateException("userId not set in request context");
+        EntitlementAuthException ex = new EntitlementAuthException("userId not set in request context");
 
-        ResponseEntity<Object> response = controller.handleIllegalStateException(ex, httpServletRequest);
+        ResponseEntity<Object> response = controller.handleEntitlementAuthException(ex, httpServletRequest);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         Object body = response.getBody();

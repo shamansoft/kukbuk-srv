@@ -27,7 +27,7 @@ public class EntitlementAspect {
 
         String userId = (String) request.getAttribute("userId");
         if (userId == null) {
-            throw new IllegalStateException(
+            throw new EntitlementAuthException(
                     "userId not set in request context — unauthenticated request reached protected method");
         }
 

@@ -30,7 +30,6 @@ class EntitlementPlanConfigTest {
 
         return new EntitlementPlanConfig(
                 plans,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
     }
@@ -72,7 +71,6 @@ class EntitlementPlanConfigTest {
 
         EntitlementPlanConfig config = new EntitlementPlanConfig(
                 plans,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
 
@@ -83,7 +81,6 @@ class EntitlementPlanConfigTest {
     void dailyLimit_nullPlans_returnsZero() {
         EntitlementPlanConfig config = new EntitlementPlanConfig(
                 null,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
 
@@ -115,7 +112,6 @@ class EntitlementPlanConfigTest {
 
         EntitlementPlanConfig config = new EntitlementPlanConfig(
                 plans,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
 
@@ -146,7 +142,6 @@ class EntitlementPlanConfigTest {
 
         EntitlementPlanConfig config = new EntitlementPlanConfig(
                 plans,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
 
@@ -160,7 +155,6 @@ class EntitlementPlanConfigTest {
     void validate_nullPlans_throwsIllegalStateException() {
         EntitlementPlanConfig config = new EntitlementPlanConfig(
                 null,
-                new EntitlementPlanConfig.Window("UTC"),
                 new EntitlementPlanConfig.Timeouts(500, 1000)
         );
 

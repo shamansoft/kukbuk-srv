@@ -59,8 +59,6 @@ entitlement:
         daily: -1
       YOUTUBE_EXTRACTION:
         daily: -1
-  window:
-    timezone: UTC
   timeouts:
     check-ms: 500
     increment-ms: 1000

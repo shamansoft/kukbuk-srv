@@ -32,7 +32,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
     private static final String USERS_COLLECTION = "users";
     private static final DateTimeFormatter WINDOW_KEY_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
-    private static final Executor EXECUTOR = Executors.newCachedThreadPool();
+    private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final Firestore firestore;
     private final EntitlementPlanConfig planConfig;
@@ -124,7 +124,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
                 return false;
             }
-        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
+        }, EXECUTOR).orTimeout(planConfig.timeouts().checkMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
                     return false;
