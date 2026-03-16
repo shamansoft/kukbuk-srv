@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.repository.firestore.model;
 import com.google.cloud.Timestamp;
 import lombok.Builder;
 import net.shamansoft.cookbook.dto.UserProfileResponseDto;
+import net.shamansoft.cookbook.entitlement.UserTier;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +24,9 @@ public record UserProfile(
         String googleOAuthToken,     // Encrypted OAuth access token
         String googleRefreshToken,   // Encrypted OAuth refresh token
         Timestamp tokenExpiresAt,    // OAuth token expiration time
-        StorageEntity storage) {
+        StorageEntity storage,
+        UserTier tier,        // Subscription tier (null = FREE by default)
+        int credits) {        // Remaining usage credits
 
     /**
      * Create UserProfile from Firestore Map data
@@ -51,6 +54,19 @@ public record UserProfile(
                     .build();
         }
 
+        UserTier tier = Optional.ofNullable((String) data.get("tier"))
+                .map(t -> {
+                    try {
+                        return UserTier.valueOf(t);
+                    } catch (IllegalArgumentException e) {
+                        return UserTier.FREE;
+                    }
+                })
+                .orElse(UserTier.FREE);
+
+        Long creditsLong = (Long) data.get("credits");
+        int credits = creditsLong != null ? creditsLong.intValue() : 0;
+
         return Optional.of(UserProfile.builder()
                 .uid((String) data.get("uid"))
                 .userId((String) data.get("userId"))
@@ -62,6 +78,8 @@ public record UserProfile(
                 .googleRefreshToken((String) data.get("googleRefreshToken"))
                 .tokenExpiresAt((Timestamp) data.get("tokenExpiresAt"))
                 .storage(storage)
+                .tier(tier)
+                .credits(credits)
                 .build());
     }
 
@@ -106,6 +124,12 @@ public record UserProfile(
         if (storage != null) {
             data.put("storage", storage.toMap());
         }
+
+        // Entitlement fields
+        if (tier != null) {
+            data.put("tier", tier.name());
+        }
+        data.put("credits", credits);
 
         return data;
     }

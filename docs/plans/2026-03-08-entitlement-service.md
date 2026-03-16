@@ -147,13 +147,13 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 8: UserProfile model + FirebaseAuthFilter tier extraction
 
-- [ ] add `UserTier tier` and `int credits` fields to `UserProfile` record
-- [ ] update `UserProfile.fromMap()` to read `tier` with `Optional.ofNullable((String) data.get("tier")).map(UserTier::valueOf).orElse(UserTier.FREE)` and `credits` with null-safe default `0` (cast `Long` → `int`)
-- [ ] update `UserProfile.toMap()` to serialize `tier` (as `tier.name()` string) and `credits` (only write if non-default, or always write for consistency — match existing field pattern)
-- [ ] add tier claim extraction to `FirebaseAuthFilter.doFilterInternal()`: read `decodedToken.getClaims().get("tier")`, parse to `UserTier`, `request.setAttribute("userTier", ...)`, log warn and skip attribute on unknown value
-- [ ] update `UserProfileTest` to cover: `fromMap()` with tier present, tier absent (default FREE), invalid tier string; `toMap()` includes tier and credits
-- [ ] update `FirebaseAuthFilterTest` to cover: tier claim present+valid, tier claim absent (attribute not set), tier claim invalid string (logs warn, attribute absent)
-- [ ] run tests — must pass before task 9
+- [x] add `UserTier tier` and `int credits` fields to `UserProfile` record
+- [x] update `UserProfile.fromMap()` to read `tier` with `Optional.ofNullable((String) data.get("tier")).map(UserTier::valueOf).orElse(UserTier.FREE)` and `credits` with null-safe default `0` (cast `Long` → `int`)
+- [x] update `UserProfile.toMap()` to serialize `tier` (as `tier.name()` string) and `credits` (only write if non-default, or always write for consistency — match existing field pattern)
+- [x] add tier claim extraction to `FirebaseAuthFilter.doFilterInternal()`: read `decodedToken.getClaims().get("tier")`, parse to `UserTier`, `request.setAttribute("userTier", ...)`, log warn and skip attribute on unknown value
+- [x] update `UserProfileTest` to cover: `fromMap()` with tier present, tier absent (default FREE), invalid tier string; `toMap()` includes tier and credits
+- [x] update `FirebaseAuthFilterTest` to cover: tier claim present+valid, tier claim absent (attribute not set), tier claim invalid string (logs warn, attribute absent)
+- [x] run tests — must pass before task 9
 
 ### Task 9: GraalVM native configuration
 

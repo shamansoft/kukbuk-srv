@@ -105,7 +105,7 @@ public class EntitlementService {
             return userProfileRepository.findByUserId(userId)
                     .orTimeout(300, TimeUnit.MILLISECONDS)
                     .get()
-                    .map(profile -> UserTier.FREE) // TODO Task 8: replace with profile.tier()
+                    .map(profile -> profile.tier() != null ? profile.tier() : UserTier.FREE)
                     .orElse(UserTier.FREE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
