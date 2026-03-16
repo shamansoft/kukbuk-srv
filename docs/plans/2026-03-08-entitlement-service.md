@@ -172,12 +172,12 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 11: Verify acceptance criteria
 
-- [ ] run full test suite: `./gradlew :cookbook:test` — all pass
-- [ ] run integration tests: `./gradlew :cookbook:intTest` — all pass
-- [ ] run coverage check: `./gradlew :cookbook:checkCoverage` — ≥ 40% passes
-- [ ] verify all 5 `EntitlementOutcome` values are covered in tests
-- [ ] verify `UserProfile` tier defaults work for users with no `tier` field in Firestore
-- [ ] verify `FirebaseAuthFilter` tier claim extraction tested for present/absent/invalid
+- [x] run full test suite: `./gradlew :cookbook:test` — all pass
+- [x] run integration tests: `./gradlew :cookbook:intTest` — all pass
+- [x] run coverage check: `./gradlew :cookbook:checkCoverage` — ≥ 40% passes
+- [x] verify all 5 `EntitlementOutcome` values are covered in tests
+- [x] verify `UserProfile` tier defaults work for users with no `tier` field in Firestore
+- [x] verify `FirebaseAuthFilter` tier claim extraction tested for present/absent/invalid
 
 ---
 
