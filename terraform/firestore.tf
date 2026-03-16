@@ -21,6 +21,46 @@ resource "google_firestore_database" "default" {
 # Firestore Composite Indexes
 # =========================================================================
 
+# =========================================================================
+# Quota Windows — TTL + Composite Index
+# =========================================================================
+
+# TTL policy on quota_windows.expireAt (auto-delete expired documents)
+resource "google_firestore_field" "quota_windows_ttl" {
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "quota_windows"
+  field      = "expireAt"
+
+  ttl_config {}
+
+  depends_on = [google_firestore_database.default]
+}
+
+# Composite index for quota_windows: userId ASC, operation ASC, windowKey DESC
+resource "google_firestore_index" "quota_windows_user_op" {
+  project    = var.project_id
+  database   = google_firestore_database.default.name
+  collection = "quota_windows"
+
+  fields {
+    field_path = "userId"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "operation"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "windowKey"
+    order      = "DESCENDING"
+  }
+
+  depends_on = [google_firestore_database.default]
+}
+
 # Composite index for recipes by user and creation time
 resource "google_firestore_index" "recipes_by_user_and_created" {
   project    = var.project_id
