@@ -64,17 +64,19 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                     boolean withinLimit = limit < 0 || currentCount < limit;
                     int newCount = withinLimit ? currentCount + 1 : currentCount;
 
-                    Map<String, Object> data = new HashMap<>();
-                    data.put("userId", userId);
-                    data.put("operation", operation.name());
-                    data.put("windowKey", windowKey);
-                    data.put("count", newCount);
-                    data.put("limit", limit);
-                    data.put("resetAt", Timestamp.ofTimeSecondsAndNanos(
-                            resetAt.getEpochSecond(), resetAt.getNano()));
-                    data.put("expireAt", Timestamp.ofTimeSecondsAndNanos(
-                            expireAt.getEpochSecond(), expireAt.getNano()));
-                    tx.set(docRef, data);
+                    if (withinLimit) {
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("userId", userId);
+                        data.put("operation", operation.name());
+                        data.put("windowKey", windowKey);
+                        data.put("count", newCount);
+                        data.put("limit", limit);
+                        data.put("resetAt", Timestamp.ofTimeSecondsAndNanos(
+                                resetAt.getEpochSecond(), resetAt.getNano()));
+                        data.put("expireAt", Timestamp.ofTimeSecondsAndNanos(
+                                expireAt.getEpochSecond(), expireAt.getNano()));
+                        tx.set(docRef, data);
+                    }
 
                     return new QuotaWindow(userId, operation, windowKey, newCount, limit, resetAt, withinLimit);
                 }).get();
@@ -122,7 +124,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
                 return false;
             }
-        }, EXECUTOR).orTimeout(planConfig.timeouts().checkMs(), TimeUnit.MILLISECONDS)
+        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
                     return false;
