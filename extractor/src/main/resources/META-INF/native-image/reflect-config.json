@@ -49,5 +49,41 @@
         "parameterTypes": []
       }
     ]
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.EntitlementResult",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.dto.QuotaErrorResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.QuotaWindow",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.Operation",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.UserTier",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "net.shamansoft.cookbook.entitlement.EntitlementOutcome",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
   }
 ]

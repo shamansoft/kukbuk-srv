@@ -157,10 +157,11 @@ Implement a per-user quota system with a credits fallback, enforced via AOP, bac
 
 ### Task 9: GraalVM native configuration
 
-- [ ] add 6 entries to `reflect-config.json` for: `EntitlementResult`, `QuotaErrorResponse`, `QuotaWindow`, `Operation`, `UserTier`, `EntitlementOutcome` (all with `allDeclaredFields/Methods/Constructors`)
-- [ ] create `proxy-config.json` at `extractor/src/main/resources/META-INF/native-image/proxy-config.json`; add JDK-proxy entry for `RecipeService` (if it implements an interface) or document CGLIB note
-- [ ] update `NativeImageConfigurationTest` (or `NativeImageConfigTest`) to assert new reflect-config entries are present
-- [ ] run tests — must pass before task 10
+- [x] add 6 entries to `reflect-config.json` for: `EntitlementResult`, `QuotaErrorResponse`, `QuotaWindow`, `Operation`, `UserTier`, `EntitlementOutcome` (all with `allDeclaredFields/Methods/Constructors`)
+- [x] create `proxy-config.json` at `extractor/src/main/resources/META-INF/native-image/proxy-config.json`; add JDK-proxy entry for `RecipeService` (if it implements an interface) or document CGLIB note
+  - Note: `RecipeService` is a class (no interface) — Spring uses CGLIB, not JDK proxy; `proxy-config.json` is an empty array `[]`
+- [x] update `NativeImageConfigurationTest` (or `NativeImageConfigTest`) to assert new reflect-config entries are present
+- [x] run tests — must pass before task 10
 
 ### Task 10: Terraform — Firestore TTL + composite index
 
