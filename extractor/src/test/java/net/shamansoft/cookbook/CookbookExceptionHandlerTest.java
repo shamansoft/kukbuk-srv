@@ -2,6 +2,7 @@ package net.shamansoft.cookbook;
 
 import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.ErrorResponse;
+import java.time.Clock;
 import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementOutcome;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
@@ -37,6 +38,9 @@ public class CookbookExceptionHandlerTest {
 
     @Mock
     private HttpServletRequest httpServletRequest;
+
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private CookbookExceptionHandler controller;
@@ -305,7 +309,8 @@ public class CookbookExceptionHandlerTest {
     void handleEntitlementException_returns429() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
         Instant resetsAt = Instant.parse("2026-03-09T00:00:00Z");
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, resetsAt);
+        when(clock.instant()).thenReturn(Instant.parse("2026-03-08T10:00:00Z"));
+        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, resetsAt);
 
         ResponseEntity<QuotaErrorResponse> response =
                 controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
@@ -317,7 +322,8 @@ public class CookbookExceptionHandlerTest {
     void handleEntitlementException_bodyHasQuotaExceededError() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
         Instant resetsAt = Instant.parse("2026-03-09T00:00:00Z");
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, resetsAt);
+        when(clock.instant()).thenReturn(Instant.parse("2026-03-08T10:00:00Z"));
+        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, resetsAt);
 
         ResponseEntity<QuotaErrorResponse> response =
                 controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
@@ -325,15 +331,17 @@ public class CookbookExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().error()).isEqualTo("QUOTA_EXCEEDED");
         assertThat(response.getBody().remainingQuota()).isEqualTo(0);
-        assertThat(response.getBody().remainingCredits()).isEqualTo(0);
+        assertThat(response.getBody().remainingCredits()).isNull();
         assertThat(response.getBody().resetsAt()).isEqualTo(resetsAt);
     }
 
     @Test
     void handleEntitlementException_withResetsAt_includesRetryAfterHeader() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
-        Instant future = Instant.now().plusSeconds(3600);
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, future);
+        Instant now = Instant.parse("2026-03-08T10:00:00Z");
+        Instant future = now.plusSeconds(3600);
+        when(clock.instant()).thenReturn(now);
+        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, future);
 
         ResponseEntity<QuotaErrorResponse> response =
                 controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
@@ -346,7 +354,7 @@ public class CookbookExceptionHandlerTest {
     @Test
     void handleEntitlementException_withNullResetsAt_noRetryAfterHeader() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, null);
+        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, null);
 
         ResponseEntity<QuotaErrorResponse> response =
                 controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
@@ -355,14 +363,18 @@ public class CookbookExceptionHandlerTest {
     }
 
     @Test
-    void handleEntitlementException_nullRemainingCredits_inBody() {
+    void handleIllegalStateException_returnsUnauthorized() {
         when(httpServletRequest.getRequestURI()).thenReturn("/v1/recipes");
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, null);
 
-        ResponseEntity<QuotaErrorResponse> response =
-                controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
+        IllegalStateException ex = new IllegalStateException("userId not set in request context");
 
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().remainingCredits()).isNull();
+        ResponseEntity<Object> response = controller.handleIllegalStateException(ex, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        Object body = response.getBody();
+        assertThat(body).isInstanceOf(ErrorResponse.class);
+        assertThat(((ErrorResponse) body).getStatus()).isEqualTo(401);
+        assertThat(((ErrorResponse) body).getError()).isEqualTo("Unauthorized");
+        assertThat(((ErrorResponse) body).getMessage()).isEqualTo("Authentication required");
     }
 }

@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.repository;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentSnapshot;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.entitlement.UserTier;
 import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.repository.firestore.model.StoredRecipe;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
@@ -86,6 +87,18 @@ public class Transformer {
                     .build();
         }
 
+        String tierStr = document.getString("tier");
+        UserTier tier = null;
+        if (tierStr != null) {
+            try {
+                tier = UserTier.valueOf(tierStr);
+            } catch (IllegalArgumentException e) {
+                log.warn("Unknown tier value '{}' in Firestore for userId={}", tierStr, document.getId());
+            }
+        }
+        Long creditsLong = document.getLong("credits");
+        int credits = creditsLong != null ? creditsLong.intValue() : 0;
+
         return UserProfile.builder()
                 .uid(document.getId())
                 .userId(document.getString("userId"))
@@ -97,6 +110,8 @@ public class Transformer {
                 .googleRefreshToken(document.getString("googleRefreshToken"))
                 .tokenExpiresAt(document.getTimestamp("tokenExpiresAt"))
                 .storage(storage)
+                .tier(tier)
+                .credits(credits)
                 .build();
     }
 }

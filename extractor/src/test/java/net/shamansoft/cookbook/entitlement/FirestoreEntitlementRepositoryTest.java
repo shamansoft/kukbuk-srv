@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,8 @@ class FirestoreEntitlementRepositoryTest {
     @Mock DocumentSnapshot userSnapshot;
     @Mock Transaction transaction;
     @Mock WriteResult writeResult;
+    @Mock EntitlementPlanConfig planConfig;
+    @Mock EntitlementPlanConfig.Timeouts timeouts;
 
     private FirestoreEntitlementRepository repository;
 
@@ -49,7 +52,10 @@ class FirestoreEntitlementRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        repository = new FirestoreEntitlementRepository(firestore);
+        lenient().when(planConfig.timeouts()).thenReturn(timeouts);
+        lenient().when(timeouts.incrementMs()).thenReturn(1000);
+        lenient().when(timeouts.checkMs()).thenReturn(500);
+        repository = new FirestoreEntitlementRepository(firestore, planConfig);
     }
 
     // ---- checkAndIncrement ----

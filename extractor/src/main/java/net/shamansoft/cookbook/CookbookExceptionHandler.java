@@ -2,6 +2,7 @@
 package net.shamansoft.cookbook;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import net.shamansoft.cookbook.entitlement.EntitlementException;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -32,7 +34,10 @@ import java.util.stream.Collectors;
 
 @ControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class CookbookExceptionHandler {
+
+    private final Clock clock;
 
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     @ExceptionHandler(UrlFetchException.class)
@@ -91,6 +96,23 @@ public class CookbookExceptionHandler {
         );
         errorResponse.setValidationErrors(validationErrors);
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle IllegalStateException thrown by EntitlementAspect when userId is absent.
+     * This means an unauthenticated request slipped past FirebaseAuthFilter — return 401.
+     */
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Object> handleIllegalStateException(IllegalStateException e, HttpServletRequest request) {
+        log.warn("Illegal state for request {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Unauthorized",
+                "Authentication required",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -267,7 +289,7 @@ public class CookbookExceptionHandler {
 
         HttpHeaders headers = new HttpHeaders();
         if (result.resetsAt() != null) {
-            long seconds = Duration.between(Instant.now(), result.resetsAt()).getSeconds();
+            long seconds = Duration.between(clock.instant(), result.resetsAt()).getSeconds();
             headers.add(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(0, seconds)));
         }
 

@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 @CrossOrigin(
         originPatterns = "*",  // Configure for mobile app (restrict in production)
         allowedHeaders = "*",
-        exposedHeaders = {"Cache-Control"},
+        exposedHeaders = {"Cache-Control", "X-Quota-Outcome", "X-Quota-Remaining", "X-Credits-Remaining", "X-Quota-Resets-At"},
         allowCredentials = "true"
 )
 public class RecipeController {

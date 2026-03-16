@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,7 @@ class EntitlementServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         Clock clock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
+        lenient().when(planConfig.timeouts()).thenReturn(new EntitlementPlanConfig.Timeouts(500, 1000));
         service = new EntitlementService(entitlementRepository, userProfileRepository, planConfig, meterRegistry, clock);
     }
 
@@ -288,5 +290,48 @@ class EntitlementServiceTest {
         service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
         verify(userProfileRepository).findByUserId(USER_ID);
+    }
+
+    // --- deductCredit error paths yield DENIED_QUOTA (not CIRCUIT_OPEN) ---
+
+    @Test
+    void check_deductCreditThrowsExecutionException_returnsDeniedQuota() {
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(planConfig.dailyLimit(UserTier.FREE, Operation.RECIPE_EXTRACTION)).thenReturn(5);
+        QuotaWindow window = new QuotaWindow(USER_ID, Operation.RECIPE_EXTRACTION, "20260308",
+                5, 5, WINDOW_RESET, false);
+        when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
+                .thenReturn(CompletableFuture.completedFuture(window));
+        CompletableFuture<Boolean> failedCredit = new CompletableFuture<>();
+        failedCredit.completeExceptionally(new RuntimeException("Firestore timeout on credit"));
+        when(entitlementRepository.deductCredit(USER_ID)).thenReturn(failedCredit);
+
+        EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
+
+        // deductCredit failure → DENIED_QUOTA (not CIRCUIT_OPEN)
+        assertThat(result.allowed()).isFalse();
+        assertThat(result.outcome()).isEqualTo(EntitlementOutcome.DENIED_QUOTA);
+        assertThat(result.remainingCredits()).isNull();
+        assertThat(result.resetsAt()).isEqualTo(WINDOW_RESET);
+    }
+
+    @Test
+    void check_allowedCredit_remainingCreditsIsNull() {
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(planConfig.dailyLimit(UserTier.FREE, Operation.RECIPE_EXTRACTION)).thenReturn(5);
+        QuotaWindow window = new QuotaWindow(USER_ID, Operation.RECIPE_EXTRACTION, "20260308",
+                5, 5, WINDOW_RESET, false);
+        when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
+                .thenReturn(CompletableFuture.completedFuture(window));
+        when(entitlementRepository.deductCredit(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(true));
+
+        EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
+
+        assertThat(result.allowed()).isTrue();
+        assertThat(result.outcome()).isEqualTo(EntitlementOutcome.ALLOWED_CREDIT);
+        assertThat(result.remainingCredits()).isNull();
     }
 }

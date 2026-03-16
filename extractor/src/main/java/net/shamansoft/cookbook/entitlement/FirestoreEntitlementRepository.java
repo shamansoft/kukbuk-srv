@@ -35,6 +35,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
     private static final Executor EXECUTOR = Executors.newCachedThreadPool();
 
     private final Firestore firestore;
+    private final EntitlementPlanConfig planConfig;
 
     /**
      * Atomically checks and increments the quota counter for the given user/operation/window.
@@ -86,7 +87,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 throw new RuntimeException("checkAndIncrement failed for userId=" + userId, cause);
             }
-        }, EXECUTOR).orTimeout(800, TimeUnit.MILLISECONDS);
+        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -121,7 +122,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
                 return false;
             }
-        }, EXECUTOR).orTimeout(800, TimeUnit.MILLISECONDS)
+        }, EXECUTOR).orTimeout(planConfig.timeouts().checkMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
                     return false;

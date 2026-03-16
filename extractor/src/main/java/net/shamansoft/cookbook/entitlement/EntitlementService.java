@@ -88,22 +88,20 @@ public class EntitlementService {
 
         if (credited) {
             record(operation, EntitlementOutcome.ALLOWED_CREDIT);
-            // remainingCredits=0 is a placeholder; Task 8 will populate from UserProfile.credits
-            return new EntitlementResult(true, EntitlementOutcome.ALLOWED_CREDIT, 0, 0, window.resetAt());
+            return new EntitlementResult(true, EntitlementOutcome.ALLOWED_CREDIT, 0, null, window.resetAt());
         } else {
             record(operation, EntitlementOutcome.DENIED_QUOTA);
-            return new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, window.resetAt());
+            return new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, window.resetAt());
         }
     }
 
     /**
      * Load user tier from profile. Defaults to FREE on empty profile or timeout.
-     * Task 8 will update this to read profile.tier() when the field is added to UserProfile.
      */
     private UserTier loadTierFromProfile(String userId) {
         try {
             return userProfileRepository.findByUserId(userId)
-                    .orTimeout(300, TimeUnit.MILLISECONDS)
+                    .orTimeout(planConfig.timeouts().checkMs(), TimeUnit.MILLISECONDS)
                     .get()
                     .map(profile -> profile.tier() != null ? profile.tier() : UserTier.FREE)
                     .orElse(UserTier.FREE);
