@@ -102,4 +102,12 @@ public class RestClientConfig {
                 .requestFactory(requestFactory)
                 .build();
     }
+
+    @Bean
+    public RestClient markdownNewRestClient(ClientHttpRequestFactory requestFactory) {
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .baseUrl("https://markdown.new")
+                .build();
+    }
 }
