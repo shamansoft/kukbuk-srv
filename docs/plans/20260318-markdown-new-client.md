@@ -61,10 +61,10 @@ Add [markdown.new](https://markdown.new) as an alternative URL fetcher for `POST
 
 ### Task 3: Add property to application config and verify
 
-- [ ] Add `cookbook.fetcher.type=jsoup` (or `markdown-new`) to `application.properties` with a comment explaining the options
-- [ ] Verify full test suite: `./gradlew :cookbook:test`
-- [ ] Verify test coverage stays at 74%+
-- [ ] Verify all acceptance criteria:
+- [x] Add `cookbook.fetcher.type=jsoup` (or `markdown-new`) to `application.properties` with a comment explaining the options
+- [x] Verify full test suite: `./gradlew :cookbook:test`
+- [x] Verify test coverage stays at 74%+
+- [x] Verify all acceptance criteria:
   - Default config (`jsoup`): `HtmlFetcher` bean is active, `MarkdownNewClientImpl` is not created
   - With `markdown-new`: `MarkdownNewClientImpl` bean is active, `HtmlFetcher` is not created
 
