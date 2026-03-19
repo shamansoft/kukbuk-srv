@@ -7,13 +7,15 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
 @Slf4j
 @Service
-public class HtmlFetcher {
+@ConditionalOnProperty(name = "cookbook.fetcher.type", havingValue = "jsoup", matchIfMissing = true)
+public class HtmlFetcher implements UrlContentFetcher {
 
     private static final String USER_AGENT =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
