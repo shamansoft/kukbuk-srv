@@ -99,4 +99,13 @@ class MarkdownNewClientImplTest {
                 .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(500))
                 .hasMessageContaining("HTTP 500");
     }
+
+    @Test
+    void fetch_nullResponse_throwsUrlFetchException() {
+        when(responseSpec.body(String.class)).thenReturn(null);
+
+        assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
+                .isInstanceOf(UrlFetchException.class)
+                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(204));
+    }
 }

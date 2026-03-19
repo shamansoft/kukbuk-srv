@@ -34,6 +34,9 @@ public class MarkdownNewClientImpl implements UrlContentFetcher {
                     .body(Map.of("url", url))
                     .retrieve()
                     .body(String.class);
+            if (result == null) {
+                throw new UrlFetchException(204, "markdown.new returned empty response for URL: " + url);
+            }
             log.debug("Successfully fetched markdown for URL: {}", url);
             return result;
         } catch (HttpClientErrorException e) {
