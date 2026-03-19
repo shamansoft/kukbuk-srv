@@ -42,22 +42,22 @@ Add [markdown.new](https://markdown.new) as an alternative URL fetcher for `POST
 
 ### Task 2: Create `MarkdownNewClient` interface and implementation
 
-- [ ] Create interface `extractor/src/main/java/net/shamansoft/cookbook/client/MarkdownNewClient.java` extending `UrlContentFetcher` (inherits `fetch(String url)`)
-- [ ] Create `extractor/src/main/java/net/shamansoft/cookbook/client/MarkdownNewClientImpl.java` implementing `MarkdownNewClient`
+- [x] Create interface `extractor/src/main/java/net/shamansoft/cookbook/client/MarkdownNewClient.java` extending `UrlContentFetcher` (inherits `fetch(String url)`)
+- [x] Create `extractor/src/main/java/net/shamansoft/cookbook/client/MarkdownNewClientImpl.java` implementing `MarkdownNewClient`
   - `@Service`, `@ConditionalOnProperty(name = "cookbook.fetcher.type", havingValue = "markdown-new")`
   - Constructor-inject `RestClient` with `@Qualifier("markdownNewRestClient")`
   - POST body: `{"url": "<url>"}` with `Content-Type: application/json`
   - Return response body as `String`
   - On HTTP 429: throw `UrlFetchException` with message: `"Rate limit exceeded for markdown.new (500 req/day per IP). Please try again later."`
   - On other HTTP errors: throw `UrlFetchException` with status code
-- [ ] Add `markdownNewRestClient` bean to `RestClientConfig.java`
+- [x] Add `markdownNewRestClient` bean to `RestClientConfig.java`
   - Base URL: `https://markdown.new`
   - Use the same Apache HttpClient 5 connection pool pattern as existing beans
-- [ ] Write unit tests for `MarkdownNewClientImpl`:
+- [x] Write unit tests for `MarkdownNewClientImpl`:
   - Success: returns markdown string
   - 429: throws `UrlFetchException` with rate limit message
   - Other 4xx/5xx: throws `UrlFetchException`
-- [ ] Run tests — must pass before Task 3
+- [x] Run tests — must pass before Task 3
 
 ### Task 3: Add property to application config and verify
 
