@@ -8,7 +8,6 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
-import net.shamansoft.cookbook.html.HtmlFetcher;
 import net.shamansoft.cookbook.html.strategy.Strategy;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
@@ -89,9 +88,6 @@ class RecipeControllerSBTest {
 
     @MockitoBean
     private Compressor compressor;
-
-    @MockitoBean
-    private HtmlFetcher htmlFetcher;
 
     @MockitoBean
     private RecipeValidationService validationService;

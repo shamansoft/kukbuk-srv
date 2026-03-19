@@ -13,11 +13,13 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -51,6 +53,8 @@ class MarkdownNewClientImplTest {
         String result = client.fetch("https://example.com/recipe");
 
         assertThat(result).isEqualTo("# Recipe Title\nSome markdown content");
+        verify(postSpec).contentType(MediaType.APPLICATION_JSON);
+        verify(postSpec).body(Map.of("url", "https://example.com/recipe"));
     }
 
     @Test
@@ -81,7 +85,8 @@ class MarkdownNewClientImplTest {
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
                 .isInstanceOf(UrlFetchException.class)
-                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(403));
+                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(403))
+                .hasMessageContaining("HTTP 403");
     }
 
     @Test
@@ -91,6 +96,7 @@ class MarkdownNewClientImplTest {
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
                 .isInstanceOf(UrlFetchException.class)
-                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(500));
+                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(500))
+                .hasMessageContaining("HTTP 500");
     }
 }
