@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.client;
 
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.exception.UrlFetchException;
+import net.shamansoft.cookbook.html.UrlContentFetcher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -16,7 +17,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "cookbook.fetcher.type", havingValue = "markdown-new")
-public class MarkdownNewClientImpl implements MarkdownNewClient {
+public class MarkdownNewClientImpl implements UrlContentFetcher {
 
     private final RestClient restClient;
 
