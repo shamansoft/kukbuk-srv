@@ -31,7 +31,8 @@ public class EntitlementAspect {
                     "userId not set in request context — unauthenticated request reached protected method");
         }
 
-        UserTier userTier = (UserTier) request.getAttribute("userTier");
+        Object tierAttr = request.getAttribute("userTier");
+        UserTier userTier = tierAttr instanceof UserTier t ? t : null;
         Operation operation = entitlement.value();
 
         EntitlementResult result = entitlementService.check(userId, userTier, operation);

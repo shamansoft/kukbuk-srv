@@ -98,4 +98,18 @@ class EntitlementAspectTest {
 
         verify(entitlementService).check("user123", UserTier.PRO, Operation.RECIPE_EXTRACTION);
     }
+
+    @Test
+    void around_userTierWrongType_treatedAsNull_defaultsToFree() throws Throwable {
+        mockRequest.setAttribute("userId", "user123");
+        mockRequest.setAttribute("userTier", "not-a-user-tier"); // wrong type
+        EntitlementResult allowed = new EntitlementResult(true, EntitlementOutcome.ALLOWED_FREE_QUOTA, 3, null, null);
+        when(entitlementService.check("user123", null, Operation.RECIPE_EXTRACTION)).thenReturn(allowed);
+        when(pjp.proceed()).thenReturn(null);
+
+        // Should not throw ClassCastException; null userTier is passed to service (FREE-tier path)
+        aspect.around(pjp, annotation);
+
+        verify(entitlementService).check("user123", null, Operation.RECIPE_EXTRACTION);
+    }
 }
