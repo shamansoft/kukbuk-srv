@@ -16,6 +16,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -95,11 +96,11 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
     /**
      * Atomically deducts one credit from users/{userId}.
      *
-     * Per RFC §2.3: timeout maps to false (fail-safe, not CIRCUIT_OPEN).
+     * Per RFC §2.3: timeout maps to OptionalInt.empty() (fail-safe, not CIRCUIT_OPEN).
      * .exceptionally handles TimeoutException from orTimeout.
      */
     @Override
-    public CompletableFuture<Boolean> deductCredit(String userId) {
+    public CompletableFuture<OptionalInt> deductCredit(String userId) {
         DocumentReference docRef = firestore.collection(USERS_COLLECTION).document(userId);
 
         return CompletableFuture.supplyAsync(() -> {
@@ -107,27 +108,27 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 return firestore.runTransaction(tx -> {
                     DocumentSnapshot snapshot = tx.get(docRef).get();
                     if (!snapshot.exists()) {
-                        return false;
+                        return OptionalInt.empty();
                     }
                     Long credits = snapshot.getLong("credits");
                     if (credits == null || credits <= 0) {
-                        return false;
+                        return OptionalInt.empty();
                     }
                     tx.update(docRef, "credits", FieldValue.increment(-1));
-                    return true;
+                    return OptionalInt.of((int) (credits - 1));
                 }).get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("deductCredit interrupted for userId={}", userId);
-                return false;
+                return OptionalInt.empty();
             } catch (ExecutionException e) {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
-                return false;
+                return OptionalInt.empty();
             }
         }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
-                    return false;
+                    return OptionalInt.empty();
                 });
     }
 

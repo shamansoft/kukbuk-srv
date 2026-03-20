@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.entitlement;
 
 import java.time.Instant;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -25,12 +26,13 @@ public interface EntitlementRepository {
 
     /**
      * Atomically decrement credits by 1 from users/{userId}.
-     * Returns true if a credit was available and deducted.
+     * Returns OptionalInt.of(remaining) if a credit was available and deducted;
+     * OptionalInt.empty() if no credits available or user not found.
      *
      * @param userId the user identifier
-     * @return CompletableFuture of true if credit deducted, false if no credits or timeout
+     * @return CompletableFuture of OptionalInt.of(remaining) if deducted, OptionalInt.empty() if not
      */
-    CompletableFuture<Boolean> deductCredit(String userId);
+    CompletableFuture<OptionalInt> deductCredit(String userId);
 
     /**
      * Admin: set tier and/or credits on users/{userId}.

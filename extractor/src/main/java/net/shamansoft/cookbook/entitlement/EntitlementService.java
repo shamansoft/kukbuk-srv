@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.OptionalInt;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -74,10 +75,10 @@ public class EntitlementService {
 
         // Step 6: Quota exhausted — try credits fast-path
         // Note: profile.credits() read will be added in Task 8 when UserProfile gains the credits field.
-        // For now, deductCredit() atomically checks and deducts, returning false if no credits.
-        boolean credited = false;
+        // For now, deductCredit() atomically checks and deducts, returning OptionalInt.of(remaining) if successful.
+        OptionalInt creditResult = OptionalInt.empty();
         try {
-            credited = entitlementRepository.deductCredit(userId).get();
+            creditResult = entitlementRepository.deductCredit(userId).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Credit deduction interrupted for userId={}", userId);
@@ -86,9 +87,9 @@ public class EntitlementService {
                     e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         }
 
-        if (credited) {
+        if (creditResult.isPresent()) {
             record(operation, EntitlementOutcome.ALLOWED_CREDIT);
-            return new EntitlementResult(true, EntitlementOutcome.ALLOWED_CREDIT, 0, null, window.resetAt());
+            return new EntitlementResult(true, EntitlementOutcome.ALLOWED_CREDIT, 0, creditResult.getAsInt(), window.resetAt());
         } else {
             record(operation, EntitlementOutcome.DENIED_QUOTA);
             return new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, window.resetAt());

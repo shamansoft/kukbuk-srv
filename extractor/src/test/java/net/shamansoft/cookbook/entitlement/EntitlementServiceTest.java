@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -146,13 +147,14 @@ class EntitlementServiceTest {
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
         when(entitlementRepository.deductCredit(USER_ID))
-                .thenReturn(CompletableFuture.completedFuture(true));
+                .thenReturn(CompletableFuture.completedFuture(OptionalInt.of(2)));
 
         EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
         assertThat(result.allowed()).isTrue();
         assertThat(result.outcome()).isEqualTo(EntitlementOutcome.ALLOWED_CREDIT);
         assertThat(result.remainingQuota()).isEqualTo(0);
+        assertThat(result.remainingCredits()).isEqualTo(2); // actual remaining credits returned
         assertThat(result.resetsAt()).isEqualTo(WINDOW_RESET);
     }
 
@@ -166,7 +168,7 @@ class EntitlementServiceTest {
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
         when(entitlementRepository.deductCredit(USER_ID))
-                .thenReturn(CompletableFuture.completedFuture(true));
+                .thenReturn(CompletableFuture.completedFuture(OptionalInt.of(2)));
 
         service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
@@ -188,7 +190,7 @@ class EntitlementServiceTest {
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
         when(entitlementRepository.deductCredit(USER_ID))
-                .thenReturn(CompletableFuture.completedFuture(false));
+                .thenReturn(CompletableFuture.completedFuture(OptionalInt.empty()));
 
         EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
@@ -208,7 +210,7 @@ class EntitlementServiceTest {
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
         when(entitlementRepository.deductCredit(USER_ID))
-                .thenReturn(CompletableFuture.completedFuture(false));
+                .thenReturn(CompletableFuture.completedFuture(OptionalInt.empty()));
 
         service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
@@ -303,7 +305,7 @@ class EntitlementServiceTest {
                 5, 5, WINDOW_RESET, false);
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
-        CompletableFuture<Boolean> failedCredit = new CompletableFuture<>();
+        CompletableFuture<OptionalInt> failedCredit = new CompletableFuture<>();
         failedCredit.completeExceptionally(new RuntimeException("Firestore timeout on credit"));
         when(entitlementRepository.deductCredit(USER_ID)).thenReturn(failedCredit);
 
@@ -317,7 +319,34 @@ class EntitlementServiceTest {
     }
 
     @Test
-    void check_allowedCredit_remainingCreditsIsNull() {
+    void check_deductCreditInterrupted_returnsDeniedQuota() {
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(planConfig.dailyLimit(UserTier.FREE, Operation.RECIPE_EXTRACTION)).thenReturn(5);
+        QuotaWindow window = new QuotaWindow(USER_ID, Operation.RECIPE_EXTRACTION, "20260308",
+                5, 5, WINDOW_RESET, false);
+        when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
+                .thenReturn(CompletableFuture.completedFuture(window));
+        // Simulate InterruptedException by overriding get() on the future
+        CompletableFuture<OptionalInt> interruptedFuture = new CompletableFuture<>() {
+            @Override
+            public OptionalInt get() throws InterruptedException {
+                throw new InterruptedException("credit deduction interrupted");
+            }
+        };
+        when(entitlementRepository.deductCredit(USER_ID)).thenReturn(interruptedFuture);
+
+        EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
+
+        // InterruptedException → DENIED_QUOTA (not CIRCUIT_OPEN)
+        assertThat(result.allowed()).isFalse();
+        assertThat(result.outcome()).isEqualTo(EntitlementOutcome.DENIED_QUOTA);
+        assertThat(result.remainingCredits()).isNull();
+        assertThat(result.resetsAt()).isEqualTo(WINDOW_RESET);
+    }
+
+    @Test
+    void check_allowedCredit_remainingCreditsIsReturned() {
         when(userProfileRepository.findByUserId(USER_ID))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(planConfig.dailyLimit(UserTier.FREE, Operation.RECIPE_EXTRACTION)).thenReturn(5);
@@ -326,12 +355,13 @@ class EntitlementServiceTest {
         when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
                 .thenReturn(CompletableFuture.completedFuture(window));
         when(entitlementRepository.deductCredit(USER_ID))
-                .thenReturn(CompletableFuture.completedFuture(true));
+                .thenReturn(CompletableFuture.completedFuture(OptionalInt.of(4)));
 
         EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
 
         assertThat(result.allowed()).isTrue();
         assertThat(result.outcome()).isEqualTo(EntitlementOutcome.ALLOWED_CREDIT);
-        assertThat(result.remainingCredits()).isNull();
+        assertThat(result.remainingCredits()).isNotNull();
+        assertThat(result.remainingCredits()).isEqualTo(4);
     }
 }

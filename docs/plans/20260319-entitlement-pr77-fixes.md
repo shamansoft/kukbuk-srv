@@ -77,7 +77,7 @@ One-line fix: a credit deduction is a Firestore read-modify-write transaction an
 Enables the service to return actual remaining credits in the `ALLOWED_CREDIT` result, fixing the `X-Credits-Remaining` header gap.
 
 **Interface change:**
-- [ ] In `EntitlementRepository.java`, change:
+- [x] In `EntitlementRepository.java`, change:
   ```java
   CompletableFuture<Boolean> deductCredit(String userId);
   ```
@@ -88,13 +88,13 @@ Enables the service to return actual remaining credits in the `ALLOWED_CREDIT` r
   ```
 
 **Repository implementation:**
-- [ ] In `FirestoreEntitlementRepository.deductCredit()`, update the Firestore transaction to:
+- [x] In `FirestoreEntitlementRepository.deductCredit()`, update the Firestore transaction to:
   - Return `OptionalInt.of(newCredits)` (where `newCredits = currentCredits - 1`) when credits are available and deducted
   - Return `OptionalInt.empty()` when `currentCredits <= 0` or user document not found
   - Same error handling as before (exception → `OptionalInt.empty()` via catch block)
 
 **Service update:**
-- [ ] In `EntitlementService.java` lines 78–95, update credit deduction block:
+- [x] In `EntitlementService.java` lines 78–95, update credit deduction block:
   ```java
   OptionalInt creditResult = OptionalInt.empty();
   try {
@@ -117,18 +117,18 @@ Enables the service to return actual remaining credits in the `ALLOWED_CREDIT` r
   ```
 
 **Test updates:**
-- [ ] Update `FirestoreEntitlementRepositoryTest`: change all `deductCredit_*` tests to assert `OptionalInt` return values instead of `boolean`
+- [x] Update `FirestoreEntitlementRepositoryTest`: change all `deductCredit_*` tests to assert `OptionalInt` return values instead of `boolean`
   - `deductCredit_creditAvailable_returnsTrue` → assert `OptionalInt.of(remainingCount)`
   - `deductCredit_noCredits_returnsFalse` → assert `OptionalInt.empty()`
   - `deductCredit_nullCredits_returnsFalse` → assert `OptionalInt.empty()`
   - `deductCredit_userNotFound_returnsFalse` → assert `OptionalInt.empty()`
   - `deductCredit_firestoreThrows_returnsFalse` → assert `OptionalInt.empty()`
-- [ ] Update `EntitlementServiceTest`:
+- [x] Update `EntitlementServiceTest`:
   - `check_quotaExhausted_creditAvailable_returnsAllowedCredit` — verify `remainingCredits` is the actual count (not `null`)
   - `check_allowedCredit_remainingCreditsIsNull` — rename and invert: `check_allowedCredit_remainingCreditsIsReturned`, assert non-null
   - `check_deductCreditThrowsExecutionException_returnsDeniedQuota` — no change needed (still DENIED_QUOTA)
   - Add: `check_deductCreditInterrupted_returnsDeniedQuota` — mock `deductCredit` to throw `InterruptedException` wrapped in future, assert `DENIED_QUOTA` outcome (this covers the missing InterruptedException path from the test gap list)
-- [ ] Run `./gradlew :cookbook:test` — must pass
+- [x] Run `./gradlew :cookbook:test` — must pass
 
 ---
 

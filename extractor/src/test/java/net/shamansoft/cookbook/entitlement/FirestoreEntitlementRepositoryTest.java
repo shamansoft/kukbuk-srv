@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -144,7 +145,7 @@ class FirestoreEntitlementRepositoryTest {
     // ---- deductCredit ----
 
     @Test
-    void deductCredit_creditAvailable_returnsTrue() throws Exception {
+    void deductCredit_creditAvailable_returnsOptionalWithRemaining() throws Exception {
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocRef);
         when(transaction.get(userDocRef)).thenReturn(ApiFutures.immediateFuture(userSnapshot));
@@ -152,13 +153,14 @@ class FirestoreEntitlementRepositoryTest {
         when(userSnapshot.getLong("credits")).thenReturn(3L);
         setupUserTransactionMock();
 
-        Boolean result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
+        // Uses incrementMs timeout (1000ms) for this write transaction
+        OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
-        assertThat(result).isTrue();
+        assertThat(result).isEqualTo(OptionalInt.of(2)); // 3 - 1 = 2 remaining
     }
 
     @Test
-    void deductCredit_noCredits_returnsFalse() throws Exception {
+    void deductCredit_noCredits_returnsEmpty() throws Exception {
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocRef);
         when(transaction.get(userDocRef)).thenReturn(ApiFutures.immediateFuture(userSnapshot));
@@ -166,13 +168,13 @@ class FirestoreEntitlementRepositoryTest {
         when(userSnapshot.getLong("credits")).thenReturn(0L);
         setupUserTransactionMock();
 
-        Boolean result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
+        OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
-        assertThat(result).isFalse();
+        assertThat(result).isEqualTo(OptionalInt.empty());
     }
 
     @Test
-    void deductCredit_nullCredits_returnsFalse() throws Exception {
+    void deductCredit_nullCredits_returnsEmpty() throws Exception {
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocRef);
         when(transaction.get(userDocRef)).thenReturn(ApiFutures.immediateFuture(userSnapshot));
@@ -180,34 +182,34 @@ class FirestoreEntitlementRepositoryTest {
         when(userSnapshot.getLong("credits")).thenReturn(null);
         setupUserTransactionMock();
 
-        Boolean result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
+        OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
-        assertThat(result).isFalse();
+        assertThat(result).isEqualTo(OptionalInt.empty());
     }
 
     @Test
-    void deductCredit_userNotFound_returnsFalse() throws Exception {
+    void deductCredit_userNotFound_returnsEmpty() throws Exception {
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocRef);
         when(transaction.get(userDocRef)).thenReturn(ApiFutures.immediateFuture(userSnapshot));
         when(userSnapshot.exists()).thenReturn(false);
         setupUserTransactionMock();
 
-        Boolean result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
+        OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
-        assertThat(result).isFalse();
+        assertThat(result).isEqualTo(OptionalInt.empty());
     }
 
     @Test
-    void deductCredit_firestoreThrows_returnsFalse() throws Exception {
+    void deductCredit_firestoreThrows_returnsEmpty() throws Exception {
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocRef);
         when(firestore.runTransaction(any()))
                 .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("timeout simulation")));
 
-        Boolean result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
+        OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
-        assertThat(result).isFalse();
+        assertThat(result).isEqualTo(OptionalInt.empty());
     }
 
     // ---- updateTierAndCredits ----
