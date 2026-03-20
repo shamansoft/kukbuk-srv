@@ -124,7 +124,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
                 return false;
             }
-        }, EXECUTOR).orTimeout(planConfig.timeouts().checkMs(), TimeUnit.MILLISECONDS)
+        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
                     return false;

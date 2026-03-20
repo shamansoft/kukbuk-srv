@@ -66,9 +66,9 @@ Prevents `ClassCastException` → HTTP 500 if any other filter writes a non-`Use
 
 One-line fix: a credit deduction is a Firestore read-modify-write transaction and should share the `incrementMs` budget, not `checkMs`.
 
-- [ ] In `FirestoreEntitlementRepository.java:127`, change `.orTimeout(planConfig.timeouts().checkMs(), ...)` to `.orTimeout(planConfig.timeouts().incrementMs(), ...)`
-- [ ] Update `FirestoreEntitlementRepositoryTest` — add a comment noting the timeout used (no logic change to the existing tests, just verify they pass)
-- [ ] Run `./gradlew :cookbook:test` — must pass
+- [x] In `FirestoreEntitlementRepository.java:127`, change `.orTimeout(planConfig.timeouts().checkMs(), ...)` to `.orTimeout(planConfig.timeouts().incrementMs(), ...)`
+- [x] Update `FirestoreEntitlementRepositoryTest` — add a comment noting the timeout used (no logic change to the existing tests, just verify they pass)
+- [x] Run `./gradlew :cookbook:test` — must pass
 
 ---
 
