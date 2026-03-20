@@ -137,18 +137,18 @@ Enables the service to return actual remaining credits in the `ALLOWED_CREDIT` r
 Eliminates the AOP-bypass risk for future internal callers. The controller layer is always entered via the Spring proxy for HTTP requests.
 
 **RecipeService — remove annotations:**
-- [ ] Remove `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` from `RecipeService.createRecipe()` (line 50)
-- [ ] Remove `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` from `RecipeService.createRecipeFromDescription()` (line 95)
+- [x] Remove `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` from `RecipeService.createRecipe()` (line 50)
+- [x] Remove `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` from `RecipeService.createRecipeFromDescription()` (line 95)
 
 **RecipeController — add annotations:**
-- [ ] Add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeController.createRecipe()` (the `POST /v1/recipes` handler)
-- [ ] Add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeController.createCustomRecipe()` (the `POST /v1/recipes/custom` handler)
-- [ ] Verify `EntitlementAspect` can still resolve `userId` and `userTier` from request attributes — both are already populated by `FirebaseAuthFilter` before the controller executes, so no change needed in the aspect
+- [x] Add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeController.createRecipe()` (the `POST /v1/recipes` handler)
+- [x] Add `@CheckEntitlement(Operation.RECIPE_EXTRACTION)` to `RecipeController.createCustomRecipe()` (the `POST /v1/recipes/custom` handler)
+- [x] Verify `EntitlementAspect` can still resolve `userId` and `userTier` from request attributes — both are already populated by `FirebaseAuthFilter` before the controller executes, so no change needed in the aspect
 
 **Test updates:**
-- [ ] In `EntitlementAspectTest`, if any test directly targets a `RecipeService` mock with `@CheckEntitlement`, update to target a `RecipeController`-level method instead. (If tests are already aspect-generic — i.e. use a synthetic annotated method — no change needed.)
-- [ ] Verify `RecipeServiceTest` (if it exists) — no entitlement stubs should be needed there anymore
-- [ ] Run `./gradlew :cookbook:test` — must pass
+- [x] In `EntitlementAspectTest`, if any test directly targets a `RecipeService` mock with `@CheckEntitlement`, update to target a `RecipeController`-level method instead. (If tests are already aspect-generic — i.e. use a synthetic annotated method — no change needed.)
+- [x] Verify `RecipeServiceTest` (if it exists) — no entitlement stubs should be needed there anymore
+- [x] Run `./gradlew :cookbook:test` — must pass
 
 ---
 

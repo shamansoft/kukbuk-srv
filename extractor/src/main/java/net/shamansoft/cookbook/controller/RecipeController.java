@@ -11,6 +11,8 @@ import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.entitlement.CheckEntitlement;
+import net.shamansoft.cookbook.entitlement.Operation;
 import net.shamansoft.cookbook.service.RecipeService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -144,6 +146,7 @@ public class RecipeController {
             exposedHeaders = "*",
             allowCredentials = "false"
     )
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) Compression compression,
                                        @RequestAttribute("userId") String userId,
@@ -175,6 +178,7 @@ public class RecipeController {
             exposedHeaders = "*",
             allowCredentials = "false"
     )
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createCustomRecipe(@RequestBody @Valid CustomRecipeRequest request,
                                              @RequestParam(value = "compression", required = false) Compression compression,
                                              @RequestAttribute("userId") String userId,
