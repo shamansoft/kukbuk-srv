@@ -211,14 +211,14 @@ Validates that the AOP aspect, response advice, and exception handler all work t
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] Confirm `@CheckEntitlement` appears on `RecipeController` methods and is absent from `RecipeService`
-- [ ] Confirm `X-Credits-Remaining` header is set (non-null) on `ALLOWED_CREDIT` responses
-- [ ] Confirm `deductCredit` uses `incrementMs` timeout
-- [ ] Confirm `userTier` cast uses `instanceof` pattern match
-- [ ] Confirm `EXECUTOR` is no longer `static`
-- [ ] Confirm TTL invariant comment is in place
-- [ ] Run full test suite: `./gradlew :cookbook:test` — all pass
-- [ ] Run integration tests: `./gradlew :cookbook:intTest` — all pass
+- [x] Confirm `@CheckEntitlement` appears on `RecipeController` methods and is absent from `RecipeService`
+- [x] Confirm `X-Credits-Remaining` header is set (non-null) on `ALLOWED_CREDIT` responses
+- [x] Confirm `deductCredit` uses `incrementMs` timeout
+- [x] Confirm `userTier` cast uses `instanceof` pattern match
+- [x] Confirm `EXECUTOR` is no longer `static`
+- [x] Confirm TTL invariant comment is in place
+- [x] Run full test suite: `./gradlew :cookbook:test` — all pass
+- [x] Run integration tests: `./gradlew :cookbook:intTest` — all pass
 
 ---
 
