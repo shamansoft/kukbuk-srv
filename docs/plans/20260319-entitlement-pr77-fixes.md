@@ -191,21 +191,21 @@ Two low-priority hygiene fixes in `FirestoreEntitlementRepository`.
 
 Validates that the AOP aspect, response advice, and exception handler all work together in a real Spring context — catching proxy-bypass issues that unit tests cannot detect.
 
-- [ ] Create `extractor/src/test/java/net/shamansoft/cookbook/entitlement/EntitlementEndToEndTest.java` as a `@WebMvcTest(RecipeController.class)` slice test
-- [ ] Mock `EntitlementService`, `RecipeService`, and related beans
-- [ ] Test case: `postRecipe_quotaExhausted_returns429WithRetryAfterHeader`
+- [x] Create `extractor/src/test/java/net/shamansoft/cookbook/entitlement/EntitlementEndToEndTest.java` as a `@SpringBootTest` slice test (note: `@WebMvcTest` not available in Spring Boot 4.0.1)
+- [x] Mock `EntitlementService`, `RecipeService`, and related beans
+- [x] Test case: `postRecipe_quotaExhausted_returns429WithRetryAfterHeader`
   - stub `EntitlementService.check()` to return a `DENIED_QUOTA` result
   - POST to `/v1/recipes`
   - assert HTTP 429
   - assert `Retry-After` header is present
   - assert response body is `QuotaErrorResponse` with `"QUOTA_EXCEEDED"` code
-- [ ] Test case: `postRecipe_quotaAllowed_returnsQuotaHeaders`
+- [x] Test case: `postRecipe_quotaAllowed_returnsQuotaHeaders`
   - stub `EntitlementService.check()` to return `ALLOWED_FREE_QUOTA` result with `remainingQuota=4`
   - POST to `/v1/recipes` (stub `RecipeService` to return a minimal success response)
   - assert HTTP 200
   - assert `X-Quota-Outcome: ALLOWED_FREE_QUOTA` header present
   - assert `X-Quota-Remaining: 4` header present
-- [ ] Run `./gradlew :cookbook:test` — must pass
+- [x] Run `./gradlew :cookbook:test` — must pass
 
 ---
 
