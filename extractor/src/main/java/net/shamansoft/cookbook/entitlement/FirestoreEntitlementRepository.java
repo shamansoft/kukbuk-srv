@@ -5,6 +5,7 @@ import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -20,6 +21,7 @@ import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -33,10 +35,14 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
     private static final String USERS_COLLECTION = "users";
     private static final DateTimeFormatter WINDOW_KEY_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
-    private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
-
     private final Firestore firestore;
     private final EntitlementPlanConfig planConfig;
+    private final Executor executor = Executors.newVirtualThreadPerTaskExecutor();
+
+    @PreDestroy
+    public void shutdown() {
+        ((ExecutorService) executor).shutdown();
+    }
 
     /**
      * Atomically checks and increments the quota counter for the given user/operation/window.
@@ -65,6 +71,12 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                     boolean withinLimit = limit < 0 || currentCount < limit;
                     int newCount = withinLimit ? currentCount + 1 : currentCount;
 
+                    // No write on the deny path: the quota window document already exists and has been
+                    // counted to its limit. We intentionally skip tx.set() to avoid unnecessary writes.
+                    //
+                    // TTL invariant: expireAt = resetAt + 2 days. Firestore auto-deletes expired documents
+                    // well after the quota window resets at midnight UTC, so a TTL-deleted document will
+                    // never be mistaken for a fresh window within the same quota day.
                     if (withinLimit) {
                         Map<String, Object> data = new HashMap<>();
                         data.put("userId", userId);
@@ -90,7 +102,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 throw new RuntimeException("checkAndIncrement failed for userId=" + userId, cause);
             }
-        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS);
+        }, executor).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -125,7 +137,7 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 log.warn("deductCredit Firestore error for userId={}: {}", userId, e.getMessage());
                 return OptionalInt.empty();
             }
-        }, EXECUTOR).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
+        }, executor).orTimeout(planConfig.timeouts().incrementMs(), TimeUnit.MILLISECONDS)
                 .exceptionally(ex -> {
                     log.warn("deductCredit timeout or error for userId={}: {}", userId, ex.getMessage());
                     return OptionalInt.empty();
@@ -154,6 +166,6 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 throw new RuntimeException("updateTierAndCredits failed for userId=" + userId, cause);
             }
-        }, EXECUTOR);
+        }, executor);
     }
 }

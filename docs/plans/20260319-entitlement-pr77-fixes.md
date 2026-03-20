@@ -157,12 +157,12 @@ Eliminates the AOP-bypass risk for future internal callers. The controller layer
 Two low-priority hygiene fixes in `FirestoreEntitlementRepository`.
 
 **Static executor → instance field:**
-- [ ] Change `private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();` to an instance field:
+- [x] Change `private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();` to an instance field:
   ```java
   private final Executor executor = Executors.newVirtualThreadPerTaskExecutor();
   ```
-- [ ] Update all usages of `EXECUTOR` → `executor` within the class
-- [ ] Add `@PreDestroy` shutdown if the executor implements `ExecutorService` (virtual-thread-per-task executor does implement it):
+- [x] Update all usages of `EXECUTOR` → `executor` within the class
+- [x] Add `@PreDestroy` shutdown if the executor implements `ExecutorService` (virtual-thread-per-task executor does implement it):
   ```java
   @PreDestroy
   public void shutdown() {
@@ -171,7 +171,7 @@ Two low-priority hygiene fixes in `FirestoreEntitlementRepository`.
   ```
 
 **Document TTL invariant:**
-- [ ] In `FirestoreEntitlementRepository.checkAndIncrement()`, above the `if (withinLimit)` block (lines 67–79), add:
+- [x] In `FirestoreEntitlementRepository.checkAndIncrement()`, above the `if (withinLimit)` block (lines 67–79), add:
   ```java
   // No write on the deny path: the quota window document already exists and has been
   // counted to its limit. We intentionally skip tx.set() to avoid unnecessary writes.
@@ -182,8 +182,8 @@ Two low-priority hygiene fixes in `FirestoreEntitlementRepository`.
   ```
 
 **Test:**
-- [ ] In `FirestoreEntitlementRepositoryTest`, add: `checkAndIncrement_atLimit_doesNotWriteDocument` — verify `transaction.set()` is **never** called when the count is at or above the limit (covers the missing assertion identified in the review)
-- [ ] Run `./gradlew :cookbook:test` — must pass
+- [x] In `FirestoreEntitlementRepositoryTest`, add: `checkAndIncrement_atLimit_doesNotWriteDocument` — verify `transaction.set()` is **never** called when the count is at or above the limit (covers the missing assertion identified in the review)
+- [x] Run `./gradlew :cookbook:test` — must pass
 
 ---
 

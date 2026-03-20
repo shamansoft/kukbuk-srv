@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -127,6 +128,23 @@ class FirestoreEntitlementRepositoryTest {
 
         assertThat(window.withinLimit()).isTrue();
         assertThat(window.limit()).isEqualTo(-1);
+    }
+
+    @Test
+    void checkAndIncrement_atLimit_doesNotWriteDocument() throws Exception {
+        // Verify tx.set() is never called on the deny path — only reads, no writes
+        when(firestore.collection("quota_windows")).thenReturn(quotaCollection);
+        when(quotaCollection.document(EXPECTED_DOC_ID)).thenReturn(quotaDocRef);
+        when(transaction.get(quotaDocRef)).thenReturn(ApiFutures.immediateFuture(quotaSnapshot));
+        when(quotaSnapshot.exists()).thenReturn(true);
+        when(quotaSnapshot.getLong("count")).thenReturn(5L); // count == limit
+        setupTransactionMock();
+
+        var window = repository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, LIMIT)
+                .get(2, TimeUnit.SECONDS);
+
+        assertThat(window.withinLimit()).isFalse();
+        verify(transaction, never()).set(any(), any());
     }
 
     @Test
