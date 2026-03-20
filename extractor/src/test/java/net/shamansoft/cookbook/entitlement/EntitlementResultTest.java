@@ -57,12 +57,12 @@ class EntitlementResultTest {
     @Test
     void directConstruction_deniedQuota() {
         Instant resetsAt = Instant.parse("2026-03-09T00:00:00Z");
-        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, 0, resetsAt);
+        EntitlementResult result = new EntitlementResult(false, EntitlementOutcome.DENIED_QUOTA, 0, null, resetsAt);
 
         assertThat(result.allowed()).isFalse();
         assertThat(result.outcome()).isEqualTo(EntitlementOutcome.DENIED_QUOTA);
         assertThat(result.remainingQuota()).isEqualTo(0);
-        assertThat(result.remainingCredits()).isEqualTo(0);
+        assertThat(result.remainingCredits()).isNull();
         assertThat(result.resetsAt()).isEqualTo(resetsAt);
     }
 }

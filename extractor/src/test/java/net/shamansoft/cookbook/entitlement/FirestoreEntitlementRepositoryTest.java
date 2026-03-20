@@ -5,6 +5,7 @@ import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Transaction;
 import com.google.cloud.firestore.WriteResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -175,6 +176,7 @@ class FirestoreEntitlementRepositoryTest {
         OptionalInt result = repository.deductCredit(USER_ID).get(2, TimeUnit.SECONDS);
 
         assertThat(result).isEqualTo(OptionalInt.of(2)); // 3 - 1 = 2 remaining
+        verify(transaction).update(userDocRef, "credits", FieldValue.increment(-1));
     }
 
     @Test

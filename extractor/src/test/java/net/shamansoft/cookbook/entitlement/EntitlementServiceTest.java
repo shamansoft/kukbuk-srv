@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.entitlement;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.shamansoft.cookbook.repository.UserProfileRepository;
+import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -343,6 +345,46 @@ class EntitlementServiceTest {
         assertThat(result.outcome()).isEqualTo(EntitlementOutcome.DENIED_QUOTA);
         assertThat(result.remainingCredits()).isNull();
         assertThat(result.resetsAt()).isEqualTo(WINDOW_RESET);
+    }
+
+    @Test
+    void check_checkAndIncrementInterrupted_returnsCircuitOpen() {
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(planConfig.dailyLimit(UserTier.FREE, Operation.RECIPE_EXTRACTION)).thenReturn(5);
+        CompletableFuture<QuotaWindow> interruptedFuture = new CompletableFuture<>() {
+            @Override
+            public QuotaWindow get() throws InterruptedException {
+                throw new InterruptedException("quota check interrupted");
+            }
+        };
+        when(entitlementRepository.checkAndIncrement(USER_ID, Operation.RECIPE_EXTRACTION, WINDOW_START, 5))
+                .thenReturn(interruptedFuture);
+
+        EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
+
+        // InterruptedException on checkAndIncrement → CIRCUIT_OPEN (fail-open, unlike deductCredit)
+        assertThat(result.allowed()).isTrue();
+        assertThat(result.outcome()).isEqualTo(EntitlementOutcome.CIRCUIT_OPEN);
+        assertThat(result.remainingQuota()).isEqualTo(-1);
+        assertThat(result.remainingCredits()).isNull();
+        assertThat(result.resetsAt()).isNull();
+    }
+
+    @Test
+    void check_profileResolvesToPaidTier_returnsPaidNoQuotaCheck() {
+        UserProfile proProfile = UserProfile.builder().tier(UserTier.PRO).build();
+        when(userProfileRepository.findByUserId(USER_ID))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(proProfile)));
+
+        EntitlementResult result = service.check(USER_ID, null, Operation.RECIPE_EXTRACTION);
+
+        assertThat(result.allowed()).isTrue();
+        assertThat(result.outcome()).isEqualTo(EntitlementOutcome.ALLOWED_PAID);
+        assertThat(result.remainingQuota()).isEqualTo(-1);
+        assertThat(result.remainingCredits()).isNull();
+        assertThat(result.resetsAt()).isNull();
+        verify(entitlementRepository, never()).checkAndIncrement(any(), any(), any(), anyInt());
     }
 
     @Test

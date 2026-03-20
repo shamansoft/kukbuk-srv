@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -37,11 +36,11 @@ public class FirestoreEntitlementRepository implements EntitlementRepository {
             DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
     private final Firestore firestore;
     private final EntitlementPlanConfig planConfig;
-    private final Executor executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     @PreDestroy
     public void shutdown() {
-        ((ExecutorService) executor).shutdown();
+        executor.shutdown();
     }
 
     /**

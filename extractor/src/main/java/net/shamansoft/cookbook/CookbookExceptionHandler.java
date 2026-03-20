@@ -103,7 +103,6 @@ public class CookbookExceptionHandler {
      * Handle EntitlementAuthException thrown by EntitlementAspect when userId is absent.
      * This means an unauthenticated request slipped past FirebaseAuthFilter — return 401.
      */
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler(EntitlementAuthException.class)
     public ResponseEntity<Object> handleEntitlementAuthException(EntitlementAuthException e, HttpServletRequest request) {
         log.warn("Unauthenticated request reached protected method {}: {}", request.getRequestURI(), e.getMessage());
