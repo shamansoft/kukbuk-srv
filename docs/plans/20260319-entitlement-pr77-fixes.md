@@ -224,8 +224,8 @@ Validates that the AOP aspect, response advice, and exception handler all work t
 
 ### Task 8: [Final] Update documentation
 
-- [ ] Update `CLAUDE.md` entitlement section: note that `@CheckEntitlement` lives on controller layer
-- [ ] Update `CLAUDE.md`: update `deductCredit` description to reflect `OptionalInt` return type
+- [x] Update `CLAUDE.md` entitlement section: note that `@CheckEntitlement` lives on controller layer
+- [x] Update `CLAUDE.md`: update `deductCredit` description to reflect `OptionalInt` return type
 
 *Note: ralphex automatically moves completed plans to `docs/plans/completed/`*
 
