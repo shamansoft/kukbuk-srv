@@ -255,4 +255,37 @@ class NativeImageConfigurationTest {
         assertTrue(content.contains("CI/CD") && content.contains("native"),
                 "Plan should document that native builds are validated in CI/CD");
     }
+
+    @Test
+    void reflectionConfig_shouldIncludeEntitlementClasses() throws IOException {
+        Path projectRoot = getProjectRoot();
+        Path reflectConfigPath = projectRoot.resolve("extractor/src/main/resources/META-INF/native-image/reflect-config.json");
+        String content = Files.readString(reflectConfigPath);
+
+        assertTrue(content.contains("EntitlementResult"),
+                "reflect-config.json should include EntitlementResult");
+        assertTrue(content.contains("QuotaErrorResponse"),
+                "reflect-config.json should include QuotaErrorResponse");
+        assertTrue(content.contains("QuotaWindow"),
+                "reflect-config.json should include QuotaWindow");
+        assertTrue(content.contains("entitlement.Operation"),
+                "reflect-config.json should include Operation");
+        assertTrue(content.contains("UserTier"),
+                "reflect-config.json should include UserTier");
+        assertTrue(content.contains("EntitlementOutcome"),
+                "reflect-config.json should include EntitlementOutcome");
+    }
+
+    @Test
+    void proxyConfig_shouldExist() throws IOException {
+        Path projectRoot = getProjectRoot();
+        Path proxyConfigPath = projectRoot.resolve("extractor/src/main/resources/META-INF/native-image/proxy-config.json");
+
+        assertTrue(Files.exists(proxyConfigPath),
+                "proxy-config.json should exist: " + proxyConfigPath);
+        // RecipeService is a class proxy (CGLIB), not a JDK dynamic proxy — no interface entries needed
+        String content = Files.readString(proxyConfigPath).trim();
+        assertTrue(content.equals("[]"),
+                "proxy-config.json should be an empty array (entitlement classes use CGLIB, not JDK proxy)");
+    }
 }

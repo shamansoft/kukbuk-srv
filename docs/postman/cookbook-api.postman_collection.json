@@ -1,0 +1,316 @@
+{
+  "info": {
+    "name": "sar-srv",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Cookbook recipe extraction API. Auth uses Firebase ID tokens — run 'Sign In' first, token is stored automatically."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "description": "Base URL (change to prod URL as needed)"
+    },
+    {
+      "key": "firebase_web_api_key",
+      "value": "",
+      "description": "Firebase Web API Key — find in Firebase Console > Project Settings > General"
+    },
+    {
+      "key": "firebase_token",
+      "value": "",
+      "description": "Firebase ID token — auto-populated by the Sign In request"
+    },
+    {
+      "key": "user_email",
+      "value": "",
+      "description": "Your Firebase user email"
+    },
+    {
+      "key": "user_password",
+      "value": "",
+      "description": "Your Firebase user password"
+    },
+    {
+      "key": "recipe_id",
+      "value": "",
+      "description": "Google Drive file ID of a saved recipe"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{firebase_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign In (get Firebase token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.idToken) {",
+                  "    pm.collectionVariables.set('firebase_token', json.idToken);",
+                  "    console.log('Firebase token saved. Expires in: ' + json.expiresIn + 's');",
+                  "} else {",
+                  "    console.error('Sign-in failed:', JSON.stringify(json));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"returnSecureToken\": true\n}"
+            },
+            "url": {
+              "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={{firebase_web_api_key}}",
+              "protocol": "https",
+              "host": ["identitytoolkit", "googleapis", "com"],
+              "path": ["v1", "accounts:signInWithPassword"],
+              "query": [
+                { "key": "key", "value": "{{firebase_web_api_key}}" }
+              ]
+            },
+            "description": "Exchange email/password for a Firebase ID token. Token is auto-saved to {{firebase_token}} and used by all other requests."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "List recipes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/recipes?pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "recipes"],
+              "query": [
+                { "key": "pageSize", "value": "20", "description": "1-100, default 20" },
+                { "key": "pageToken", "value": "", "description": "Pagination token from previous response", "disabled": true }
+              ]
+            },
+            "description": "List all recipes for the authenticated user with pagination."
+          }
+        },
+        {
+          "name": "Get recipe by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/recipes/{{recipe_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "recipes", "{{recipe_id}}"]
+            },
+            "description": "Get a single recipe by its Google Drive file ID."
+          }
+        },
+        {
+          "name": "Create recipe from URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/\",\n  \"title\": \"Best Chocolate Chip Cookies\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/recipes",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "recipes"]
+            },
+            "description": "Extract and save a recipe from a URL. The server fetches the page and runs AI extraction.\n\nOptional `html` field: Base64+GZIP compressed HTML (set ?compression=gzip if used)."
+          }
+        },
+        {
+          "name": "Create recipe from URL + HTML",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/my-recipe\",\n  \"title\": \"My Recipe\",\n  \"html\": \"<base64-gzip-encoded-html-here>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/recipes?compression=gzip",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "recipes"],
+              "query": [
+                { "key": "compression", "value": "gzip", "description": "Required when html field contains Base64+GZIP data" }
+              ]
+            },
+            "description": "Extract recipe from pre-fetched HTML. html must be Base64+GZIP encoded. ?compression=gzip tells the server to decompress it."
+          }
+        },
+        {
+          "name": "Create custom recipe (from description)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"My grandmother's spaghetti bolognese: 500g ground beef, 400g spaghetti, 1 can crushed tomatoes, 1 onion, 2 cloves garlic. Brown beef, sauté onion and garlic, add tomatoes, simmer 30 min. Serve over pasta.\",\n  \"title\": \"Grandma's Bolognese\",\n  \"url\": \"https://example.com/optional-source\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/recipes/custom",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "recipes", "custom"]
+            },
+            "description": "Structure a free-text recipe description using AI. No URL fetching. `title` and `url` are optional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Storage (Google Drive)",
+      "item": [
+        {
+          "name": "Get Drive connection status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/google-drive/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "storage", "google-drive", "status"]
+            },
+            "description": "Check if Google Drive is connected for this user. Returns metadata — no tokens."
+          }
+        },
+        {
+          "name": "Connect Google Drive",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorizationCode\": \"<oauth-authorization-code-from-mobile-flow>\",\n  \"redirectUri\": \"com.example.app:/oauth\",\n  \"folderName\": \"_save_a_recipe\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/google-drive/connect",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "storage", "google-drive", "connect"]
+            },
+            "description": "Exchange an OAuth authorization code for Google Drive access. The server stores encrypted tokens — never returned to the client."
+          }
+        },
+        {
+          "name": "Disconnect Google Drive",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/google-drive/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "storage", "google-drive", "disconnect"]
+            },
+            "description": "Remove stored OAuth tokens and disconnect Google Drive for this user."
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "user", "profile"]
+            },
+            "description": "Get the current user's profile. Returns 404 if no profile exists yet."
+          }
+        },
+        {
+          "name": "Create / update profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Alex\",\n  \"email\": \"alex@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "user", "profile"]
+            },
+            "description": "Create or update the user's profile. All fields are optional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health / Public",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Returns 'OK'. No auth required. Used by GCP Cloud Run health checks."
+          }
+        },
+        {
+          "name": "Actuator health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

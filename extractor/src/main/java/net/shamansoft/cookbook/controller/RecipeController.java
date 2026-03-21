@@ -11,6 +11,8 @@ import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.entitlement.CheckEntitlement;
+import net.shamansoft.cookbook.entitlement.Operation;
 import net.shamansoft.cookbook.service.RecipeService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 @CrossOrigin(
         originPatterns = "*",  // Configure for mobile app (restrict in production)
         allowedHeaders = "*",
-        exposedHeaders = {"Cache-Control"},
+        exposedHeaders = {"Cache-Control", "X-Quota-Outcome", "X-Quota-Remaining", "X-Credits-Remaining", "X-Quota-Resets-At"},
         allowCredentials = "true"
 )
 public class RecipeController {
@@ -144,6 +146,7 @@ public class RecipeController {
             exposedHeaders = "*",
             allowCredentials = "false"
     )
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createRecipe(@RequestBody @Valid Request request,
                                        @RequestParam(value = "compression", required = false) Compression compression,
                                        @RequestAttribute("userId") String userId,
@@ -175,6 +178,7 @@ public class RecipeController {
             exposedHeaders = "*",
             allowCredentials = "false"
     )
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
     public RecipeResponse createCustomRecipe(@RequestBody @Valid CustomRecipeRequest request,
                                              @RequestParam(value = "compression", required = false) Compression compression,
                                              @RequestAttribute("userId") String userId,

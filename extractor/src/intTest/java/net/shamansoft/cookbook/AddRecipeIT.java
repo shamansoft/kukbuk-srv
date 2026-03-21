@@ -149,6 +149,17 @@ class AddRecipeIT {
 
             // Then delete the user document itself
             firestore.collection("users").document(userId).delete().get();
+
+            // Also clear quota_windows for this user (entitlement test isolation)
+            var quotaSnapshot = firestore.collection("quota_windows")
+                    .whereEqualTo("userId", userId).get().get();
+            for (var document : quotaSnapshot.getDocuments()) {
+                try {
+                    document.getReference().delete().get();
+                } catch (Exception e2) {
+                    // Ignore cleanup errors
+                }
+            }
         } catch (Exception e) {
             // Log error if needed, but don't fail the test setup
         }

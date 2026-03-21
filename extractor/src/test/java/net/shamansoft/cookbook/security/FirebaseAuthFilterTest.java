@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import net.shamansoft.cookbook.entitlement.UserTier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -289,6 +291,62 @@ class FirebaseAuthFilterTest {
         verify(response).setContentType("application/json");
         verify(filterChain, never()).doFilter(request, response);
         assertTrue(responseWriter.toString().contains("No authorization token"));
+    }
+
+    @Test
+    void testTierClaim_present_valid_setsUserTierAttribute() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with valid tier claim
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("tier", "PRO"));
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier attribute is set
+        verify(request).setAttribute("userTier", UserTier.PRO);
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testTierClaim_absent_userTierAttributeNotSet() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with no tier claim
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of());
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier attribute is NOT set
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("userTier"),
+                org.mockito.ArgumentMatchers.any());
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testTierClaim_invalidString_logsWarnAndAttributeNotSet() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with invalid tier claim string
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("tier", "UNKNOWN_TIER"));
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier attribute is NOT set (invalid value logged and skipped)
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("userTier"),
+                org.mockito.ArgumentMatchers.any());
+        verify(filterChain).doFilter(request, response);
     }
 
     @Test

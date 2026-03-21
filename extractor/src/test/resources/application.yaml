@@ -42,6 +42,27 @@ cookbook:
     oauth-id: "test-oauth-id"  # Used by UserProfileService
     oauth-secret: "test-oauth-secret"
 
+entitlement:
+  plans:
+    FREE:
+      RECIPE_EXTRACTION:
+        daily: 5
+      YOUTUBE_EXTRACTION:
+        daily: 1
+    PRO:
+      RECIPE_EXTRACTION:
+        daily: -1
+      YOUTUBE_EXTRACTION:
+        daily: -1
+    ENTERPRISE:
+      RECIPE_EXTRACTION:
+        daily: -1
+      YOUTUBE_EXTRACTION:
+        daily: -1
+  timeouts:
+    check-ms: 500
+    increment-ms: 1000
+
 logging:
   level:
     net.shamansoft.cookbook: DEBUG

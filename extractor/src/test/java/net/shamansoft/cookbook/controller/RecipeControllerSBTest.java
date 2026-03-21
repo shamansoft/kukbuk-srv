@@ -6,6 +6,8 @@ import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.entitlement.EntitlementResult;
+import net.shamansoft.cookbook.entitlement.EntitlementService;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.HtmlFetcher;
@@ -96,6 +98,9 @@ class RecipeControllerSBTest {
     @MockitoBean
     private RecipeValidationService validationService;
 
+    @MockitoBean
+    private EntitlementService entitlementService;
+
     @BeforeEach
     void setUp() throws Exception {
         // Set up storage service mock - default to having storage configured
@@ -129,6 +134,10 @@ class RecipeControllerSBTest {
         // Set up validation service mock
         when(validationService.toYaml(any(Recipe.class)))
                 .thenReturn("transformed content");
+
+        // Stub entitlement service to allow all operations (non-entitlement tests)
+        when(entitlementService.check(anyString(), any(), any()))
+                .thenReturn(EntitlementResult.paid());
 
         // Set up HtmlCleaner mock to return cleaned HTML
         when(htmlPreprocessor.process(anyString(), anyString()))

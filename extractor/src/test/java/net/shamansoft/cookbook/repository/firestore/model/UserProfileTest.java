@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.repository.firestore.model;
 
+import net.shamansoft.cookbook.entitlement.UserTier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +111,47 @@ class UserProfileTest {
         assertThat(result.get().storage().connected()).isFalse();
     }
 
+    @Test
+    @DisplayName("fromMap: tier present → parsed correctly")
+    void fromMap_tierPresent_parsed() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("uid", "user-123");
+        data.put("tier", "PRO");
+        data.put("credits", 10L);
+
+        Optional<UserProfile> result = UserProfile.fromMap(data);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().tier()).isEqualTo(UserTier.PRO);
+        assertThat(result.get().credits()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("fromMap: tier absent → defaults to FREE")
+    void fromMap_tierAbsent_defaultsFree() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("uid", "user-123");
+
+        Optional<UserProfile> result = UserProfile.fromMap(data);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().tier()).isEqualTo(UserTier.FREE);
+        assertThat(result.get().credits()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("fromMap: invalid tier string → defaults to FREE")
+    void fromMap_invalidTierString_defaultsFree() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("uid", "user-123");
+        data.put("tier", "INVALID_TIER");
+
+        Optional<UserProfile> result = UserProfile.fromMap(data);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().tier()).isEqualTo(UserTier.FREE);
+    }
+
     // ---- toMap --------------------------------------------------------------
 
     @Test
@@ -174,13 +216,44 @@ class UserProfileTest {
     }
 
     @Test
-    @DisplayName("toMap: returns empty map when all fields are null")
+    @DisplayName("toMap: returns empty map when all fields are null (except credits=0)")
     void toMap_allNullFields_returnsEmptyMap() {
         UserProfile profile = UserProfile.builder().build();
 
         Map<String, Object> result = profile.toMap();
 
-        assertThat(result).isEmpty();
+        assertThat(result).containsOnlyKeys("credits");
+        assertThat(result.get("credits")).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("toMap: includes tier and credits")
+    void toMap_includesTierAndCredits() {
+        UserProfile profile = UserProfile.builder()
+                .uid("user-123")
+                .tier(UserTier.ENTERPRISE)
+                .credits(5)
+                .build();
+
+        Map<String, Object> result = profile.toMap();
+
+        assertThat(result.get("tier")).isEqualTo("ENTERPRISE");
+        assertThat(result.get("credits")).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("toMap: tier null is not serialized")
+    void toMap_tierNull_notSerialized() {
+        UserProfile profile = UserProfile.builder()
+                .uid("user-123")
+                .tier(null)
+                .credits(0)
+                .build();
+
+        Map<String, Object> result = profile.toMap();
+
+        assertThat(result).doesNotContainKey("tier");
+        assertThat(result.get("credits")).isEqualTo(0);
     }
 
     // ---- toDto --------------------------------------------------------------

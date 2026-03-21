@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.owasp.dependency.check)
 }
 
-version = "0.14.2-SNAPSHOT"
+version = "0.15.0-SNAPSHOT"
 
 springBoot {
     buildInfo()   // This will generate a build-info.properties file with accurate values
@@ -41,6 +41,9 @@ dependencies {
 
     // Spring Boot Starters - exclude default logging
     implementation(libs.bundles.spring.boot.starters) {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
+    }
+    implementation(libs.spring.boot.starter.aspectj) {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
     implementation(libs.spring.boot.restclient)

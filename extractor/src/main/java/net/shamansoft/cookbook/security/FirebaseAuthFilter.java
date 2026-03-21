@@ -8,11 +8,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.entitlement.UserTier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -87,6 +89,19 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             // Store user info in request attributes
             request.setAttribute("userId", decodedToken.getUid());
             request.setAttribute("userEmail", decodedToken.getEmail());
+
+            // Extract tier claim from JWT (optional)
+            Map<String, Object> claims = decodedToken.getClaims();
+            Object tierClaim = claims != null ? claims.get("tier") : null;
+            if (tierClaim != null) {
+                try {
+                    UserTier userTier = UserTier.valueOf(tierClaim.toString());
+                    request.setAttribute("userTier", userTier);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Unknown tier claim '{}' for userId={}, ignoring",
+                            tierClaim, decodedToken.getUid());
+                }
+            }
 
             log.debug("Authenticated: {} ({})", decodedToken.getEmail(), decodedToken.getUid());
 
