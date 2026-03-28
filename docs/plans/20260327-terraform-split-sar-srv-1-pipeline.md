@@ -115,9 +115,9 @@ Insert immediately after the `build-and-push:` job closing line:
 
 ### Task 7: Verify YAML syntax
 
-- [ ] check YAML is valid: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/deploy.yml'))"` — no errors
-- [ ] check job dependency graph is consistent: `grep -E "needs:" .github/workflows/deploy.yml` — `finalize` needs `trigger-deploy`, not `deploy`
-- [ ] confirm the file has no references to the old `deploy` job: `grep -n "needs\.deploy\b" .github/workflows/deploy.yml` → empty
+- [x] check YAML is valid: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/deploy.yml'))"` — no errors
+- [x] check job dependency graph is consistent: `grep -E "needs:" .github/workflows/deploy.yml` — `finalize` needs `trigger-deploy`, not `deploy`
+- [x] confirm the file has no references to the old `deploy` job: `grep -n "needs\.deploy\b" .github/workflows/deploy.yml` → empty
 
 ### Task 8: Configure `CROSS_REPO_PAT` secret
 
