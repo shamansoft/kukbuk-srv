@@ -97,8 +97,8 @@ Insert immediately after the `build-and-push:` job closing line:
 
 ### Task 5: Update `workflow_dispatch` inputs
 
-- [ ] remove the `include_deploy` input block entirely
-- [ ] add `skip_deploy_trigger` input after `include_build`:
+- [x] remove the `include_deploy` input block entirely
+- [x] add `skip_deploy_trigger` input after `include_build`:
   ```yaml
         skip_deploy_trigger:
           description: 'Skip triggering sar-infra deployment (build only)'
@@ -106,7 +106,7 @@ Insert immediately after the `build-and-push:` job closing line:
           type: boolean
           default: false
   ```
-- [ ] verify `include_deploy` no longer appears in the file
+- [x] verify `include_deploy` no longer appears in the file
 
 ### Task 6: Update `paths-ignore`
 
