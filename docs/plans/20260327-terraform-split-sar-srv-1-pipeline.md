@@ -82,18 +82,18 @@ Insert immediately after the `build-and-push:` job closing line:
 
 ### Task 4: Update `finalize` job
 
-- [ ] change `needs: [test, build-and-push, deploy]` → `needs: [test, build-and-push, trigger-deploy]`
-- [ ] in the `if:` condition, replace both occurrences of `needs.deploy.result` → `needs.trigger-deploy.result`
-- [ ] find the `Create GitHub Release` step:
+- [x] change `needs: [test, build-and-push, deploy]` → `needs: [test, build-and-push, trigger-deploy]`
+- [x] in the `if:` condition, replace both occurrences of `needs.deploy.result` → `needs.trigger-deploy.result`
+- [x] find the `Create GitHub Release` step:
   - change its `if:` from `needs.deploy.result == 'success'` → `needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped'`
   - in the release `body:`, remove the `**Service URL**: ${{ needs.deploy.outputs.URL }}` line
   - replace it with `**Deploy status**: [Check sar-infra Actions](https://github.com/shamansoft/sar-infra/actions)`
   - change `✅ Health check verified` → `🔄 Deployment triggered (see sar-infra for health check result)`
-- [ ] find the `Deployment summary` step at the end of `finalize`:
+- [x] find the `Deployment summary` step at the end of `finalize`:
   - replace the `if [[ "${{ needs.deploy.result }}" == "success" ]]` block
   - use `needs.trigger-deploy.result` instead
   - replace `Service URL` / `URL` output lines with a link to sar-infra Actions
-- [ ] verify no remaining references to `needs.deploy` in the file: `grep -n "needs.deploy" .github/workflows/deploy.yml` must return empty
+- [x] verify no remaining references to `needs.deploy` in the file: `grep -n "needs.deploy" .github/workflows/deploy.yml` must return empty
 
 ### Task 5: Update `workflow_dispatch` inputs
 

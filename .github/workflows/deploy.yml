@@ -286,7 +286,7 @@ jobs:
   # Phase 4: Finalize Release (MAIN BRANCH ONLY)
   finalize:
     name: Finalize Release
-    needs: [test, build-and-push, deploy]
+    needs: [test, build-and-push, trigger-deploy]
     runs-on: ubuntu-latest
     # CRITICAL: Only run on main branch - this creates tags, bumps versions, and updates README
     # Feature branches should NOT run finalize as they don't modify version or create releases
@@ -296,7 +296,7 @@ jobs:
       (github.event_name == 'push' || inputs.include_finalize != false) &&
       needs.test.result == 'success' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
-      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+      (needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped')
     permissions:
       contents: write  # Required to push tags, commits, and create releases
 
@@ -455,9 +455,9 @@ jobs:
         echo "❌ Failed to push after 5 attempts"
         exit 1
 
-    # Create GitHub Release (only if deployment actually happened)
+    # Create GitHub Release (only if deploy was triggered or skipped)
     - name: Create GitHub Release
-      if: needs.deploy.result == 'success'
+      if: needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped'
       uses: ncipollo/release-action@v1
       with:
         tag: v${{ needs.test.outputs.release-version }}
@@ -467,7 +467,7 @@ jobs:
 
           ### Deployment Information
           - **Environment**: Production (GCP Cloud Run)
-          - **Service URL**: ${{ needs.deploy.outputs.URL }}
+          - **Deploy status**: [Check sar-infra Actions](https://github.com/shamansoft/sar-infra/actions)
           - **Region**: ${{ env.REGION }}
           - **Image**: `${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}`
 
@@ -480,7 +480,7 @@ jobs:
           - ✅ All tests passed
           - ✅ Code coverage ≥ 40%
           - ✅ Security scan passed
-          - ✅ Health check verified
+          - 🔄 Deployment triggered (see sar-infra for health check result)
 
           ### Next Development Version
           - Development continues on version `${{ env.NEXT_SNAPSHOT }}`
@@ -494,8 +494,8 @@ jobs:
     # Final summary
     - name: Deployment summary
       run: |
-        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
-          echo "## 🎉 Release Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.trigger-deploy.result }}" == "success" ]]; then
+          echo "## 🎉 Release Deployment Triggered" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
@@ -504,7 +504,7 @@ jobs:
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deploy status**: [Check sar-infra Actions](https://github.com/shamansoft/sar-infra/actions)" >> $GITHUB_STEP_SUMMARY
         else
           echo "## ✅ Version Finalization Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
