@@ -260,7 +260,8 @@ jobs:
     name: Trigger Deploy
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' || inputs.include_build != false) && inputs.skip_deploy_trigger != true && github.ref == 'refs/heads/main' }}
+    environment: production
+    if: ${{ (github.event_name == 'push' || inputs.include_build != false) && inputs.skip_deploy_trigger != true && needs.test.result == 'success' && github.ref == 'refs/heads/main' }}
 
     steps:
     - name: Dispatch deploy to sar-infra
@@ -455,9 +456,8 @@ jobs:
         echo "❌ Failed to push after 5 attempts"
         exit 1
 
-    # Create GitHub Release (only if deploy was triggered or skipped)
+    # Create GitHub Release
     - name: Create GitHub Release
-      if: needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped'
       uses: ncipollo/release-action@v1
       with:
         tag: v${{ needs.test.outputs.release-version }}
