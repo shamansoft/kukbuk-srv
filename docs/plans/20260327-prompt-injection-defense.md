@@ -76,15 +76,15 @@ Wrap both `%s` placeholders in XML tags:
 - [x] run tests: `./gradlew :cookbook:test` — must pass before task 2
 
 ### Task 2: Refactor RequestBuilder to use split prompts + system instruction
-- [ ] define sentinel constants `HTML_SYSTEM_BOUNDARY` and `DESC_SYSTEM_BOUNDARY`
-- [ ] define hardcoded `HTML_USER_TEMPLATE` and `DESC_USER_TEMPLATE` with XML delimiters
-- [ ] in `@PostConstruct`, split `prompt` at `HTML_SYSTEM_BOUNDARY` → store `htmlSystemPrompt`
-- [ ] in `@PostConstruct`, split `descriptionPrompt` at `DESC_SYSTEM_BOUNDARY` → store `descSystemPrompt`
-- [ ] add overload `buildRequestBodyWithSchema(String systemPromptText, String userContent)` that sets `systemInstruction` and `role:"user"` on contents
-- [ ] update `withHtml(String html)` to use `HTML_USER_TEMPLATE` + `htmlSystemPrompt`
-- [ ] update `withHtmlAndFeedback(...)` to use the same split (system = `htmlSystemPrompt`, user = template + appended validation)
-- [ ] update `buildRequestFromDescription(String description)` to use `DESC_USER_TEMPLATE` + `descSystemPrompt`
-- [ ] run tests: `./gradlew :cookbook:test` — must pass before task 3
+- [x] define sentinel constants `HTML_SYSTEM_BOUNDARY` and `DESC_SYSTEM_BOUNDARY`
+- [x] define hardcoded `HTML_USER_TEMPLATE` and `DESC_USER_TEMPLATE` with XML delimiters
+- [x] in `@PostConstruct`, split `prompt` at `HTML_SYSTEM_BOUNDARY` → store `htmlSystemPrompt`
+- [x] in `@PostConstruct`, split `descriptionPrompt` at `DESC_SYSTEM_BOUNDARY` → store `descSystemPrompt`
+- [x] add overload `buildRequestBodyWithSchema(String systemPromptText, String userContent)` that sets `systemInstruction` and `role:"user"` on contents
+- [x] update `withHtml(String html)` to use `HTML_USER_TEMPLATE` + `htmlSystemPrompt`
+- [x] update `withHtmlAndFeedback(...)` to use the same split (system = `htmlSystemPrompt`, user = template + appended validation)
+- [x] update `buildRequestFromDescription(String description)` to use `DESC_USER_TEMPLATE` + `descSystemPrompt`
+- [x] run tests: `./gradlew :cookbook:test` — must pass before task 3
 
 ### Task 3: Update prompt_with_validation.md delimiter wrapping
 - [ ] wrap first `%s` in `<VALIDATION_ERRORS>\n%s\n</VALIDATION_ERRORS>`
