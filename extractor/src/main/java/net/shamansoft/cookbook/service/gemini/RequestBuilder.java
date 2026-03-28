@@ -12,6 +12,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
 
 @Service
 @RequiredArgsConstructor
@@ -66,13 +67,16 @@ public class RequestBuilder {
     }
 
     private String withHtml(String html) {
-        return HTML_USER_TEMPLATE.formatted(html);
+        return HTML_USER_TEMPLATE.replace("%s", html.replace("</HTML_CONTENT>", ""));
     }
 
     private String withHtmlAndFeedback(String html, Recipe previousRecipe, String validationError)
             throws JacksonException {
-        return withHtml(html)
-                + validationPrompt.formatted(validationError, objectMapper.writeValueAsString(previousRecipe));
+        String recipeJson = objectMapper.writeValueAsString(previousRecipe);
+        String feedback = validationPrompt
+                .replaceFirst("%s", Matcher.quoteReplacement(validationError))
+                .replaceFirst("%s", Matcher.quoteReplacement(recipeJson));
+        return withHtml(html) + feedback;
     }
 
     public GeminiRequest buildRequest(String htmlContent) throws JacksonException {
@@ -90,7 +94,8 @@ public class RequestBuilder {
 
     public GeminiRequest buildRequestFromDescription(String description) throws JacksonException {
         Objects.requireNonNull(description, "description cannot be null");
-        return buildRequestBodyWithSchema(descSystemPrompt, DESC_USER_TEMPLATE.formatted(description));
+        return buildRequestBodyWithSchema(descSystemPrompt,
+                DESC_USER_TEMPLATE.replace("%s", description.replace("</USER_DESCRIPTION>", "")));
     }
 
     private GeminiRequest buildRequestBodyWithSchema(String systemPromptText, String userContent) {
