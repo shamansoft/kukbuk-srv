@@ -63,22 +63,22 @@ Replace the embedded terraform `deploy` job in `.github/workflows/deploy.yml` wi
 
 ### Task 2: Remove Phase 3 `deploy` job from deploy.yml
 
-- [ ] read `.github/workflows/deploy.yml` to locate the `deploy:` job block
-- [ ] delete the entire `deploy:` job — from `# Phase 3: Deploy to Cloud Run` comment through the final `Cleanup` step (including `if: always()` cleanup step)
-- [ ] verify no remaining references to `tofu`, `terraform`, or `working-directory: terraform` in the file
+- [x] read `.github/workflows/deploy.yml` to locate the `deploy:` job block
+- [x] delete the entire `deploy:` job — from `# Phase 3: Deploy to Cloud Run` comment through the final `Cleanup` step (including `if: always()` cleanup step)
+- [x] verify no remaining references to `tofu`, `terraform`, or `working-directory: terraform` in the file
 
 ### Task 3: Add `trigger-deploy` job
 
 Insert immediately after the `build-and-push:` job closing line:
 
-- [ ] add job `trigger-deploy` with:
+- [x] add job `trigger-deploy` with:
   - `name: Trigger Deploy`
   - `needs: [test, build-and-push]`
   - `runs-on: ubuntu-latest`
   - `if: ${{ (github.event_name == 'push' || inputs.include_build != false) && inputs.skip_deploy_trigger != true && github.ref == 'refs/heads/main' }}`
   - step `Dispatch deploy to sar-infra` using `peter-evans/repository-dispatch@v3` with `token: ${{ secrets.CROSS_REPO_PAT }}`, `repository: shamansoft/sar-infra`, `event-type: deploy`, `client-payload` containing `image_tag`, `commit_sha`, `source_repo`
   - step `Summary` writing image tag and link to sar-infra Actions to `$GITHUB_STEP_SUMMARY`
-- [ ] verify indentation is consistent with surrounding jobs (2-space YAML)
+- [x] verify indentation is consistent with surrounding jobs (2-space YAML)
 
 ### Task 4: Update `finalize` job
 
