@@ -151,7 +151,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest  # Standard runner (free tier)
     # Include build phase by default, can be excluded via workflow_dispatch
-    if: ${{ github.event_name == 'push' || inputs.include_build != false }}
+    # Require test to succeed (not skipped) to ensure release-version output is available
+    if: ${{ (github.event_name == 'push' || inputs.include_build != false) && needs.test.result == 'success' }}
 
     steps:
     - name: Checkout code
@@ -366,7 +367,9 @@ jobs:
 
         # Extract coverage percentage
         COVERED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@covered)" "$COVERAGE_XML" || echo 0)
+        COVERED=${COVERED:-0}
         MISSED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@missed)" "$COVERAGE_XML" || echo 0)
+        MISSED=${MISSED:-0}
 
         if [ "$COVERED" = "0" ] && [ "$MISSED" = "0" ]; then
           echo "⚠️ No coverage data found, skipping badge update"
