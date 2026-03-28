@@ -74,8 +74,8 @@ public class RequestBuilder {
             throws JacksonException {
         String recipeJson = objectMapper.writeValueAsString(previousRecipe);
         String feedback = validationPrompt
-                .replaceFirst("%s", Matcher.quoteReplacement(validationError))
-                .replaceFirst("%s", Matcher.quoteReplacement(recipeJson));
+                .replaceFirst("%s", Matcher.quoteReplacement(validationError.replace("</VALIDATION_ERRORS>", "")))
+                .replaceFirst("%s", Matcher.quoteReplacement(recipeJson.replace("</PREVIOUS_JSON>", "")));
         return withHtml(html) + feedback;
     }
 
