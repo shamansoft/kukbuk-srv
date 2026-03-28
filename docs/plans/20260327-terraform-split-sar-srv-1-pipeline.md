@@ -128,11 +128,11 @@ Requires `CROSS_REPO_PAT` to be set in the shell environment.
 
 ### Task 9: Commit and create PR
 
-- [ ] `git add .github/workflows/deploy.yml`
-- [ ] `git commit -m "feat: replace deploy job with cross-repo dispatch to sar-infra"`
-- [ ] `git push -u origin feat/cross-repo-dispatch`
-- [ ] create PR: `gh pr create --title "feat: cross-repo dispatch — move deploy to sar-infra" --body "Replaces embedded terraform deploy with repository_dispatch to sar-infra. DO NOT MERGE until sar-infra plan is complete (see docs/plans/20260327-split-orchestration.md)."`
-- [ ] confirm PR URL is printed — note it for the cutover plan
+- [x] `git add .github/workflows/deploy.yml`
+- [x] `git commit -m "feat: replace deploy job with cross-repo dispatch to sar-infra"`
+- [x] `git push -u origin feat/cross-repo-dispatch`
+- [x] create PR: `gh pr create --title "feat: cross-repo dispatch — move deploy to sar-infra" --body "Replaces embedded terraform deploy with repository_dispatch to sar-infra. DO NOT MERGE until sar-infra plan is complete (see docs/plans/20260327-split-orchestration.md)."`
+- [x] confirm PR URL is printed — note it for the cutover plan
 
 ### Task 10: Verify acceptance criteria
 
