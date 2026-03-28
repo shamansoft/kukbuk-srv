@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,7 +31,6 @@ public class RequestBuilder {
 
     private final ResourcesLoader resourceLoader;
     private final ObjectMapper objectMapper;
-    private final Clock clock;
     private String validationPrompt;
     private Object parsedJsonSchema;
     @Value("${cookbook.gemini.temperature}")
@@ -62,7 +60,7 @@ public class RequestBuilder {
     static String splitAtBoundary(String text, String boundary) {
         int idx = text.indexOf(boundary);
         if (idx == -1) {
-            return text;
+            throw new IllegalStateException("Prompt file is missing required boundary sentinel: " + boundary);
         }
         return text.substring(0, idx).stripTrailing();
     }
