@@ -87,9 +87,9 @@ Wrap both `%s` placeholders in XML tags:
 - [x] run tests: `./gradlew :cookbook:test` — must pass before task 3
 
 ### Task 3: Update prompt_with_validation.md delimiter wrapping
-- [ ] wrap first `%s` in `<VALIDATION_ERRORS>\n%s\n</VALIDATION_ERRORS>`
-- [ ] wrap second `%s` in `<PREVIOUS_JSON>\n%s\n</PREVIOUS_JSON>`
-- [ ] run tests: `./gradlew :cookbook:test`
+- [x] wrap first `%s` in `<VALIDATION_ERRORS>\n%s\n</VALIDATION_ERRORS>`
+- [x] wrap second `%s` in `<PREVIOUS_JSON>\n%s\n</PREVIOUS_JSON>`
+- [x] run tests: `./gradlew :cookbook:test`
 
 ### Task 4: Update RequestBuilderTest to cover new behavior
 - [ ] verify test for `buildRequest(html)` asserts `systemInstruction` is set and `contents[0].role == "user"`

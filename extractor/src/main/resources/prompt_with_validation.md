@@ -8,9 +8,13 @@ Focus on:
 - Structure mismatches
 
 ***Validation Errors:***
+<VALIDATION_ERRORS>
 %s
+</VALIDATION_ERRORS>
 ***Previously generated JSON (for reference):***
+<PREVIOUS_JSON>
 %s
+</PREVIOUS_JSON>
 --------------
 IMPORTANT: Please correct these issues and provide valid JSON that conforms to the schema.
 The JSON schema enforces the structure, so focus on providing accurate data.
