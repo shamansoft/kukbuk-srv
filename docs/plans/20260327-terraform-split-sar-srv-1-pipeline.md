@@ -123,8 +123,8 @@ Insert immediately after the `build-and-push:` job closing line:
 
 Requires `CROSS_REPO_PAT` to be set in the shell environment.
 
-- [ ] `gh secret set CROSS_REPO_PAT --repo shamansoft/kukbuk-srv --body "$CROSS_REPO_PAT"`
-- [ ] verify: `gh secret list -R shamansoft/kukbuk-srv | grep CROSS_REPO_PAT`
+- [x] `gh secret set CROSS_REPO_PAT --repo shamansoft/kukbuk-srv --body "$CROSS_REPO_PAT"`
+- [x] verify: `gh secret list -R shamansoft/kukbuk-srv | grep CROSS_REPO_PAT`
 
 ### Task 9: Commit and create PR
 
