@@ -110,8 +110,8 @@ Insert immediately after the `build-and-push:` job closing line:
 
 ### Task 6: Update `paths-ignore`
 
-- [ ] remove the `- 'terraform/**'` line from the `paths-ignore` list in the `push:` trigger
-- [ ] verify `terraform` no longer appears under `paths-ignore`
+- [x] remove the `- 'terraform/**'` line from the `paths-ignore` list in the `push:` trigger
+- [x] verify `terraform` no longer appears under `paths-ignore`
 
 ### Task 7: Verify YAML syntax
 
