@@ -260,6 +260,7 @@ jobs:
     name: Trigger Deploy
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment: production
     if: ${{ (github.event_name == 'push' || inputs.include_build != false) && inputs.skip_deploy_trigger != true && needs.test.result == 'success' && needs.build-and-push.result == 'success' && github.ref == 'refs/heads/main' }}
 
