@@ -136,10 +136,10 @@ Requires `CROSS_REPO_PAT` to be set in the shell environment.
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] PR exists and is open: `gh pr list -R shamansoft/kukbuk-srv`
-- [ ] `grep -c "tofu\|terraform" .github/workflows/deploy.yml` → 0
-- [ ] `grep "trigger-deploy" .github/workflows/deploy.yml` → found in `finalize` needs
-- [ ] `gh secret list -R shamansoft/kukbuk-srv | grep CROSS_REPO_PAT` → found
+- [x] PR exists and is open: `gh pr list -R shamansoft/kukbuk-srv`
+- [x] `grep -c "tofu\|terraform" .github/workflows/deploy.yml` → 0
+- [x] `grep "trigger-deploy" .github/workflows/deploy.yml` → found in `finalize` needs
+- [x] `gh secret list -R shamansoft/kukbuk-srv | grep CROSS_REPO_PAT` → found
 
 ---
 
