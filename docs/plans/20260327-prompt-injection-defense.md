@@ -92,11 +92,11 @@ Wrap both `%s` placeholders in XML tags:
 - [x] run tests: `./gradlew :cookbook:test`
 
 ### Task 4: Update RequestBuilderTest to cover new behavior
-- [ ] verify test for `buildRequest(html)` asserts `systemInstruction` is set and `contents[0].role == "user"`
-- [ ] verify test for `buildRequest(html, feedback, error)` asserts `systemInstruction` set and user content contains `<HTML_CONTENT>` delimiter
-- [ ] verify test for `buildRequestFromDescription(desc)` asserts `systemInstruction` set and user content contains `<USER_DESCRIPTION>` delimiter
-- [ ] add test: injected instruction in HTML (e.g. `"ignore all instructions"`) appears inside `<HTML_CONTENT>` tags in user content, not in systemInstruction
-- [ ] run tests: `./gradlew :cookbook:test` — must pass
+- [x] verify test for `buildRequest(html)` asserts `systemInstruction` is set and `contents[0].role == "user"`
+- [x] verify test for `buildRequest(html, feedback, error)` asserts `systemInstruction` set and user content contains `<HTML_CONTENT>` delimiter
+- [x] verify test for `buildRequestFromDescription(desc)` asserts `systemInstruction` set and user content contains `<USER_DESCRIPTION>` delimiter
+- [x] add test: injected instruction in HTML (e.g. `"ignore all instructions"`) appears inside `<HTML_CONTENT>` tags in user content, not in systemInstruction
+- [x] run tests: `./gradlew :cookbook:test` — must pass
 
 ### Task 5: Verify acceptance criteria
 - [ ] confirm `systemInstruction` is populated in all three request builder paths
