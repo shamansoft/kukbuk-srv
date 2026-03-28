@@ -99,11 +99,11 @@ Wrap both `%s` placeholders in XML tags:
 - [x] run tests: `./gradlew :cookbook:test` — must pass
 
 ### Task 5: Verify acceptance criteria
-- [ ] confirm `systemInstruction` is populated in all three request builder paths
-- [ ] confirm all user content is wrapped in XML delimiter tags
-- [ ] confirm `prompt_with_validation.md` uses `<VALIDATION_ERRORS>` and `<PREVIOUS_JSON>` tags
-- [ ] run full test suite: `./gradlew :cookbook:test`
-- [ ] run integration tests: `./gradlew :cookbook:intTest`
+- [x] confirm `systemInstruction` is populated in all three request builder paths
+- [x] confirm all user content is wrapped in XML delimiter tags
+- [x] confirm `prompt_with_validation.md` uses `<VALIDATION_ERRORS>` and `<PREVIOUS_JSON>` tags
+- [x] run full test suite: `./gradlew :cookbook:test`
+- [x] run integration tests: `./gradlew :cookbook:intTest`
 
 ## Post-Completion
 
