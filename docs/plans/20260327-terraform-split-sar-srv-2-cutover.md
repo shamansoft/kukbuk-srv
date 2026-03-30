@@ -102,10 +102,10 @@ Only run after Task 4 confirms the pipeline is healthy.
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] `ls terraform/` on main returns "no such file or directory" (directory was deleted)
-- [ ] `grep -r "terraform/" .github/workflows/` → empty
-- [ ] `gh pr list -R shamansoft/kukbuk-srv` shows the cleanup PR open and ready for review
-- [ ] `gh run list -R shamansoft/sar-infra --limit 1 --json conclusion -q '.[0].conclusion'` → `success`
+- [x] `ls terraform/` on main returns "no such file or directory" (directory was deleted)
+- [x] `grep -r "terraform/" .github/workflows/` → empty
+- [x] `gh pr list -R shamansoft/kukbuk-srv` shows the cleanup PR open and ready for review
+- [x] `gh run list -R shamansoft/sar-infra --limit 1 --json conclusion -q '.[0].conclusion'` → `success`
 
 ---
 

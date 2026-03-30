@@ -7,7 +7,6 @@ on:
       - '**.md'
       - 'docs/**'
       - '.github/deployment-setup.md'
-      - 'terraform/**'
       - 'scripts/**'
       - 'tasks/**'
       - 'tickets/**'
