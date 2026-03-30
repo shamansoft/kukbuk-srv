@@ -272,6 +272,7 @@ gcloud run services update-traffic cookbook \
 Configure in GitHub Settings → Secrets:
 
 - `GCP_SA_KEY`: Service account key JSON (base64 encoded)
+- `CROSS_REPO_PAT`: GitHub PAT with `repo` scope on `shamansoft/sar-infra`. Required for Phase 3 (`trigger-deploy` job). Without it, the deploy dispatch is skipped and no infrastructure deployment occurs.
 - `GITHUB_TOKEN`: Automatically provided by GitHub
 
 ### Optional Secrets

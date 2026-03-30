@@ -78,7 +78,7 @@ The Firestore Java SDK does not support `FieldValue.increment()` inside `set()` 
 
 **Blocking calls in an async system.** `firestore.runTransaction(...).get()` blocks the calling thread. Our entire repository layer returns `CompletableFuture`. A blocking call here defeats virtual thread scheduling and is inconsistent with every other repository in the project.
 
-**OpenTofu snippet conflicts with existing infrastructure.** The blueprint defines `google_cloud_run_v2_service.recipe_api` — but Cloud Run is already defined in `terraform/cloudrun.tf`. Applying this would either conflict or create a duplicate service. The Firestore TTL configuration (`google_firestore_field.usage_ttl`) is the only piece worth keeping.
+**OpenTofu snippet conflicts with existing infrastructure.** The blueprint defines `google_cloud_run_v2_service.recipe_api` — but Cloud Run is already defined in `cloudrun.tf` in [shamansoft/sar-infra](https://github.com/shamansoft/sar-infra). Applying this would either conflict or create a duplicate service. The Firestore TTL configuration (`google_firestore_field.usage_ttl`) is the only piece worth keeping.
 
 ### 1.4 Good Tips to Incorporate
 
@@ -1265,7 +1265,7 @@ extractor/src/main/resources/META-INF/native-image/
     proxy-config.json                   (new)
     reflect-config.json                 (additions)
 
-terraform/
+shamansoft/sar-infra (separate repo)
     firestore.tf                        (add TTL + composite index)
 ```
 

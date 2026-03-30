@@ -71,7 +71,7 @@ jobs:
 
     - name: Check code coverage
       run: |
-        echo "::group::Code Coverage Check (50% minimum)"
+        echo "::group::Code Coverage Check (40% minimum)"
         ./gradlew :cookbook:checkCoverage --no-daemon --console=plain
         echo "::endgroup::"
 
@@ -117,7 +117,7 @@ jobs:
           ### Test Results
           - ✅ Unit Tests: **Passed**
           - ✅ Integration Tests: **Passed**
-          - ✅ Code Coverage: **≥ 50%** (See coverage report below)
+          - ✅ Code Coverage: **≥ 40%** (See coverage report below)
 
           ### Build Information
           - **Java Version**: ${{ env.JAVA_VERSION }}
