@@ -61,9 +61,9 @@ Only run after Task 4 confirms the pipeline is healthy.
 
 ### Task 6: Update `.gitignore`
 
-- [ ] read `.gitignore`
-- [ ] remove these lines (no longer relevant in sar-srv): `.terraform/`, `*.tfstate`, `*.tfstate.*`, `*.tfvars`, `no-git/`
-- [ ] verify `.gitignore` no longer contains any of those patterns: `grep -E "\.terraform|tfstate|tfvars|no-git" .gitignore` → empty
+- [x] read `.gitignore`
+- [x] remove these lines (no longer relevant in sar-srv): `.terraform/`, `*.tfstate`, `*.tfstate.*`, `*.tfvars`, `no-git/`
+- [x] verify `.gitignore` no longer contains any of those patterns: `grep -E "\.terraform|tfstate|tfvars|no-git" .gitignore` → empty
 
 ### Task 7: Update `CLAUDE.md`
 

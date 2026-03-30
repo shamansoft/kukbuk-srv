@@ -40,12 +40,7 @@ out/
 
 CLAUDE.md
 
-# OpenTofu/Terraform generated files
-.terraform/
-*.tfstate
-*.tfstate.*
 crash.log
-*.tfvars
 *.env
 
 # ralphex progress logs
