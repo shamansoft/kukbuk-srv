@@ -229,7 +229,7 @@ class NativeImageConfigurationTest {
     @Test
     void nativeImageMetrics_shouldBeDocumentedInPlan() throws IOException {
         Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("docs/plans/20260125-spring-boot-4-migration.md");
+        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
         String content = Files.readString(planPath);
 
         // Verify expected metrics are documented
@@ -244,7 +244,7 @@ class NativeImageConfigurationTest {
     @Test
     void nativeImageLimitation_shouldBeDocumented() throws IOException {
         Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("docs/plans/20260125-spring-boot-4-migration.md");
+        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
         String content = Files.readString(planPath);
 
         // Verify Apple Silicon/ARM limitation is documented

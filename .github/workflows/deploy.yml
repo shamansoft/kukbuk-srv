@@ -19,11 +19,11 @@ on:
         required: false
         type: boolean
         default: true
-      include_deploy:
-        description: 'Include deployment phase'
+      skip_deploy_trigger:
+        description: 'Skip triggering sar-infra deployment (build only)'
         required: false
         type: boolean
-        default: true
+        default: false
       include_finalize:
         description: 'Include version finalization phase'
         required: false
@@ -151,7 +151,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest  # Standard runner (free tier)
     # Include build phase by default, can be excluded via workflow_dispatch
-    if: ${{ github.event_name == 'push' || inputs.include_build != false }}
+    # Require test to succeed (not skipped) to ensure release-version output is available
+    if: ${{ (github.event_name == 'push' || inputs.include_build != false) && needs.test.result == 'success' }}
 
     steps:
     - name: Checkout code
@@ -254,106 +255,41 @@ jobs:
           echo "- **Note**: Finalize phase will be skipped (non-main branch)" >> $GITHUB_STEP_SUMMARY
         fi
 
-  # Phase 3: Deploy to Cloud Run
-  deploy:
-    name: Deploy to Cloud Run
+
+  # Phase 3: Trigger Deploy in sar-infra
+  trigger-deploy:
+    name: Trigger Deploy
     needs: [test, build-and-push]
     runs-on: ubuntu-latest
-    environment: production  # Require manual approval if configured
-    # Include deployment phase by default, requires build phase to be included
-    if: ${{ github.event_name == 'push' || (inputs.include_deploy != false && inputs.include_build != false) }}
+    timeout-minutes: 5
+    environment: production
+    if: ${{ (github.event_name == 'push' || inputs.include_build != false) && inputs.skip_deploy_trigger != true && needs.test.result == 'success' && needs.build-and-push.result == 'success' && github.ref == 'refs/heads/main' }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
+    - name: Dispatch deploy to sar-infra
+      uses: peter-evans/repository-dispatch@v3
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        # Uncomment when Workload Identity is configured:
-        # workload_identity_provider: 'projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-        # service_account: 'github-actions-deploy@kukbuk-tf.iam.gserviceaccount.com'
+        token: ${{ secrets.CROSS_REPO_PAT }}
+        repository: shamansoft/sar-infra
+        event-type: deploy
+        client-payload: |
+          {
+            "image_tag": "${{ needs.test.outputs.release-version }}",
+            "commit_sha": "${{ github.sha }}",
+            "source_repo": "${{ github.repository }}"
+          }
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-
-    - name: Install OpenTofu
+    - name: Summary
       run: |
-        echo "::group::Installing OpenTofu"
-        curl -Lo opentofu.tar.gz https://github.com/opentofu/opentofu/releases/download/v1.8.8/tofu_1.8.8_linux_amd64.tar.gz
-        sudo tar -xzf opentofu.tar.gz -C /usr/local/bin/
-        sudo chmod +x /usr/local/bin/tofu
-        tofu version
-        echo "::endgroup::"
-
-    - name: Create service account key file
-      run: |
-        mkdir -p terraform/no-git
-        echo '${{ secrets.GCP_SA_KEY }}' > terraform/no-git/kukbuk-sa-tf-key.json
-
-    - name: Terraform Init
-      working-directory: terraform
-      run: tofu init
-
-    - name: Terraform Plan
-      working-directory: terraform
-      run: |
-        echo "::group::Terraform Plan"
-        tofu plan \
-          -var="image_tag=${{ needs.test.outputs.release-version }}" \
-          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
-          -out=tfplan
-        echo "::endgroup::"
-
-    - name: Terraform Apply
-      working-directory: terraform
-      run: |
-        echo "::group::Terraform Apply"
-        tofu apply -auto-approve tfplan
-        echo "::endgroup::"
-
-    - name: Get deployment URL
-      id: deploy
-      working-directory: terraform
-      run: |
-        CLOUD_RUN_URL=$(tofu output -raw cloud_run_url)
-        echo "URL=$CLOUD_RUN_URL" >> $GITHUB_OUTPUT
-        echo "Deployment URL: $CLOUD_RUN_URL"
-
-    # Health check with retry logic (native images can take time to start)
-    - name: Test deployment health
-      run: |
-        echo "Testing health endpoint..."
-        MAX_ATTEMPTS=30
-        DELAY=10
-
-        for i in $(seq 1 $MAX_ATTEMPTS); do
-          echo "Attempt $i/$MAX_ATTEMPTS..."
-
-          if curl -f -s "${{ steps.deploy.outputs.URL }}/actuator/health" | grep -q "UP"; then
-            echo "✅ Health check passed!"
-            echo "Service is healthy and ready"
-            exit 0
-          fi
-
-          if [ $i -lt $MAX_ATTEMPTS ]; then
-            echo "Not ready yet, waiting ${DELAY}s..."
-            sleep $DELAY
-          fi
-        done
-
-        echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
-        exit 1
-
-    - name: Cleanup
-      if: always()
-      run: rm -f terraform/no-git/kukbuk-sa-tf-key.json
+        echo "## 🚀 Deploy Triggered" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image tag**: \`${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **sar-infra Actions**: [Check deploy status](https://github.com/shamansoft/sar-infra/actions)" >> $GITHUB_STEP_SUMMARY
 
   # Phase 4: Finalize Release (MAIN BRANCH ONLY)
   finalize:
     name: Finalize Release
-    needs: [test, build-and-push, deploy]
+    needs: [test, build-and-push, trigger-deploy]
     runs-on: ubuntu-latest
     # CRITICAL: Only run on main branch - this creates tags, bumps versions, and updates README
     # Feature branches should NOT run finalize as they don't modify version or create releases
@@ -363,7 +299,7 @@ jobs:
       (github.event_name == 'push' || inputs.include_finalize != false) &&
       needs.test.result == 'success' &&
       (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') &&
-      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
+      (needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped')
     permissions:
       contents: write  # Required to push tags, commits, and create releases
 
@@ -431,7 +367,9 @@ jobs:
 
         # Extract coverage percentage
         COVERED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@covered)" "$COVERAGE_XML" || echo 0)
+        COVERED=${COVERED:-0}
         MISSED=$(xmllint --xpath "string(//counter[@type='INSTRUCTION']/@missed)" "$COVERAGE_XML" || echo 0)
+        MISSED=${MISSED:-0}
 
         if [ "$COVERED" = "0" ] && [ "$MISSED" = "0" ]; then
           echo "⚠️ No coverage data found, skipping badge update"
@@ -522,9 +460,9 @@ jobs:
         echo "❌ Failed to push after 5 attempts"
         exit 1
 
-    # Create GitHub Release (only if deployment actually happened)
+    # Create GitHub Release (only when deploy was actually triggered)
     - name: Create GitHub Release
-      if: needs.deploy.result == 'success'
+      if: needs.trigger-deploy.result == 'success' || needs.trigger-deploy.result == 'skipped'
       uses: ncipollo/release-action@v1
       with:
         tag: v${{ needs.test.outputs.release-version }}
@@ -534,7 +472,7 @@ jobs:
 
           ### Deployment Information
           - **Environment**: Production (GCP Cloud Run)
-          - **Service URL**: ${{ needs.deploy.outputs.URL }}
+          - **Deploy status**: [Check sar-infra Actions](https://github.com/shamansoft/sar-infra/actions)
           - **Region**: ${{ env.REGION }}
           - **Image**: `${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}`
 
@@ -547,7 +485,7 @@ jobs:
           - ✅ All tests passed
           - ✅ Code coverage ≥ 40%
           - ✅ Security scan passed
-          - ✅ Health check verified
+          - 🔄 Deployment triggered (see sar-infra for health check result)
 
           ### Next Development Version
           - Development continues on version `${{ env.NEXT_SNAPSHOT }}`
@@ -561,8 +499,8 @@ jobs:
     # Final summary
     - name: Deployment summary
       run: |
-        if [[ "${{ needs.deploy.result }}" == "success" ]]; then
-          echo "## 🎉 Release Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.trigger-deploy.result }}" == "success" ]]; then
+          echo "## 🎉 Release Deployment Triggered" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Released**: v${{ needs.test.outputs.release-version }}" >> $GITHUB_STEP_SUMMARY
@@ -571,7 +509,7 @@ jobs:
           echo "### Deployment" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ env.GCR_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ needs.test.outputs.release-version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: ${{ needs.deploy.outputs.URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deploy status**: [Check sar-infra Actions](https://github.com/shamansoft/sar-infra/actions)" >> $GITHUB_STEP_SUMMARY
         else
           echo "## ✅ Version Finalization Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

@@ -96,7 +96,7 @@ class CiCdConfigurationTest {
         // Verify all 4 phases exist
         assertTrue(jobs.containsKey("test"), "deploy.yml should have test job (Phase 1)");
         assertTrue(jobs.containsKey("build-and-push"), "deploy.yml should have build-and-push job (Phase 2)");
-        assertTrue(jobs.containsKey("deploy"), "deploy.yml should have deploy job (Phase 3)");
+        assertTrue(jobs.containsKey("trigger-deploy"), "deploy.yml should have trigger-deploy job (Phase 3)");
         assertTrue(jobs.containsKey("finalize"), "deploy.yml should have finalize job (Phase 4)");
     }
 
