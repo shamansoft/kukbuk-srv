@@ -138,10 +138,8 @@ gcloud container images list-tags gcr.io/kukbuk-tf/cookbook
 # 2. Ensure the desired image exists
 gcloud container images describe gcr.io/kukbuk-tf/cookbook:0.6.4
 
-# 3. Deploy specific version with Terraform
-cd terraform
-tofu init
-tofu apply -var="image_tag=0.6.4" -auto-approve
+# 3. Deploy specific version via sar-infra
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=0.6.4
 
 # 4. Verify deployment
 gcloud run services describe cookbook \
@@ -332,20 +330,20 @@ Use this checklist when performing a rollback:
 
 **Problem**: The revision you want to roll back to was deleted.
 
-**Solution**: Use Method 3 (Terraform) if the image still exists in GCR, or deploy from an older git tag:
+**Solution**: Use Method 3 (sar-infra dispatch) if the image still exists in GCR, or deploy from an older git tag:
 
 ```bash
 # Check if image exists
 gcloud container images list-tags gcr.io/kukbuk-tf/cookbook
 
-# If exists, use Terraform
-cd terraform && tofu apply -var="image_tag=0.6.3"
+# If exists, trigger via sar-infra
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=0.6.3
 
 # If not, rebuild from git tag
 git checkout v0.6.3
 cd extractor/scripts && ./build.sh 0.6.3 --native
 ./push.sh 0.6.3
-cd ../../terraform && tofu apply -var="image_tag=0.6.3"
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=0.6.3
 ```
 
 ### Issue: Health checks fail after rollback

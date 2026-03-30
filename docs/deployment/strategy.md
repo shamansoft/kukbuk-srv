@@ -27,7 +27,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 - Triggers on main branch only
 - Uses native GraalVM build
 - Auto-increments version
-- Deploys with OpenTofu
+- Dispatches deploy event to sar-infra (which runs OpenTofu apply)
 - Creates GitHub releases
 - Health check verification
 

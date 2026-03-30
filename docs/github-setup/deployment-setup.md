@@ -290,12 +290,11 @@ gcloud run services update-traffic cookbook \
     --region=us-west1
 ```
 
-### Method 3: Redeploy Previous Version via Terraform
+### Method 3: Redeploy Previous Version via sar-infra
 
 ```bash
-# Locally deploy a previous version
-cd terraform
-make deploy TAG=0.0.50  # Use a known good version
+# Trigger deploy of a known-good version via sar-infra
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=0.0.50
 ```
 
 ## Monitoring
@@ -309,8 +308,8 @@ gcloud run services describe cookbook --region=us-west1
 # Via GitHub Actions
 # Check the Actions tab in your repository
 
-# Via Terraform
-cd terraform && make output
+# Via sar-infra Actions
+# Check shamansoft/sar-infra → Actions tab for deploy status
 ```
 
 ### View Logs

@@ -27,7 +27,7 @@ This document describes monitoring, logging, and alerting for the cookbook servi
 
 ### Cloud Run Health Checks
 
-**Configured in Terraform** (`terraform/main.tf`):
+**Configured in OpenTofu** (`shamansoft/sar-infra` — `cloudrun.tf`):
 
 ```hcl
 resource "google_cloud_run_service" "cookbook" {
