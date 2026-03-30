@@ -67,19 +67,19 @@ Only run after Task 4 confirms the pipeline is healthy.
 
 ### Task 7: Update `CLAUDE.md`
 
-- [ ] read `CLAUDE.md` to locate the "Infrastructure (Google Cloud Platform)" section
-- [ ] replace the entire section content (list of terraform resources, files) with:
+- [x] read `CLAUDE.md` to locate the "Infrastructure (Google Cloud Platform)" section
+- [x] replace the entire section content (list of terraform resources, files) with:
   ```markdown
   Infrastructure is managed in the [`sar-infra`](https://github.com/shamansoft/sar-infra) repository using OpenTofu. See that repo for `.tf` files, deploy scripts, and infrastructure docs.
   ```
-- [ ] in the "Critical Files Reference" section, find the Infrastructure subsection and replace the list of `.tf` files with:
+- [x] in the "Critical Files Reference" section, find the Infrastructure subsection and replace the list of `.tf` files with:
   ```markdown
   - See [`shamansoft/sar-infra`](https://github.com/shamansoft/sar-infra) for all infrastructure files
   - `.github/workflows/deploy.yml` — triggers sar-infra deployment via `repository_dispatch` after image push
   ```
-- [ ] remove any mention of `terraform/**` in paths-ignore description
-- [ ] update deploy command reference from `terraform/scripts/deploy.sh` to `gh workflow run deploy.yml -R shamansoft/sar-infra`
-- [ ] verify no remaining references to `terraform/` directory paths in CLAUDE.md: `grep "terraform/" CLAUDE.md` → empty (links to sar-infra repo are fine)
+- [x] remove any mention of `terraform/**` in paths-ignore description
+- [x] update deploy command reference from `terraform/scripts/deploy.sh` to `gh workflow run deploy.yml -R shamansoft/sar-infra`
+- [x] verify no remaining references to `terraform/` directory paths in CLAUDE.md: `grep "terraform/" CLAUDE.md` → empty (links to sar-infra repo are fine)
 
 ### Task 8: Update documentation files
 
