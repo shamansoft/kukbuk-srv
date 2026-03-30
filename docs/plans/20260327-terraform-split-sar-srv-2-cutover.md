@@ -83,9 +83,9 @@ Only run after Task 4 confirms the pipeline is healthy.
 
 ### Task 8: Update documentation files
 
-- [ ] check if `docs/CI_CD_WORKFLOW.md` exists: if yes, find Phase 3 deploy description and replace with "Triggers sar-infra deployment via `repository_dispatch`"
-- [ ] check if `docs/deployment/strategy.md` exists: if yes, add pointer to `sar-infra` repo for infrastructure deploy steps
-- [ ] add superseded notice to `docs/plans/20260315-terraform-repo-separation.md`: prepend `> **Status**: Superseded by 20260327-terraform-split-sar-infra.md and 20260327-terraform-split-sar-srv-1-pipeline.md + sar-srv-2-cutover.md`
+- [x] check if `docs/CI_CD_WORKFLOW.md` exists: if yes, find Phase 3 deploy description and replace with "Triggers sar-infra deployment via `repository_dispatch`"
+- [x] check if `docs/deployment/strategy.md` exists: if yes, add pointer to `sar-infra` repo for infrastructure deploy steps
+- [x] add superseded notice to `docs/plans/20260315-terraform-repo-separation.md`: prepend `> **Status**: Superseded by 20260327-terraform-split-sar-infra.md and 20260327-terraform-split-sar-srv-1-pipeline.md + sar-srv-2-cutover.md`
 
 ### Task 9: Commit and create cleanup PR
 

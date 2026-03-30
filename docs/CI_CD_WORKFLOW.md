@@ -70,9 +70,9 @@ This follows Maven/Gradle conventions:
 │   • Tag as gcr.io/kukbuk-tf/cookbook:0.5.5    │
 │   • Push to Google Container Registry          │
 │                                                 │
-│ Phase 3: Deploy                                │
-│   • Deploy to Cloud Run via Terraform          │
-│   • Health check verification                  │
+│ Phase 3: Trigger Deploy                        │
+│   • Dispatch repository_dispatch to sar-infra  │
+│   • sar-infra runs tofu apply + health check   │
 │                                                 │
 │ Phase 4: Finalize                              │
 │   • Create git tag v0.5.5                      │
@@ -115,7 +115,7 @@ This follows Maven/Gradle conventions:
 **Jobs**:
 1. **Test**: Version prep + validation (~5-7 min)
 2. **Build-and-Push**: Native image build (~10-15 min)
-3. **Deploy**: Terraform deployment (~2-3 min)
+3. **Trigger-Deploy**: Dispatch to `sar-infra` via `repository_dispatch` (<1 min); actual Terraform apply and health check run in [sar-infra](https://github.com/shamansoft/sar-infra)
 4. **Finalize**: Git tagging + version bump (~1 min)
 
 **Total Duration**: ~20-25 minutes
@@ -319,13 +319,17 @@ Native builds can take 15+ minutes. If timeout:
 
 ### Deployment Fails
 
-1. Check Terraform logs in GitHub Actions
-2. Verify GCP credentials are valid
+1. Check [sar-infra Actions](https://github.com/shamansoft/sar-infra/actions) for Terraform logs (deploy runs there)
+2. Verify `CROSS_REPO_PAT` secret is valid in sar-srv repository settings
 3. Check Cloud Run service logs:
    ```bash
    gcloud run services logs read cookbook \
      --region=us-west1 \
      --project=kukbuk-tf
+   ```
+4. Re-trigger infrastructure deploy manually:
+   ```bash
+   gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=<version>
    ```
 
 ### Health Check Fails
@@ -416,7 +420,7 @@ To enable gradual rollout:
 
 - [CD Strategy](CD.md) - Comprehensive deployment strategy
 - [Build Documentation](../BUILD_PUSH_SEPARATION.md) - Build script details
-- [Terraform README](../terraform/README.md) - Infrastructure docs
+- [Infrastructure Repository](https://github.com/shamansoft/sar-infra) - OpenTofu infrastructure docs
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 
 ## Support
