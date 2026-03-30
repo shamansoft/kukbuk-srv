@@ -229,13 +229,13 @@ class NativeImageConfigurationTest {
     @Test
     void nativeImageMetrics_shouldBeDocumentedInPlan() throws IOException {
         Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("CLAUDE.md");
+        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
         String content = Files.readString(planPath);
 
         // Verify expected metrics are documented
-        assertTrue(content.contains("startup time") && content.contains("<1 second"),
+        assertTrue(content.contains("Startup time") && content.contains("<1 second"),
                 "Plan should document expected native image startup time");
-        assertTrue(content.contains("memory footprint") && content.contains("200MB"),
+        assertTrue(content.contains("Memory footprint") && content.contains("200MB"),
                 "Plan should document expected native image memory usage");
         assertTrue(content.contains("Build time") && content.contains("10-15 minutes"),
                 "Plan should document expected native image build time");
@@ -244,7 +244,7 @@ class NativeImageConfigurationTest {
     @Test
     void nativeImageLimitation_shouldBeDocumented() throws IOException {
         Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("CLAUDE.md");
+        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
         String content = Files.readString(planPath);
 
         // Verify Apple Silicon/ARM limitation is documented
