@@ -210,7 +210,7 @@ Error: The job running on runner has exceeded the maximum execution time of 360 
 - Consider building JVM image instead of native for faster builds
 - Check if build is stuck (increase --debug flag)
 
-### Terraform Errors
+### Deploy Errors
 
 ```
 Error: Error creating Service: googleapi: Error 403: Permission denied

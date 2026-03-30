@@ -8,7 +8,7 @@ This document describes how to roll back a deployment when issues are discovered
 |----------|--------|------|------|
 | Code bug found immediately | Git revert | 15-20 min | Low |
 | Critical security issue | GCloud rollback | < 1 min | Low |
-| Need specific old version | Terraform redeploy | 3-5 min | Medium |
+| Need specific old version | sar-infra redeploy | 3-5 min | Medium |
 | Database schema change | Manual investigation | Varies | High |
 
 ## Method 1: Revert via Git (Preferred)
@@ -119,7 +119,7 @@ git revert <bad-commit-hash>
 git push origin main
 ```
 
-## Method 3: Redeploy Previous Version via Terraform
+## Method 3: Redeploy Previous Version via sar-infra
 
 **When to use**: Need to deploy a specific older version
 
@@ -160,7 +160,7 @@ gcloud run services describe cookbook \
 - ⚠️ Need to follow up with git changes
 - ⚠️ Medium risk if deploying very old versions
 
-### After Terraform Rollback
+### After sar-infra Rollback
 
 Similar to Method 2, you should update git to match production:
 

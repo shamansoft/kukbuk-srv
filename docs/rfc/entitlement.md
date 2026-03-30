@@ -1004,7 +1004,7 @@ Also triggers Firebase custom claim update via Admin SDK so subsequent JWT token
 
 ## 6. Infrastructure (OpenTofu)
 
-Add to `terraform/firestore.tf`:
+Add to `firestore.tf` in `shamansoft/sar-infra`:
 
 ```hcl
 # TTL on quota_windows.expireAt — auto-delete expired counters

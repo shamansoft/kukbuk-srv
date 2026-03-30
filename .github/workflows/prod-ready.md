@@ -307,10 +307,9 @@ A: Yes, but only via:
 
 **Q: What if I need to deploy an old version?**
 
-A: Use Terraform manually:
+A: Trigger a deploy of the specific version via sar-infra:
 ```bash
-cd terraform
-tofu apply -var="image_tag=0.5.5"
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=0.5.5
 ```
 
 **Q: Can I partially revert (keep some skip options)?**
@@ -321,7 +320,7 @@ A: Yes, you can keep `skip_deploy` if needed for testing. Just remove `skip_fina
 
 A: No, you can still:
 - Use `workflow_dispatch` to manually trigger from main
-- Deploy via Terraform manually
+- Deploy via `gh workflow run deploy.yml -R shamansoft/sar-infra`
 - Use `gcloud run deploy` directly
 
 ---
