@@ -89,16 +89,16 @@ Only run after Task 4 confirms the pipeline is healthy.
 
 ### Task 9: Commit and create cleanup PR
 
-- [ ] `git add -A`
-- [ ] `git commit -m "chore: remove terraform — infrastructure moved to sar-infra"`
-- [ ] `git push -u origin chore/remove-terraform`
-- [ ] create PR:
+- [x] `git add -A`
+- [x] `git commit -m "chore: remove terraform — infrastructure moved to sar-infra"`
+- [x] `git push -u origin chore/remove-terraform`
+- [x] create PR:
   ```
   gh pr create \
     --title "chore: remove terraform — infrastructure moved to sar-infra" \
     --body "Removes terraform/ directory (now in shamansoft/sar-infra). Cleans up .gitignore, CLAUDE.md, and docs. End-to-end deploy pipeline verified before this cleanup."
   ```
-- [ ] print PR URL
+- [x] print PR URL
 
 ### Task 10: Verify acceptance criteria
 
