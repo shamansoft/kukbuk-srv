@@ -27,7 +27,7 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 - Triggers on main branch only
 - Uses native GraalVM build
 - Auto-increments version
-- Deploys with OpenTofu
+- Dispatches deploy event to sar-infra (which runs OpenTofu apply)
 - Creates GitHub releases
 - Health check verification
 
@@ -81,10 +81,9 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ 3. DEPLOY (2-3 min)                                         │
-│    ├── Deploy to Cloud Run (OpenTofu)                       │
-│    ├── Wait for rollout completion                          │
-│    └── Run smoke tests (health endpoint)                    │
+│ 3. TRIGGER DEPLOY (<1 min)                                  │
+│    └── Dispatch repository_dispatch to sar-infra            │
+│        (tofu apply + health check run in sar-infra)         │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -181,58 +180,31 @@ This document outlines the CI/CD deployment strategy for the cookbook service to
 
 **Why Verify**: Ensures image is actually in registry before proceeding to deploy
 
-### Phase 3: Deploy (2-3 minutes)
+### Phase 3: Trigger Deploy (<1 minute)
 
-**Purpose**: Deploy verified artifact to production
+**Purpose**: Dispatch a deploy event to [`sar-infra`](https://github.com/shamansoft/sar-infra) where the actual Terraform apply and health check run.
 
-**Step 3.1: Deploy with OpenTofu**
 ```yaml
-- name: Terraform Init
-  working-directory: terraform
-  run: tofu init
-
-- name: Terraform Plan
-  working-directory: terraform
-  run: |
-    tofu plan \
-      -var="image_tag=${{ steps.version.outputs.VERSION }}" \
-      -var="project_id=kukbuk-tf" \
-      -out=tfplan
-
-- name: Terraform Apply
-  working-directory: terraform
-  run: tofu apply -auto-approve tfplan
+- name: Trigger sar-infra deployment
+  uses: peter-evans/repository-dispatch@v3
+  with:
+    token: ${{ secrets.CROSS_REPO_PAT }}
+    repository: shamansoft/sar-infra
+    event-type: deploy
+    client-payload: >
+      {
+        "image_tag": "${{ needs.test.outputs.release-version }}",
+        "commit_sha": "${{ github.sha }}",
+        "source_repo": "${{ github.repository }}"
+      }
 ```
 
-**Step 3.2: Get Deployment URL**
-```yaml
-- name: Get deployment URL
-  id: deploy
-  working-directory: terraform
-  run: |
-    CLOUD_RUN_URL=$(tofu output -raw cloud_run_url)
-    echo "URL=$CLOUD_RUN_URL" >> $GITHUB_OUTPUT
-```
+The `sar-infra` deploy workflow then runs `tofu init`, `tofu plan`, `tofu apply`, and a health check. See [sar-infra Actions](https://github.com/shamansoft/sar-infra/actions) for deploy status.
 
-**Step 3.3: Smoke Test**
-```yaml
-- name: Test deployment
-  run: |
-    echo "Testing health endpoint..."
-    # Retry logic for startup time
-    for i in {1..30}; do
-      if curl -f ${{ steps.deploy.outputs.URL }}/actuator/health; then
-        echo "Health check passed!"
-        exit 0
-      fi
-      echo "Attempt $i/30 failed, retrying in 10s..."
-      sleep 10
-    done
-    echo "Health check failed after 30 attempts"
-    exit 1
+To re-trigger manually:
+```bash
+gh workflow run deploy.yml -R shamansoft/sar-infra -f image_tag=<version>
 ```
-
-**Why Retry Logic**: Native images can take 30-60 seconds to start up
 
 ### Phase 4: Finalize (1 minute)
 
@@ -398,4 +370,4 @@ Add a staging environment:
 - [Monitoring & Alerts](./monitoring.md)
 - [Production Readiness](./production-readiness.md)
 - [GitHub Setup](../github-setup/deployment-setup.md)
-- [Infrastructure Documentation](../../terraform/README.md)
+- [Infrastructure Repository](https://github.com/shamansoft/sar-infra) — OpenTofu infrastructure and deploy workflow

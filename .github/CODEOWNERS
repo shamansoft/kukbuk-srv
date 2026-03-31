@@ -15,7 +15,6 @@
 
 # Critical infrastructure files - require explicit review
 /.github/workflows/** @khisamutdinov
-/terraform/** @khisamutdinov
 /extractor/Dockerfile.native @khisamutdinov
 /extractor/scripts/*.sh @khisamutdinov
 

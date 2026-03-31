@@ -27,7 +27,7 @@ This document describes monitoring, logging, and alerting for the cookbook servi
 
 ### Cloud Run Health Checks
 
-**Configured in Terraform** (`terraform/main.tf`):
+**Configured in OpenTofu** (`shamansoft/sar-infra` — `cloudrun.tf`):
 
 ```hcl
 resource "google_cloud_run_service" "cookbook" {
@@ -202,15 +202,13 @@ gcloud logging read "resource.type=cloud_run_revision \
   --project=kukbuk-tf
 ```
 
-### Terraform Deployment Logs
+### Infrastructure Deployment Logs
+
+Infrastructure runs in [shamansoft/sar-infra](https://github.com/shamansoft/sar-infra). View logs there:
 
 ```bash
-# View Terraform output from CI/CD
-# Go to GitHub Actions → Deployment run → Terraform Apply step
-
-# Local Terraform logs
-cd terraform
-cat tofu.log
+# View deployment output from CI/CD
+# Go to shamansoft/sar-infra → GitHub Actions → deploy run → tofu apply step
 ```
 
 ## Metrics
@@ -486,10 +484,9 @@ gcloud logging sinks update _Default \
 2. Review logs for OOM errors
 3. Increase Cloud Run memory limit:
    ```bash
-   cd terraform
-   # Edit main.tf to increase memory
+   # Edit cloudrun.tf in shamansoft/sar-infra to increase memory
    # resources { limits { memory = "1Gi" } }
-   tofu apply
+   # Then trigger a deploy: gh workflow run deploy.yml -R shamansoft/sar-infra
    ```
 
 ## Notifications (Optional - Not Yet Implemented)

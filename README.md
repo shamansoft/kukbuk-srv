@@ -168,10 +168,6 @@ See [extractor/scripts/README.md](extractor/scripts/README.md) for legacy deploy
 │   ├── Dockerfile.native # Native image Docker build
 │   └── scripts/         # Legacy deployment scripts
 ├── recipe-sdk/          # Recipe data models
-├── terraform/           # Infrastructure as Code
-│   ├── main.tf         # Cloud Run configuration
-│   ├── firestore.tf    # Database configuration
-│   └── token-broker.tf # OAuth function
 └── token-broker/        # Node.js OAuth helper
 ```
 
