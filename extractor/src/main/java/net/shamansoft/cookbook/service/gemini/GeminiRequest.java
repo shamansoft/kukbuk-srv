@@ -22,12 +22,18 @@ public class GeminiRequest {
     private GenerationConfig generationConfig;
     @JsonProperty
     private List<SafetySetting> safetySettings;
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Content systemInstruction;
 
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     @Data
     public static class Content {
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String role;
         @JsonProperty
         private List<Part> parts;
     }

@@ -57,6 +57,35 @@ class GeminiRequestTest {
     }
 
     @Test
+    void serializesSystemInstructionWithoutRole() throws Exception {
+        GeminiRequest request = GeminiRequest.builder()
+                .systemInstruction(GeminiRequest.Content.builder()
+                        .parts(List.of(
+                                GeminiRequest.Part.builder()
+                                        .text("You are a recipe extractor.")
+                                        .build()))
+                        .build())
+                .contents(List.of(
+                        GeminiRequest.Content.builder()
+                                .role("user")
+                                .parts(List.of(
+                                        GeminiRequest.Part.builder()
+                                                .text("Extract this recipe.")
+                                                .build()))
+                        .build()))
+                .build();
+
+        String json = objectMapper.writeValueAsString(request);
+
+        assertThat(json).contains("\"systemInstruction\":");
+        assertThat(json).contains("\"You are a recipe extractor.\"");
+        // "role" must appear exactly once — in contents[0] — and not inside systemInstruction
+        // (Gemini API rejects systemInstruction with a role field)
+        assertThat(json).containsOnlyOnce("\"role\"");
+        assertThat(json).contains("\"role\":\"user\"");
+    }
+
+    @Test
     void deserializesGeminiRequestFromJson() throws Exception {
         String json = """
                 {

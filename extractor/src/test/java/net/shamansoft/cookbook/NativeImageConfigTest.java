@@ -90,7 +90,7 @@ class NativeImageConfigTest {
         ObjectMapper mapper = new ObjectMapper();
 
         GeminiRequest.Part part = new GeminiRequest.Part("test text");
-        GeminiRequest.Content content = new GeminiRequest.Content(java.util.List.of(part));
+        GeminiRequest.Content content = new GeminiRequest.Content(null, java.util.List.of(part));
 
         String json = mapper.writeValueAsString(content);
         assertThat(json)
