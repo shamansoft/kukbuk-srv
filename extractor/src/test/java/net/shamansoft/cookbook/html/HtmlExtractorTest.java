@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class HtmlExtractorTest {
 
     @Mock
-    private HtmlFetcher htmlFetcher;
+    private UrlContentFetcher htmlFetcher;
 
     private HtmlExtractor htmlExtractor;
 

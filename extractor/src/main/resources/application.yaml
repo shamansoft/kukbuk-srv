@@ -272,6 +272,19 @@ cookbook:
     dump-dir: ${COOKBOOK_DEBUG_DUMP_DIR:/tmp/sar-srv/dumps}
 
   # ---------------------------------------------------------------------------
+  # URL FETCHER CONFIGURATION
+  # ---------------------------------------------------------------------------
+  fetcher:
+    # URL fetching strategy for recipe extraction
+    # Used by: HtmlFetcher (@ConditionalOnProperty, matchIfMissing=true)
+    #          MarkdownNewClientImpl (@ConditionalOnProperty, havingValue="markdown-new")
+    # Options:
+    #   "jsoup"        (default) — JSoup-based HTML fetcher; requires LLM-side cleaning
+    #   "markdown-new" — markdown.new API; returns pre-processed markdown (~80% token reduction)
+    #                    Rate limit: 500 req/day per IP
+    type: jsoup
+
+  # ---------------------------------------------------------------------------
   # HTML CLEANUP CONFIGURATION
   # ---------------------------------------------------------------------------
   html-cleanup:
