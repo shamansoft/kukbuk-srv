@@ -102,14 +102,14 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 6: Service package coverage (91% → 95%+)
-- [ ] Identify uncovered branches in `RecipeService`
-  - [ ] HTML extraction error cases
-  - [ ] Drive upload failures
-  - [ ] Timeout scenarios
-- [ ] Write tests for YouTube service edge cases (if `YouTubeService` exists)
-- [ ] Write tests for `RecipeStoreService` timeout scenarios
-- [ ] Run tests, verify service package at 95%+
-- [ ] Run full test suite — must pass before next task
+- [x] Identify uncovered branches in `RecipeService`
+  - [x] HTML extraction error cases
+  - [x] Drive upload failures
+  - [x] Timeout scenarios
+- [x] Write tests for YouTube service edge cases (if `YouTubeService` exists)
+- [x] Write tests for `RecipeStoreService` timeout scenarios
+- [x] Run tests, verify service package at 95%+
+- [x] Run full test suite — must pass before next task
 
 ### Task 7: Comprehensive branch coverage (Gemini, entitlement, validation)
 - [ ] Analyze `GeminiRestTransformer` branch coverage

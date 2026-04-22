@@ -241,6 +241,44 @@ class RecipeStoreServiceTest {
         assertThat(size).isEqualTo(0L);
     }
 
+    @Test
+    @DisplayName("findCachedRecipes: returns empty on timeout")
+    void findCached_returnsEmptyOnTimeout() {
+        enableStore();
+        CompletableFuture<Optional<StoredRecipe>> neverCompletes = new CompletableFuture<>();
+        when(repository.findByContentHash("hash-timeout")).thenReturn(neverCompletes);
+
+        Optional<RecipeStoreService.CachedRecipes> result =
+                recipeStoreService.findCachedRecipes("hash-timeout");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("storeRecipeWithHash: handles timeout gracefully")
+    void storeRecipe_handlesTimeoutGracefully() {
+        enableStore();
+        CompletableFuture<Void> neverCompletes = new CompletableFuture<>();
+        when(repository.save(any(StoredRecipe.class))).thenReturn(neverCompletes);
+
+        recipeStoreService.storeValidRecipes("hash-timeout", "https://example.com",
+                List.of(createTestRecipe("Recipe")));
+
+        verify(repository).save(any(StoredRecipe.class));
+    }
+
+    @Test
+    @DisplayName("getCacheSize: returns 0 on timeout")
+    void getCacheSize_returnsZeroOnTimeout() {
+        enableStore();
+        CompletableFuture<Long> neverCompletes = new CompletableFuture<>();
+        when(repository.count()).thenReturn(neverCompletes);
+
+        long size = recipeStoreService.getCacheSize();
+
+        assertThat(size).isEqualTo(0L);
+    }
+
     // ---- CachedRecipes record -----------------------------------------------
 
     @Test
