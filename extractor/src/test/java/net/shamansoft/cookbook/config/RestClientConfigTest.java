@@ -103,4 +103,66 @@ class RestClientConfigTest {
         // the factory is properly configured and available in the context
         assertThat(httpRequestFactory).isInstanceOf(HttpComponentsClientHttpRequestFactory.class);
     }
+
+    @Test
+    void restClientConfig_instantiation() {
+        // Test that RestClientConfig can be instantiated as a Spring bean
+        RestClientConfig config = new RestClientConfig();
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    void restClientConfig_hasProperAnnotations() {
+        // Verify RestClientConfig has @Configuration annotation
+        assertThat(RestClientConfig.class.isAnnotationPresent(org.springframework.context.annotation.Configuration.class))
+                .isTrue();
+    }
+
+    @Test
+    void httpRequestFactory_isConditionalBean() {
+        // Verify httpRequestFactory() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "httpRequestFactory");
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void geminiRestClient_beanMethod_exists() {
+        // Verify geminiRestClient() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "geminiRestClient", String.class, org.springframework.http.client.ClientHttpRequestFactory.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void authRestClient_beanMethod_exists() {
+        // Verify authRestClient() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "authRestClient", String.class, org.springframework.http.client.ClientHttpRequestFactory.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void driveRestClient_beanMethod_exists() {
+        // Verify driveRestClient() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "driveRestClient", String.class, org.springframework.http.client.ClientHttpRequestFactory.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void uploadRestClient_beanMethod_exists() {
+        // Verify uploadRestClient() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "uploadRestClient", String.class, org.springframework.http.client.ClientHttpRequestFactory.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void genericRestClient_beanMethod_exists() {
+        // Verify genericRestClient() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(RestClientConfig.class, "genericRestClient", org.springframework.http.client.ClientHttpRequestFactory.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
 }

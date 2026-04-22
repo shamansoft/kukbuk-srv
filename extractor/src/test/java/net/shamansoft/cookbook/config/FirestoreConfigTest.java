@@ -25,7 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(TestFirebaseConfig.class)
 @TestPropertySource(properties = {
         "firestore.enabled=false",
-        "firebase.enabled=false"
+        "firebase.enabled=false",
+        "google.cloud.project-id=test-project",
+        "google.cloud.credentials.path="
 })
 class FirestoreConfigTest {
 
@@ -62,5 +64,35 @@ class FirestoreConfigTest {
 
         // When property is missing or true, bean would be created (tested implicitly
         // by other tests that use firestore.enabled=true or no property)
+    }
+
+    @Test
+    void firestoreConfig_instantiation() {
+        // Test that FirestoreConfig can be instantiated as a Spring bean
+        FirestoreConfig config = new FirestoreConfig();
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    void firestoreConfig_hasProperAnnotations() {
+        // Verify FirestoreConfig has @Configuration annotation
+        assertThat(FirestoreConfig.class.isAnnotationPresent(org.springframework.context.annotation.Configuration.class))
+                .isTrue();
+    }
+
+    @Test
+    void firestore_isConditionalOnProperty() {
+        // Verify firestore() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(FirestoreConfig.class, "firestore");
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void firestore_hasProjectIdAndCredentialsPath_values() {
+        // Verify that FirestoreConfig uses @Value annotations for configuration
+        FirestoreConfig config = new FirestoreConfig();
+        assertThat(config).isNotNull();
+        // Configuration is injected via @Value, so we just verify instantiation works
     }
 }

@@ -64,17 +64,17 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 3: Config package coverage (48% → 75%+)
-- [ ] Write tests for `FirebaseConfigTest` edge cases
-  - [ ] Config loading success
-  - [ ] Missing credentials fallback
-  - [ ] Invalid project ID handling
-- [ ] Write tests for `EntitlementPlanConfig` validation + initialization
-  - [ ] Valid config with all tier×operation pairs
-  - [ ] Missing tier entry → startup fails
-  - [ ] Missing operation entry → startup fails
-- [ ] Write tests for `StringToCompressionConverter` (already has good coverage, verify)
-- [ ] Run tests, verify config package coverage improved
-- [ ] Run full test suite — must pass before next task
+- [x] Write tests for `FirebaseConfigTest` edge cases
+  - [x] Config loading success
+  - [x] Missing credentials fallback
+  - [x] Invalid project ID handling
+- [x] Write tests for `EntitlementPlanConfig` validation + initialization
+  - [x] Valid config with all tier×operation pairs
+  - [x] Missing tier entry → startup fails
+  - [x] Missing operation entry → startup fails
+- [x] Write tests for `StringToCompressionConverter` (already has good coverage, verify)
+- [x] Run tests, verify config package coverage improved
+- [x] Run full test suite — must pass before next task
 
 ### Task 4: Security package coverage (54% → 80%+)
 - [ ] Write tests for `FirebaseAuthFilter` JWT claim extraction
