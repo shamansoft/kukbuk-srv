@@ -386,4 +386,113 @@ class FirebaseAuthFilterTest {
         verify(request).setAttribute("userEmail", "test@example.com");
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void testPublicPath_DebugPath_AllowsAccess() throws ServletException, IOException, FirebaseAuthException {
+        // Given: request to debug path
+        when(request.getRequestURI()).thenReturn("/debug");
+
+        // When: filter processes request
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: request passes through without auth check
+        verify(filterChain).doFilter(request, response);
+        verify(firebaseAuth, never()).verifyIdToken(anyString());
+    }
+
+    @Test
+    void testPublicPath_DebugSubPath_AllowsAccess() throws ServletException, IOException, FirebaseAuthException {
+        // Given: request to debug sub-path
+        when(request.getRequestURI()).thenReturn("/debug/stats");
+
+        // When: filter processes request
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: request passes through without auth check
+        verify(filterChain).doFilter(request, response);
+        verify(firebaseAuth, never()).verifyIdToken(anyString());
+    }
+
+    @Test
+    void testPublicPath_HelloSubPath_AllowsAccess() throws ServletException, IOException, FirebaseAuthException {
+        // Given: request to hello sub-path
+        when(request.getRequestURI()).thenReturn("/hello/test");
+
+        // When: filter processes request
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: request passes through without auth check
+        verify(filterChain).doFilter(request, response);
+        verify(firebaseAuth, never()).verifyIdToken(anyString());
+    }
+
+    @Test
+    void testProtectedPath_SimilarToPublicPathButNotMatch_RequiresAuth() throws ServletException, IOException {
+        // Given: path similar to /hello but not matching
+        setupResponseWriter();
+        when(request.getRequestURI()).thenReturn("/hello-world");
+        when(request.getHeader("Authorization")).thenReturn(null);
+
+        // When: filter processes request
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: returns 401 (protected path)
+        verify(response).setStatus(401);
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testTierClaim_nullClaims_userTierAttributeNotSet() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with null claims map
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(null);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier attribute is NOT set (claims are null)
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("userTier"),
+                org.mockito.ArgumentMatchers.any());
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testTierClaim_enterpriseTier_setsUserTierAttribute() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with ENTERPRISE tier claim
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-456");
+        when(firebaseToken.getEmail()).thenReturn("enterprise@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("tier", "ENTERPRISE"));
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier is set to ENTERPRISE
+        verify(request).setAttribute("userTier", UserTier.ENTERPRISE);
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testTierClaim_freeTier_setsUserTierAttribute() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with FREE tier claim
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-789");
+        when(firebaseToken.getEmail()).thenReturn("free@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("tier", "FREE"));
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: userTier is set to FREE
+        verify(request).setAttribute("userTier", UserTier.FREE);
+        verify(filterChain).doFilter(request, response);
+    }
 }

@@ -77,17 +77,17 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 4: Security package coverage (54% → 80%+)
-- [ ] Write tests for `FirebaseAuthFilter` JWT claim extraction
-  - [ ] Valid JWT with tier claim → `userTier` attribute set
-  - [ ] Valid JWT without tier claim → `userTier` absent (falls back to FREE)
-  - [ ] Invalid JWT → request rejected
-  - [ ] Malformed tier claim → logged as WARN, attribute not set
-- [ ] Write tests for `TokenEncryptionService` KMS integration
-  - [ ] Encrypt/decrypt round-trip
-  - [ ] KMS unavailable → handled gracefully
-  - [ ] Empty/null token handling
-- [ ] Run tests, verify security package coverage boosted
-- [ ] Run full test suite — must pass before next task
+- [x] Write tests for `FirebaseAuthFilter` JWT claim extraction
+  - [x] Valid JWT with tier claim → `userTier` attribute set
+  - [x] Valid JWT without tier claim → `userTier` absent (falls back to FREE)
+  - [x] Invalid JWT → request rejected
+  - [x] Malformed tier claim → logged as WARN, attribute not set
+- [x] Write tests for `TokenEncryptionService` KMS integration
+  - [x] Encrypt/decrypt round-trip
+  - [x] KMS unavailable → handled gracefully
+  - [x] Empty/null token handling
+- [x] Run tests, verify security package coverage boosted
+- [x] Run full test suite — must pass before next task
 
 ### Task 5: Client package coverage (77% → 85%+)
 - [ ] Analyze `GoogleDrive` and `GoogleDriveClient` classes for untested paths
