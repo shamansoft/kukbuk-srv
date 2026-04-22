@@ -54,14 +54,14 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 2: Repository layer coverage (2% → 40%+)
-- [ ] Write tests for `FirestoreRecipeRepository` CRUD operations
-  - [ ] Write tests: create, read, update, delete paths
-  - [ ] Write tests: pagination, filtering, empty result cases
-- [ ] Write tests for `FirestoreUserProfileRepository` operations
-  - [ ] Write tests: load profile, update profile, create on first access
-- [ ] Write tests for `FirestoreYouTubeJobRepository` job tracking
-- [ ] Run tests, verify significant improvement in repository coverage
-- [ ] Run full test suite — must pass before next task
+- [x] Write tests for `FirestoreRecipeRepository` CRUD operations
+  - [x] Write tests: create, read, update, delete paths
+  - [x] Write tests: pagination, filtering, empty result cases
+- [x] Write tests for `FirestoreUserProfileRepository` operations
+  - [x] Write tests: load profile, update profile, create on first access
+- [x] Write tests for `FirestoreYouTubeJobRepository` job tracking
+- [x] Run tests, verify significant improvement in repository coverage
+- [x] Run full test suite — must pass before next task
 
 ### Task 3: Config package coverage (48% → 75%+)
 - [ ] Write tests for `FirebaseConfigTest` edge cases
