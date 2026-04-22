@@ -90,16 +90,16 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 5: Client package coverage (77% → 85%+)
-- [ ] Analyze `GoogleDrive` and `GoogleDriveClient` classes for untested paths
-- [ ] Write tests for Google Drive API error handling
-  - [ ] Rate limiting (429 status) → retry logic
-  - [ ] Authentication failures (401/403)
-  - [ ] Network timeouts
-- [ ] Write tests for OAuth token refresh edge cases
-  - [ ] Expired token → refresh triggered
-  - [ ] Refresh token missing/invalid
-- [ ] Run tests, verify client package improvement
-- [ ] Run full test suite — must pass before next task
+- [x] Analyze `GoogleDrive` and `GoogleDriveClient` classes for untested paths
+- [x] Write tests for Google Drive API error handling
+  - [x] Rate limiting (429 status) → retry logic
+  - [x] Authentication failures (401/403)
+  - [x] Network timeouts
+- [x] Write tests for OAuth token refresh edge cases
+  - [x] Expired token → refresh triggered
+  - [x] Refresh token missing/invalid
+- [x] Run tests, verify client package improvement
+- [x] Run full test suite — must pass before next task
 
 ### Task 6: Service package coverage (91% → 95%+)
 - [ ] Identify uncovered branches in `RecipeService`
