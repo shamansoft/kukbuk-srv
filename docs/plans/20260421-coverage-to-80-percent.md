@@ -112,15 +112,15 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 7: Comprehensive branch coverage (Gemini, entitlement, validation)
-- [ ] Analyze `GeminiRestTransformer` branch coverage
-  - [ ] Success path (is_recipe=true)
-  - [ ] Not-a-recipe path (is_recipe=false)
-  - [ ] Validation error feedback loops
-  - [ ] Timeout/error responses
-- [ ] Ensure `EntitlementAspect` covers all outcome branches (ALLOWED_PAID, CIRCUIT_OPEN, etc.)
-- [ ] Verify `FolderNameValidator` has edge cases (already at 100%, spot-check)
-- [ ] Run tests, verify high coverage maintained
-- [ ] Run full test suite — must pass before next task
+- [x] Analyze `GeminiRestTransformer` branch coverage
+  - [x] Success path (is_recipe=true)
+  - [x] Not-a-recipe path (is_recipe=false)
+  - [x] Validation error feedback loops
+  - [x] Timeout/error responses
+- [x] Ensure `EntitlementAspect` covers all outcome branches (ALLOWED_PAID, CIRCUIT_OPEN, etc.)
+- [x] Verify `FolderNameValidator` has edge cases (already at 100%, spot-check)
+- [x] Run tests, verify high coverage maintained
+- [x] Run full test suite — must pass before next task
 
 ### Task 8: Verification and final push
 - [ ] Run full coverage report: `./gradlew :cookbook:jacocoTestReport`
