@@ -123,12 +123,12 @@ Improve overall test coverage from 77% to 80% (14,395 total instructions) throug
 - [x] Run full test suite — must pass before next task
 
 ### Task 8: Verification and final push
-- [ ] Run full coverage report: `./gradlew :cookbook:jacocoTestReport`
-- [ ] Verify overall coverage ≥ 80% (target 82%)
-- [ ] Identify any remaining gaps < 80% in any package
-- [ ] If gaps exist: Write targeted tests to close them
-- [ ] Run full test suite + linter — all passing
-- [ ] Commit test improvements with message: "test: improve coverage to 80%"
+- [x] Run full coverage report: `./gradlew :cookbook:jacocoTestReport`
+- [x] Verify overall coverage ≥ 80% (target 82%)
+- [x] Identify any remaining gaps < 80% in any package
+- [x] If gaps exist: Write targeted tests to close them
+- [x] Run full test suite + linter — all passing
+- [x] Commit test improvements with message: "test: improve coverage to 80%"
 
 ## Testing Strategy
 
