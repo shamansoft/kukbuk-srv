@@ -4,7 +4,6 @@ import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.strategy.Strategy;
 import net.shamansoft.cookbook.service.ContentHashService;
-import net.shamansoft.cookbook.service.DumpService;
 import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
@@ -44,7 +43,6 @@ class DebugControllerTest {
     @Mock private ContentHashService contentHashService;
     @Mock private RecipeStoreService recipeStoreService;
     @Mock private RecipeParser recipeParser;
-    @Mock private DumpService dumpService;
 
     private DebugController controller;
 

@@ -1,7 +1,6 @@
 package net.shamansoft.cookbook.client;
 
 import com.google.cloud.Timestamp;
-import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
