@@ -1,7 +1,7 @@
 package net.shamansoft.cookbook.debug;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -166,7 +166,7 @@ class RecipeResponseTest {
 
     @Test
     @DisplayName("JSON serialization includes all non-null fields")
-    void jsonSerializationNonNull() throws JsonProcessingException {
+    void jsonSerializationNonNull() throws JacksonException {
         RecipeResponse.ProcessingMetadata metadata = RecipeResponse.ProcessingMetadata.builder()
                 .sessionId("s123")
                 .totalProcessingTimeMs(1000L)
@@ -188,7 +188,7 @@ class RecipeResponseTest {
 
     @Test
     @DisplayName("JSON serialization excludes null fields (NON_NULL)")
-    void jsonSerializationExcludesNull() throws JsonProcessingException {
+    void jsonSerializationExcludesNull() throws JacksonException {
         RecipeResponse response = RecipeResponse.builder()
                 .isRecipe(true)
                 .recipeYaml("test: yaml")

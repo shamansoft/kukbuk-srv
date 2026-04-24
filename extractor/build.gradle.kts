@@ -132,7 +132,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     violationRules {
         rule {
             limit {
-                minimum = BigDecimal("0.4") // 40% code coverage achieved
+                minimum = BigDecimal("0.8") // 80% code coverage enforced
             }
         }
     }
