@@ -1078,4 +1078,203 @@ class GoogleDriveTest {
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to create file");
     }
+
+    @Test
+    void testListFilesUnauthorized() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
+        when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
+        when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
+        when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 401 Unauthorized
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized"
+        ));
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.listFiles("invalidToken", "folder123", 10, null))
+                .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+    }
+
+    @Test
+    void testGetFileUnauthorized() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
+        when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
+        when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
+        when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 403 Forbidden
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.FORBIDDEN, "Forbidden"
+        ));
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.getFile("test.yaml", "folder_123", "invalidToken"))
+                .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+    }
+
+    @Test
+    void testCreateFolderAuthenticationFailure() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.post()).thenReturn(mockBodySpec);
+        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
+        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
+        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 401 Unauthorized
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid token"
+        ));
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.createFolder("TestFolder", "invalidToken"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Failed to create folder");
+    }
+
+    @Test
+    void testUpdateFileAuthenticationFailure() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.patch()).thenReturn(mockBodySpec);
+        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
+        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
+        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
+        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
+        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 401 Unauthorized
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid token"
+        ));
+
+        GoogleDrive.Item testFile = new GoogleDrive.Item("file_123", "test.yaml");
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.updateFile(testFile, "content", "invalidToken"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Failed to update file");
+    }
+
+    @Test
+    void testDownloadFileAsBytesAuthenticationFailure() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
+        when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
+        when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
+        when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 401 Unauthorized
+        when(mockResponseSpec.body(byte[].class)).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid token"
+        ));
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.downloadFileAsBytes("invalidToken", "file123"))
+                .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+    }
+
+    @Test
+    void testGetFileMetadataAuthenticationFailure() {
+        // Setup
+        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
+        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
+        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
+
+        RestClient mockDriveClient = mock(RestClient.class);
+        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
+
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersUriSpec mockHeadersSpec = mock(RestClient.RequestHeadersUriSpec.class);
+        @SuppressWarnings("rawtypes")
+        RestClient.RequestHeadersSpec mockSpec = mock(RestClient.RequestHeadersSpec.class);
+        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
+
+        when(mockDriveClient.get()).thenReturn(mockHeadersSpec);
+        when(mockHeadersSpec.uri(any(Function.class))).thenReturn(mockSpec);
+        when(mockSpec.header(eq("Authorization"), anyString())).thenReturn(mockSpec);
+        when(mockSpec.retrieve()).thenReturn(mockResponseSpec);
+
+        // Simulate 403 Forbidden
+        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
+        })).thenThrow(new org.springframework.web.client.HttpClientErrorException(
+                org.springframework.http.HttpStatus.FORBIDDEN, "Forbidden"
+        ));
+
+        // Execute & Verify
+        assertThatThrownBy(() -> googleDrive.getFileMetadata("invalidToken", "file123"))
+                .isInstanceOf(org.springframework.web.client.HttpClientErrorException.class);
+    }
 }

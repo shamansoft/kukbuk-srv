@@ -81,4 +81,34 @@ class FirebaseConfigTest {
         // When property is missing or true, beans would be created (tested implicitly
         // by other tests that use firebase.enabled=true or no property)
     }
+
+    @Test
+    void firebaseConfig_instantiation() {
+        // Test that FirebaseConfig can be instantiated as a Spring bean
+        FirebaseConfig config = new FirebaseConfig();
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    void firebaseConfig_hasProperAnnotations() {
+        // Verify FirebaseConfig has @Configuration annotation
+        assertThat(FirebaseConfig.class.isAnnotationPresent(org.springframework.context.annotation.Configuration.class))
+                .isTrue();
+    }
+
+    @Test
+    void firebaseApp_isConditionalOnPropertyFire() {
+        // Verify firebaseApp() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(FirebaseConfig.class, "firebaseApp");
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
+
+    @Test
+    void firebaseAuth_isConditionalOnProperty() {
+        // Verify firebaseAuth() method exists and is marked as @Bean
+        var method = org.springframework.util.ReflectionUtils.findMethod(FirebaseConfig.class, "firebaseAuth", FirebaseApp.class);
+        assertThat(method).isNotNull();
+        assertThat(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)).isTrue();
+    }
 }

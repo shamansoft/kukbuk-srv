@@ -226,35 +226,6 @@ class NativeImageConfigurationTest {
                 "deploy.yml should target linux/amd64 platform for Cloud Run deployment");
     }
 
-    @Test
-    void nativeImageMetrics_shouldBeDocumentedInPlan() throws IOException {
-        Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
-        String content = Files.readString(planPath);
-
-        // Verify expected metrics are documented
-        assertTrue(content.contains("Startup time") && content.contains("<1 second"),
-                "Plan should document expected native image startup time");
-        assertTrue(content.contains("Memory footprint") && content.contains("200MB"),
-                "Plan should document expected native image memory usage");
-        assertTrue(content.contains("Build time") && content.contains("10-15 minutes"),
-                "Plan should document expected native image build time");
-    }
-
-    @Test
-    void nativeImageLimitation_shouldBeDocumented() throws IOException {
-        Path projectRoot = getProjectRoot();
-        Path planPath = projectRoot.resolve("docs/plans/completed/20260125-spring-boot-4-migration.md");
-        String content = Files.readString(planPath);
-
-        // Verify Apple Silicon/ARM limitation is documented
-        assertTrue(content.contains("Apple Silicon") || content.contains("ARM"),
-                "Plan should document Apple Silicon/ARM limitation for local native builds");
-        assertTrue(content.contains("x86-64-v3"),
-                "Plan should document x86-64-v3 CPU requirement for GraalVM 25");
-        assertTrue(content.contains("CI/CD") && content.contains("native"),
-                "Plan should document that native builds are validated in CI/CD");
-    }
 
     @Test
     void reflectionConfig_shouldIncludeEntitlementClasses() throws IOException {

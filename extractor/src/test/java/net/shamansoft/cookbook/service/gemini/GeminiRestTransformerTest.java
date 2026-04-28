@@ -378,4 +378,115 @@ class GeminiRestTransformerTest {
         assertThat(response.recipe().ingredients()).hasSize(3);
         assertThat(response.recipe().ingredients().get(0).item()).isEqualTo("Flour");
     }
+
+    @Test
+    void transformDescriptionWithMultipleRecipes() throws JacksonException {
+        // Given: description returns multiple recipes
+        String description = "Two recipes: pasta and sauce";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = new GeminiExtractionResult(
+                true, 1.0, null,
+                List.of(createTestRecipe("Pasta"), createTestRecipe("Tomato Sauce"))
+        );
+
+        when(requestBuilder.buildRequestFromDescription(eq(description))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true, \"recipes\": []}"));
+
+        // When
+        Transformer.Response response = transformer.transformDescription(description);
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipes()).hasSize(2);
+        assertThat(response.recipes().get(0).metadata().title()).isEqualTo("Pasta");
+        assertThat(response.recipes().get(1).metadata().title()).isEqualTo("Tomato Sauce");
+        assertThat(response.recipes()).allMatch(Recipe::isRecipe);
+    }
+
+    @Test
+    void transformDescriptionWithEmptyRecipesList() throws JacksonException {
+        // Given: description returns no recipes (edge case)
+        String description = "Not a recipe";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = new GeminiExtractionResult(true, 1.0, null, List.of());
+
+        when(requestBuilder.buildRequestFromDescription(eq(description))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true, \"recipes\": []}"));
+
+        // When
+        Transformer.Response response = transformer.transformDescription(description);
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.confidence()).isEqualTo(1.0);
+        assertThat(response.recipes()).isEmpty();
+    }
+
+    @Test
+    void transformWithFeedbackOnNonRecipeReturnsNonRecipeResult() throws JacksonException {
+        // Given: validation error feedback loop leads to determination it's not a recipe
+        String htmlContent = "<html><body>Content</body></html>";
+        Recipe previousRecipe = createTestRecipe("Previous");
+        String validationError = "Invalid structure";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(previousRecipe), eq(validationError)))
+                .thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(nonRecipeResult(0.3), "{\"is_recipe\": false}"));
+
+        // When
+        Transformer.Response response = transformer.transformWithFeedback(htmlContent, previousRecipe, validationError);
+
+        // Then
+        assertThat(response.isRecipe()).isFalse();
+        assertThat(response.confidence()).isEqualTo(0.3);
+        assertThat(response.recipes()).isEmpty();
+    }
+
+    @Test
+    void transformReturnsEmptyRecipesListWhenGeminiReturnsNull() throws JacksonException {
+        // Given: Gemini returns null recipes list (edge case)
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = new GeminiExtractionResult(true, 0.9, null, null);
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipes()).isEmpty();
+        assertThat(response.recipe()).isNull();
+    }
+
+    @Test
+    void transformFiltersOutNullRecipesFromList() throws JacksonException {
+        // Given: recipes list contains null entries
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        List<Recipe> rawRecipes = new java.util.ArrayList<>();
+        rawRecipes.add(createTestRecipe("Valid Recipe"));
+        rawRecipes.add(null);  // null entry
+        rawRecipes.add(createTestRecipe("Another Valid"));
+
+        GeminiExtractionResult extraction = new GeminiExtractionResult(true, 0.95, null, rawRecipes);
+
+        when(requestBuilder.buildRequest(eq(htmlContent))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transform(htmlContent, "https://example.com");
+
+        // Then - null should be filtered out
+        assertThat(response.recipes()).hasSize(2);
+        assertThat(response.recipes()).allMatch(Recipe::isRecipe);
+    }
 }

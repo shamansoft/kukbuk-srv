@@ -112,4 +112,58 @@ class EntitlementAspectTest {
 
         verify(entitlementService).check("user123", null, Operation.RECIPE_EXTRACTION);
     }
+
+    @Test
+    void around_userIdBlank_throwsEntitlementAuthException() {
+        mockRequest.setAttribute("userId", "   "); // blank (whitespace-only)
+
+        assertThatThrownBy(() -> aspect.around(pjp, annotation))
+                .isInstanceOf(EntitlementAuthException.class)
+                .hasMessageContaining("userId not set");
+    }
+
+    @Test
+    void around_allowedCreditOutcome_proceedsAndStoresResult() throws Throwable {
+        mockRequest.setAttribute("userId", "user123");
+        // ALLOWED_CREDIT outcome: FREE user using a credit
+        EntitlementResult creditResult = new EntitlementResult(true, EntitlementOutcome.ALLOWED_CREDIT, 0, 5, null);
+        when(entitlementService.check("user123", null, Operation.RECIPE_EXTRACTION)).thenReturn(creditResult);
+        when(pjp.proceed()).thenReturn("credit-result");
+
+        Object result = aspect.around(pjp, annotation);
+
+        verify(pjp).proceed();
+        assertThat(result).isEqualTo("credit-result");
+        assertThat(mockRequest.getAttribute(EntitlementAspect.ENTITLEMENT_RESULT_ATTR)).isEqualTo(creditResult);
+    }
+
+    @Test
+    void around_circuitOpenOutcome_proceedsAndStoresResult() throws Throwable {
+        mockRequest.setAttribute("userId", "user456");
+        // CIRCUIT_OPEN outcome: fail-open due to timeout
+        EntitlementResult circuitOpen = EntitlementResult.circuitOpen();
+        when(entitlementService.check("user456", null, Operation.RECIPE_EXTRACTION)).thenReturn(circuitOpen);
+        when(pjp.proceed()).thenReturn("circuit-open-result");
+
+        Object result = aspect.around(pjp, annotation);
+
+        verify(pjp).proceed();
+        assertThat(result).isEqualTo("circuit-open-result");
+        assertThat(mockRequest.getAttribute(EntitlementAspect.ENTITLEMENT_RESULT_ATTR)).isEqualTo(circuitOpen);
+    }
+
+    @Test
+    void around_allowedPaidOutcome_proceedsAndStoresResult() throws Throwable {
+        mockRequest.setAttribute("userId", "user789");
+        mockRequest.setAttribute("userTier", UserTier.ENTERPRISE);
+        EntitlementResult paidResult = EntitlementResult.paid();
+        when(entitlementService.check("user789", UserTier.ENTERPRISE, Operation.RECIPE_EXTRACTION)).thenReturn(paidResult);
+        when(pjp.proceed()).thenReturn("paid-result");
+
+        Object result = aspect.around(pjp, annotation);
+
+        verify(pjp).proceed();
+        assertThat(result).isEqualTo("paid-result");
+        assertThat(mockRequest.getAttribute(EntitlementAspect.ENTITLEMENT_RESULT_ATTR)).isEqualTo(paidResult);
+    }
 }

@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.debug;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 import net.shamansoft.recipe.model.Recipe;
