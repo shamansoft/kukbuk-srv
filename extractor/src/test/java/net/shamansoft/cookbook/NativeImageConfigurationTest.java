@@ -1,11 +1,17 @@
 package net.shamansoft.cookbook;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -226,6 +232,33 @@ class NativeImageConfigurationTest {
                 "deploy.yml should target linux/amd64 platform for Cloud Run deployment");
     }
 
+
+    @Test
+    void reflectionConfig_shouldCoverAllJacksonDeserializationTargets() throws IOException {
+        Path projectRoot = getProjectRoot();
+        Path reflectConfigPath = projectRoot.resolve(
+                "extractor/src/main/resources/META-INF/native-image/reflect-config.json");
+        String reflectConfig = Files.readString(reflectConfigPath);
+
+        ClassPathScanningCandidateComponentProvider scanner =
+                new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter(new AnnotationTypeFilter(JsonIgnoreProperties.class));
+
+        List<String> missing = scanner.findCandidateComponents("net.shamansoft.cookbook")
+                .stream()
+                .map(BeanDefinition::getBeanClassName)
+                .filter(name -> !reflectConfig.contains("\"" + name + "\""))
+                .sorted()
+                .toList();
+
+        assertTrue(missing.isEmpty(),
+                "Classes annotated with @JsonIgnoreProperties are missing from reflect-config.json.\n" +
+                "Add the following to extractor/src/main/resources/META-INF/native-image/reflect-config.json:\n" +
+                missing.stream()
+                        .map(name -> "  {\"name\": \"" + name + "\", \"allDeclaredFields\": true, " +
+                                     "\"allDeclaredMethods\": true, \"allDeclaredConstructors\": true}")
+                        .collect(Collectors.joining("\n")));
+    }
 
     @Test
     void reflectionConfig_shouldIncludeEntitlementClasses() throws IOException {
