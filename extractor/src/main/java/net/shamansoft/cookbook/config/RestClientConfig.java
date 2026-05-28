@@ -10,6 +10,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -24,20 +25,18 @@ public class RestClientConfig {
     }
 
     @Bean
+    @Primary
     public ClientHttpRequestFactory httpRequestFactory() {
-        // Connection-level configuration (connect timeout)
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
                 .setConnectTimeout(Timeout.ofSeconds(2))
                 .build();
 
-        // Connection pooling
         PoolingHttpClientConnectionManager connectionManager =
                 new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(200);  // Total connections
-        connectionManager.setDefaultMaxPerRoute(20);  // Per-host
+        connectionManager.setMaxTotal(200);
+        connectionManager.setDefaultMaxPerRoute(20);
         connectionManager.setDefaultConnectionConfig(connectionConfig);
 
-        // Request-level configuration (response timeout, connection request timeout)
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(Timeout.ofSeconds(2))
                 .setResponseTimeout(Timeout.ofSeconds(30))
@@ -52,11 +51,37 @@ public class RestClientConfig {
     }
 
     @Bean
+    public ClientHttpRequestFactory geminiHttpRequestFactory(
+            @Value("${cookbook.gemini.timeout-seconds:90}") int timeoutSeconds) {
+        ConnectionConfig connectionConfig = ConnectionConfig.custom()
+                .setConnectTimeout(Timeout.ofSeconds(5))
+                .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                new PoolingHttpClientConnectionManager();
+        connectionManager.setMaxTotal(50);
+        connectionManager.setDefaultMaxPerRoute(10);
+        connectionManager.setDefaultConnectionConfig(connectionConfig);
+
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                .setResponseTimeout(Timeout.ofSeconds(timeoutSeconds))
+                .build();
+
+        CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                .build();
+
+        return new HttpComponentsClientHttpRequestFactory(httpClient);
+    }
+
+    @Bean
     public RestClient geminiRestClient(
             @Value("${cookbook.gemini.base-url}") String baseUrl,
-            ClientHttpRequestFactory requestFactory) {
+            ClientHttpRequestFactory geminiHttpRequestFactory) {
         return RestClient.builder()
-                .requestFactory(requestFactory)
+                .requestFactory(geminiHttpRequestFactory)
                 .baseUrl(baseUrl)
                 .requestInterceptor((request, body, execution) -> {
                     log.info("Request: {} {}", request.getMethod(),

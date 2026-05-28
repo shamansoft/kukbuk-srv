@@ -42,6 +42,8 @@ public class RequestBuilder {
     private int maxOutputTokens;
     @Value("${cookbook.gemini.safety-threshold}")
     private String safetyThreshold;
+    @Value("${cookbook.gemini.thinking-budget:0}")
+    private int thinkingBudget;
 
     private String htmlSystemPrompt;
     private String descSystemPrompt;
@@ -120,6 +122,9 @@ public class RequestBuilder {
                         .maxOutputTokens(maxOutputTokens)
                         .responseMimeType("application/json")
                         .responseSchema(parsedJsonSchema)
+                        .thinkingConfig(GeminiRequest.ThinkingConfig.builder()
+                                .thinkingBudget(thinkingBudget)
+                                .build())
                         .build())
                 .safetySettings(List.of(
                         GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT")
