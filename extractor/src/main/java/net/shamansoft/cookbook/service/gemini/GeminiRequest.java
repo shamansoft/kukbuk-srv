@@ -64,6 +64,18 @@ public class GeminiRequest {
         @JsonProperty
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private Object responseSchema;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private ThinkingConfig thinkingConfig;
+    }
+
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Data
+    public static class ThinkingConfig {
+        @JsonProperty
+        private int thinkingBudget;
     }
 
     @Builder
