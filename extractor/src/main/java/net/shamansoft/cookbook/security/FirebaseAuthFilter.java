@@ -103,6 +103,12 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                 }
             }
 
+            // Extract admin claim from JWT (optional)
+            Object adminClaim = claims != null ? claims.get("admin") : null;
+            if (Boolean.TRUE.equals(adminClaim)) {
+                request.setAttribute("isAdmin", true);
+            }
+
             log.debug("Authenticated: {} ({})", decodedToken.getEmail(), decodedToken.getUid());
 
             // Continue filter chain

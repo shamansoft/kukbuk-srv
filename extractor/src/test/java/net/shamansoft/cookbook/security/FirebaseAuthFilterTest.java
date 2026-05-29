@@ -495,4 +495,41 @@ class FirebaseAuthFilterTest {
         verify(request).setAttribute("userTier", UserTier.FREE);
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void testAdminClaim_true_setsIsAdminAttribute() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with admin:true claim
+        when(request.getRequestURI()).thenReturn("/v1/admin/users/some-user/tier");
+        when(request.getHeader("Authorization")).thenReturn("Bearer admin-token");
+        when(firebaseToken.getUid()).thenReturn("admin-123");
+        when(firebaseToken.getEmail()).thenReturn("admin@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("admin", true));
+        when(firebaseAuth.verifyIdToken("admin-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: isAdmin attribute is set to true
+        verify(request).setAttribute("isAdmin", true);
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testAdminClaim_absent_isAdminAttributeNotSet() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token without admin claim
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer regular-token");
+        when(firebaseToken.getUid()).thenReturn("user-456");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of());
+        when(firebaseAuth.verifyIdToken("regular-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: isAdmin attribute is NOT set
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("isAdmin"),
+                org.mockito.ArgumentMatchers.any());
+        verify(filterChain).doFilter(request, response);
+    }
 }
