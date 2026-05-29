@@ -63,10 +63,10 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 3: DTOs
 
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/dto/admin/UpdateTierRequest.java` — `record UpdateTierRequest(@NotNull UserTier tier)`
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/dto/admin/UpdateTierResponse.java` — `record UpdateTierResponse(String userId, UserTier oldTier, UserTier newTier)`
-- [ ] write unit tests: `UpdateTierRequest` deserialization from JSON (valid tier, invalid tier → 400)
-- [ ] run tests — must pass before Task 4
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/dto/admin/UpdateTierRequest.java` — `record UpdateTierRequest(@NotNull UserTier tier)`
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/dto/admin/UpdateTierResponse.java` — `record UpdateTierResponse(String userId, UserTier oldTier, UserTier newTier)`
+- [x] write unit tests: `UpdateTierRequest` deserialization from JSON (valid tier, invalid tier → 400)
+- [x] run tests — must pass before Task 4
 
 ### Task 4: `UserProfileRepository.updateTier()`
 
