@@ -94,12 +94,12 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] verify `PUT /v1/admin/users/{userId}/tier` returns 200 with `oldTier` and `newTier`
-- [ ] verify non-admin Firebase token → 403
-- [ ] verify unknown `userId` → 404
-- [ ] verify invalid tier string in body → 400
-- [ ] run full test suite: `./gradlew :cookbook:test`
-- [ ] run linter / checkstyle if configured
+- [x] verify `PUT /v1/admin/users/{userId}/tier` returns 200 with `oldTier` and `newTier`
+- [x] verify non-admin Firebase token → 403
+- [x] verify unknown `userId` → 404
+- [x] verify invalid tier string in body → 400
+- [x] run full test suite: `./gradlew :cookbook:test`
+- [x] run linter / checkstyle if configured
 
 ### Task 8: Update documentation
 
