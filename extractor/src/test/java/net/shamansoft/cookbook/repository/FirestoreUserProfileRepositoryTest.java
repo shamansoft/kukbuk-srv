@@ -5,7 +5,6 @@ import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.SetOptions;
 import com.google.cloud.firestore.WriteResult;
 import net.shamansoft.cookbook.entitlement.UserTier;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
@@ -25,7 +24,6 @@ import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -288,7 +286,7 @@ class FirestoreUserProfileRepositoryTest {
     }
 
     @Test
-    @DisplayName("updateTier should call merge-write with tier and updatedAt fields")
+    @DisplayName("updateTier should call update (not set) with tier and updatedAt fields")
     void testUpdateTierSuccess() throws Exception {
         // Given
         CollectionReference collectionRef = mock(CollectionReference.class);
@@ -298,15 +296,15 @@ class FirestoreUserProfileRepositoryTest {
 
         when(firestore.collection("users")).thenReturn(collectionRef);
         when(collectionRef.document(testUserId)).thenReturn(docRef);
-        when(docRef.set(any(Map.class), eq(SetOptions.merge()))).thenReturn(future);
+        when(docRef.update(any(Map.class))).thenReturn(future);
         when(future.get(any(Long.class), any())).thenReturn(writeResult);
 
         // When
         repository.updateTier(testUserId, UserTier.PRO);
 
-        // Then - verify merge-write was called (not full document set)
+        // Then - verify update was called (not set/merge, to prevent phantom document creation)
         ArgumentCaptor<Map> mapCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(docRef).set(mapCaptor.capture(), eq(SetOptions.merge()));
+        verify(docRef).update(mapCaptor.capture());
         Map<String, Object> writtenMap = mapCaptor.getValue();
         assertThat(writtenMap).containsKey("tier");
         assertThat(writtenMap.get("tier")).isEqualTo("PRO");
@@ -326,7 +324,7 @@ class FirestoreUserProfileRepositoryTest {
 
         when(firestore.collection("users")).thenReturn(collectionRef);
         when(collectionRef.document(testUserId)).thenReturn(docRef);
-        when(docRef.set(any(Map.class), eq(SetOptions.merge()))).thenReturn(future);
+        when(docRef.update(any(Map.class))).thenReturn(future);
         when(future.get(any(Long.class), any())).thenThrow(new RuntimeException("Firestore unavailable"));
 
         // When / Then

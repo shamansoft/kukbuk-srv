@@ -5,7 +5,6 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.SetOptions;
 import com.google.cloud.firestore.WriteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -127,8 +126,11 @@ public class FirestoreUserProfileRepository implements UserProfileRepository {
         DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(userId);
         Map<String, Object> updates = Map.of("tier", tier.name(), "updatedAt", Timestamp.now());
         try {
-            docRef.set(updates, SetOptions.merge()).get(SAVE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            docRef.update(updates).get(SAVE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             log.debug("Successfully updated tier for userId: {} to {}", userId, tier);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while updating tier for user " + userId, e);
         } catch (Exception e) {
             log.error("Error updating tier for userId {}: {}", userId, e.getMessage(), e);
             throw new RuntimeException("Failed to update tier for user " + userId, e);

@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.repository;
 
+import net.shamansoft.cookbook.entitlement.UserTier;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 
 import java.util.Map;
@@ -45,4 +46,12 @@ public interface UserProfileRepository {
      * @return CompletableFuture containing true if profile exists, false otherwise
      */
     CompletableFuture<Boolean> existsByUserId(String userId);
+
+    /**
+     * Update only the tier field. Fails if the user document does not exist.
+     *
+     * @param userId Firebase UID of the target user
+     * @param tier   New tier value to set
+     */
+    void updateTier(String userId, UserTier tier);
 }
