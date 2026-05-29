@@ -1,12 +1,15 @@
 package net.shamansoft.cookbook.repository;
 
 import com.google.api.core.ApiFuture;
+import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.SetOptions;
 import com.google.cloud.firestore.WriteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.entitlement.UserTier;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Firestore implementation of UserProfileRepository.
@@ -27,6 +31,7 @@ import java.util.concurrent.Executors;
 public class FirestoreUserProfileRepository implements UserProfileRepository {
 
     private static final String COLLECTION_NAME = "users";
+    private static final long SAVE_TIMEOUT_MS = 5000L;
     private static final Executor executor = Executors.newCachedThreadPool();
     private final Firestore firestore;
     private final Transformer transformer;
@@ -114,5 +119,19 @@ public class FirestoreUserProfileRepository implements UserProfileRepository {
                 return false;
             }
         }, executor);
+    }
+
+    @Override
+    public void updateTier(String userId, UserTier tier) {
+        log.debug("Updating tier for userId: {} to {}", userId, tier);
+        DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(userId);
+        Map<String, Object> updates = Map.of("tier", tier.name(), "updatedAt", Timestamp.now());
+        try {
+            docRef.set(updates, SetOptions.merge()).get(SAVE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            log.debug("Successfully updated tier for userId: {} to {}", userId, tier);
+        } catch (Exception e) {
+            log.error("Error updating tier for userId {}: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("Failed to update tier for user " + userId, e);
+        }
     }
 }

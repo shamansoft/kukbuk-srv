@@ -70,10 +70,10 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 4: `UserProfileRepository.updateTier()`
 
-- [ ] add `void updateTier(String userId, UserTier tier)` to `UserProfileRepository` interface
-- [ ] implement in `FirestoreUserProfileRepository`: `docRef.set(Map.of("tier", tier.name(), "updatedAt", Timestamp.now()), SetOptions.merge()).get(SAVE_TIMEOUT_MS, MILLISECONDS)`
-- [ ] write unit test: mock Firestore, assert merge-write called with correct map; assert no full document overwrite
-- [ ] run tests — must pass before Task 5
+- [x] add `void updateTier(String userId, UserTier tier)` to `UserProfileRepository` interface
+- [x] implement in `FirestoreUserProfileRepository`: `docRef.set(Map.of("tier", tier.name(), "updatedAt", Timestamp.now()), SetOptions.merge()).get(SAVE_TIMEOUT_MS, MILLISECONDS)`
+- [x] write unit test: mock Firestore, assert merge-write called with correct map; assert no full document overwrite
+- [x] run tests — must pass before Task 5
 
 ### Task 5: `AdminUserService`
 

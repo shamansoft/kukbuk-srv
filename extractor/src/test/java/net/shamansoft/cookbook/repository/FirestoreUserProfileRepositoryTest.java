@@ -1,9 +1,11 @@
 package net.shamansoft.cookbook.repository;
 
 import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.SetOptions;
 import com.google.cloud.firestore.WriteResult;
 import net.shamansoft.cookbook.entitlement.UserTier;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,6 +24,8 @@ import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -280,5 +285,53 @@ class FirestoreUserProfileRepositoryTest {
 
         // Then
         assertThat(result.get()).isFalse();
+    }
+
+    @Test
+    @DisplayName("updateTier should call merge-write with tier and updatedAt fields")
+    void testUpdateTierSuccess() throws Exception {
+        // Given
+        CollectionReference collectionRef = mock(CollectionReference.class);
+        DocumentReference docRef = mock(DocumentReference.class);
+        ApiFuture<WriteResult> future = mock(ApiFuture.class);
+        WriteResult writeResult = mock(WriteResult.class);
+
+        when(firestore.collection("users")).thenReturn(collectionRef);
+        when(collectionRef.document(testUserId)).thenReturn(docRef);
+        when(docRef.set(any(Map.class), eq(SetOptions.merge()))).thenReturn(future);
+        when(future.get(any(Long.class), any())).thenReturn(writeResult);
+
+        // When
+        repository.updateTier(testUserId, UserTier.PRO);
+
+        // Then - verify merge-write was called (not full document set)
+        ArgumentCaptor<Map> mapCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(docRef).set(mapCaptor.capture(), eq(SetOptions.merge()));
+        Map<String, Object> writtenMap = mapCaptor.getValue();
+        assertThat(writtenMap).containsKey("tier");
+        assertThat(writtenMap.get("tier")).isEqualTo("PRO");
+        assertThat(writtenMap).containsKey("updatedAt");
+        // Confirm no full-document keys like email, displayName
+        assertThat(writtenMap).doesNotContainKey("email");
+        assertThat(writtenMap).doesNotContainKey("displayName");
+    }
+
+    @Test
+    @DisplayName("updateTier should throw RuntimeException on Firestore failure")
+    void testUpdateTierFirestoreFailure() throws Exception {
+        // Given
+        CollectionReference collectionRef = mock(CollectionReference.class);
+        DocumentReference docRef = mock(DocumentReference.class);
+        ApiFuture<WriteResult> future = mock(ApiFuture.class);
+
+        when(firestore.collection("users")).thenReturn(collectionRef);
+        when(collectionRef.document(testUserId)).thenReturn(docRef);
+        when(docRef.set(any(Map.class), eq(SetOptions.merge()))).thenReturn(future);
+        when(future.get(any(Long.class), any())).thenThrow(new RuntimeException("Firestore unavailable"));
+
+        // When / Then
+        assertThatThrownBy(() -> repository.updateTier(testUserId, UserTier.FREE))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to update tier for user");
     }
 }
