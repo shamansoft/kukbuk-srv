@@ -86,11 +86,11 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 6: `AdminController`
 
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/controller/AdminController.java`
-- [ ] implement `@PutMapping("/v1/admin/users/{userId}/tier")` annotated with `@RequireAdmin`
-- [ ] extract `adminUserId` from `request.getAttribute("userId")`; delegate to `AdminUserService`
-- [ ] write unit tests: non-admin → 403, valid admin request → 200 with response body, unknown userId → 404, invalid tier in body → 400
-- [ ] run tests — must pass before Task 7
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/controller/AdminController.java`
+- [x] implement `@PutMapping("/v1/admin/users/{userId}/tier")` annotated with `@RequireAdmin`
+- [x] extract `adminUserId` from `request.getAttribute("userId")`; delegate to `AdminUserService`
+- [x] write unit tests: non-admin → 403, valid admin request → 200 with response body, unknown userId → 404, invalid tier in body → 400
+- [x] run tests — must pass before Task 7
 
 ### Task 7: Verify acceptance criteria
 
