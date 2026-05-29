@@ -11,6 +11,7 @@ import net.shamansoft.cookbook.repository.UserProfileRepository;
 import net.shamansoft.cookbook.repository.firestore.model.UserProfile;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +43,12 @@ public class AdminUserService {
         userProfileRepository.updateTier(targetUserId, newTier);
 
         try {
-            firebaseAuth.setCustomUserClaims(targetUserId, Map.of("tier", newTier.name()));
+            Map<String, Object> mergedClaims = new HashMap<>(
+                    Optional.ofNullable(firebaseAuth.getUser(targetUserId).getCustomClaims())
+                            .orElse(Map.of())
+            );
+            mergedClaims.put("tier", newTier.name());
+            firebaseAuth.setCustomUserClaims(targetUserId, mergedClaims);
         } catch (FirebaseAuthException e) {
             throw new RuntimeException("Failed to update Firebase custom claims for userId: " + targetUserId, e);
         }

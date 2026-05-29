@@ -532,4 +532,23 @@ class FirebaseAuthFilterTest {
                 org.mockito.ArgumentMatchers.any());
         verify(filterChain).doFilter(request, response);
     }
+
+    @Test
+    void testAdminClaim_false_isAdminAttributeNotSet() throws ServletException, IOException, FirebaseAuthException {
+        // Given: token with explicit admin:false claim (not just absent)
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer regular-token");
+        when(firebaseToken.getUid()).thenReturn("user-789");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.getClaims()).thenReturn(Map.of("admin", false));
+        when(firebaseAuth.verifyIdToken("regular-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: isAdmin attribute is NOT set (false != Boolean.TRUE)
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("isAdmin"),
+                org.mockito.ArgumentMatchers.any());
+        verify(filterChain).doFilter(request, response);
+    }
 }

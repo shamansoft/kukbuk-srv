@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import net.shamansoft.cookbook.dto.ErrorResponse;
 import java.time.Clock;
 import net.shamansoft.cookbook.entitlement.EntitlementAuthException;
+import net.shamansoft.cookbook.security.AdminAccessException;
 import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementOutcome;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
@@ -361,6 +362,24 @@ public class CookbookExceptionHandlerTest {
                 controller.handleEntitlementException(new EntitlementException(result), httpServletRequest);
 
         assertThat(response.getHeaders().getFirst("Retry-After")).isNull();
+    }
+
+    @Test
+    void handleAdminAccessException_returnsForbidden() {
+        when(httpServletRequest.getRequestURI()).thenReturn("/v1/admin/users/user-123/tier");
+
+        AdminAccessException ex = new AdminAccessException("Admin access required");
+
+        ResponseEntity<Object> response = controller.handleAdminAccessException(ex, httpServletRequest);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        Object body = response.getBody();
+        assertThat(body).isInstanceOf(ErrorResponse.class);
+        ErrorResponse errorResponse = (ErrorResponse) body;
+        assertThat(errorResponse.getStatus()).isEqualTo(403);
+        assertThat(errorResponse.getError()).isEqualTo("Forbidden");
+        assertThat(errorResponse.getMessage()).isEqualTo("Admin access required");
+        assertThat(errorResponse.getPath()).isEqualTo("/v1/admin/users/user-123/tier");
     }
 
     @Test
