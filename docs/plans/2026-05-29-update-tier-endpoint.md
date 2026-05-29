@@ -103,8 +103,8 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 8: Update documentation
 
-- [ ] add `/v1/admin/users/{userId}/tier` to the API Endpoints section in `CLAUDE.md`
-- [ ] update `docs/plans/update-tier-endpoint.md` or remove the old file (superseded by this one)
+- [x] add `/v1/admin/users/{userId}/tier` to the API Endpoints section in `CLAUDE.md`
+- [x] update `docs/plans/update-tier-endpoint.md` or remove the old file (superseded by this one)
 
 ## Technical Details
 
