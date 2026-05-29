@@ -77,12 +77,12 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 5: `AdminUserService`
 
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/service/AdminUserService.java`
-- [ ] implement `updateUserTier(adminUserId, targetUserId, newTier)`: load profile → updateTier (Firestore) → `firebaseAuth.setCustomUserClaims(targetUserId, Map.of("tier", newTier.name()))` → audit log → return `UpdateTierResponse`
-- [ ] throw `UserNotFoundException` (404) if profile not found
-- [ ] emit structured audit log line: `admin={} updated tier for user={} from={} to={}`
-- [ ] write unit tests: successful update calls both Firestore write and Firebase claim write; unknown userId → 404; audit log is emitted
-- [ ] run tests — must pass before Task 6
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/service/AdminUserService.java`
+- [x] implement `updateUserTier(adminUserId, targetUserId, newTier)`: load profile → updateTier (Firestore) → `firebaseAuth.setCustomUserClaims(targetUserId, Map.of("tier", newTier.name()))` → audit log → return `UpdateTierResponse`
+- [x] throw `UserNotFoundException` (404) if profile not found
+- [x] emit structured audit log line: `admin={} updated tier for user={} from={} to={}`
+- [x] write unit tests: successful update calls both Firestore write and Firebase claim write; unknown userId → 404; audit log is emitted
+- [x] run tests — must pass before Task 6
 
 ### Task 6: `AdminController`
 
