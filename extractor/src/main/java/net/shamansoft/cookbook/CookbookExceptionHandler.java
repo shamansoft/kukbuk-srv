@@ -10,6 +10,7 @@ import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
 import net.shamansoft.cookbook.entitlement.dto.QuotaErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.security.AdminAccessException;
 import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
@@ -97,6 +98,18 @@ public class CookbookExceptionHandler {
         );
         errorResponse.setValidationErrors(validationErrors);
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AdminAccessException.class)
+    public ResponseEntity<Object> handleAdminAccessException(AdminAccessException e, HttpServletRequest request) {
+        log.warn("Forbidden: admin access denied for {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "Forbidden",
+                "Admin access required",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
     /**

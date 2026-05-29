@@ -56,10 +56,10 @@ See `docs/create-admin-instructions.md` for how to create and credential an admi
 
 ### Task 2: `@RequireAdmin` annotation + `AdminAccessAspect`
 
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/security/RequireAdmin.java` — `@Target(METHOD) @Retention(RUNTIME)` annotation
-- [ ] create `extractor/src/main/java/net/shamansoft/cookbook/security/AdminAccessAspect.java` — `@Around` on `@RequireAdmin`; reads `isAdmin` from `RequestContextHolder`; throws `AccessDeniedException` (→ 403) when absent or false
-- [ ] write unit tests for `AdminAccessAspect`: absent attribute → 403, `false` → 403, `true` → proceeds
-- [ ] run tests — must pass before Task 3
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/security/RequireAdmin.java` — `@Target(METHOD) @Retention(RUNTIME)` annotation
+- [x] create `extractor/src/main/java/net/shamansoft/cookbook/security/AdminAccessAspect.java` — `@Around` on `@RequireAdmin`; reads `isAdmin` from `RequestContextHolder`; throws `AccessDeniedException` (→ 403) when absent or false
+- [x] write unit tests for `AdminAccessAspect`: absent attribute → 403, `false` → 403, `true` → proceeds
+- [x] run tests — must pass before Task 3
 
 ### Task 3: DTOs
 
