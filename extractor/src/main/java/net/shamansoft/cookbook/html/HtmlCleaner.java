@@ -1,16 +1,15 @@
 package net.shamansoft.cookbook.html;
 
-import com.google.type.DateTime;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import net.shamansoft.cookbook.html.strategy.CleanupStrategy;
 import net.shamansoft.cookbook.html.strategy.Strategy;
+import net.shamansoft.cookbook.security.CorrelationFilter;
 import net.shamansoft.cookbook.service.DumpService;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -48,7 +47,7 @@ public class HtmlCleaner {
             return buildResult("", 0, Strategy.FALLBACK);
         }
 
-        dumpService.dump(html, "cleanerInput", "html", Instant.now().toString());
+        dumpService.dump(html, "cleanerInput", "html", CorrelationFilter.SESSION.get());
 
         if (!config.isEnabled()) {
             return buildResult(html, originalSize, Strategy.DISABLED);
@@ -107,7 +106,7 @@ public class HtmlCleaner {
                 message
         );
 
-        dumpService.dump(results.toString(), "cleanerOutput-"+results.strategyUsed(), "txt", Instant.now().toString());
+        dumpService.dump(results.toString(), "cleanerOutput-" + results.strategyUsed(), "txt", CorrelationFilter.SESSION.get());
         return results;
     }
 

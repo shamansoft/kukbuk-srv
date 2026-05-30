@@ -5,6 +5,9 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import net.shamansoft.cookbook.html.strategy.Strategy;
+import net.shamansoft.cookbook.security.CorrelationFilter;
+import net.shamansoft.cookbook.service.DumpService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,9 +36,17 @@ class HtmlCleanerTest {
     @Mock
     private DistributionSummary summary;
 
+    @Mock
+    private DumpService dumpService;
+
     private HtmlCleanupConfig config;
     private ObjectMapper objectMapper;
     private HtmlCleaner htmlCleaner;
+
+    @AfterEach
+    void tearDown() {
+        CorrelationFilter.SESSION.remove();
+    }
 
     @BeforeEach
     void setUp() {
@@ -76,7 +87,7 @@ class HtmlCleanerTest {
                 new net.shamansoft.cookbook.html.strategy.ContentFilterStrategy(config)
         );
 
-        htmlCleaner = new HtmlCleaner(config, meterRegistry, strategies);
+        htmlCleaner = new HtmlCleaner(config, meterRegistry, strategies, dumpService);
     }
 
     @Test
@@ -620,6 +631,25 @@ class HtmlCleanerTest {
 
         assertThat(result.strategyUsed()).isEqualTo(Strategy.FALLBACK);
         assertThat(result.cleanedHtml()).isEqualTo("");
+    }
+
+    @Test
+    void process_passesSessionIdFromThreadLocalToDumpService() {
+        CorrelationFilter.SESSION.set("test-session-123");
+        String html = "<html><body><p>content</p></body></html>";
+
+        htmlCleaner.process(html, "https://example.com");
+
+        verify(dumpService).dump(eq(html), eq("cleanerInput"), eq("html"), eq("test-session-123"));
+    }
+
+    @Test
+    void process_passesNullSessionIdWhenNoSessionSet() {
+        String html = "<html><body><p>content</p></body></html>";
+
+        htmlCleaner.process(html, "https://example.com");
+
+        verify(dumpService).dump(eq(html), eq("cleanerInput"), eq("html"), eq(null));
     }
 
     @Test

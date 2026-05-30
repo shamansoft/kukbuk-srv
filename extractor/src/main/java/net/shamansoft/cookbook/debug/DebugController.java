@@ -20,14 +20,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import net.shamansoft.cookbook.security.CorrelationFilter;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * TESTING CONTROLLER - Only active in local/development environments
@@ -94,15 +94,11 @@ public class DebugController {
     @PostMapping(value = "/v1/recipes", consumes = "application/json", produces = {MediaType.APPLICATION_JSON_VALUE,
             MediaType.TEXT_PLAIN_VALUE})
     public ResponseEntity<?> testTransform(
-            @RequestBody RecipeRequest request,
-            @RequestHeader(value = "X-Session-Id", required = false) String headerSessionId)
+            @RequestBody RecipeRequest request)
             throws IOException, RecipeSerializeException {
 
         long startTime = System.currentTimeMillis();
-        String requestId = UUID.randomUUID().toString().substring(0, 8);
-        String sessionId = (headerSessionId != null && !headerSessionId.isBlank())
-                ? headerSessionId + "." + requestId
-                : requestId;
+        String sessionId = CorrelationFilter.SESSION.get();
 
         log.info("🧪 DEBUG ENDPOINT - /debug/v1/recipes [session: {}]", sessionId);
         log.info("Options: returnFormat={}, cleanHtml={}, skipCache={}, verbose={}",
