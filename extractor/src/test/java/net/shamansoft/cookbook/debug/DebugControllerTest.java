@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.debug;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.strategy.Strategy;
+import net.shamansoft.cookbook.security.CorrelationFilter;
 import net.shamansoft.cookbook.service.ContentHashService;
 import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
@@ -12,6 +13,7 @@ import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +62,12 @@ class DebugControllerTest {
 
         lenient().when(contentHashService.generateContentHash(anyString())).thenReturn("hash-abc123");
         lenient().when(recipeStoreService.findCachedRecipes(anyString())).thenReturn(Optional.empty());
+        CorrelationFilter.SESSION.set("test-session");
+    }
+
+    @AfterEach
+    void tearDown() {
+        CorrelationFilter.SESSION.remove();
     }
 
     private Recipe createTestRecipe(String title) {
@@ -95,7 +103,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml content");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getHeaders().getFirst("X-Is-Recipe")).isEqualTo("true");
@@ -121,7 +129,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlText, "text-input")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getHeaders().getFirst("X-Is-Recipe")).isEqualTo("true");
@@ -136,7 +144,7 @@ class DebugControllerTest {
                 null, null, null, null, null, null, null, null
         );
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isInstanceOf(String.class);
@@ -160,7 +168,7 @@ class DebugControllerTest {
         when(htmlPreprocessor.process(htmlContent, "https://example.com/notrecipe")).thenReturn(cleanResults);
         when(transformer.transform(htmlContent, "https://example.com/notrecipe")).thenReturn(transformResponse);
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getHeaders().getFirst("X-Is-Recipe")).isEqualTo("false");
@@ -186,7 +194,7 @@ class DebugControllerTest {
         when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getHeaders().getFirst("X-Is-Recipe")).isEqualTo("true");
@@ -212,7 +220,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getBody()).isInstanceOf(RecipeResponse.class);
@@ -240,7 +248,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), org.mockito.ArgumentMatchers.any());
@@ -265,11 +273,12 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, "custom-session");
+        CorrelationFilter.SESSION.set("custom-session");
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         RecipeResponse recipeResponse = (RecipeResponse) response.getBody();
-        assertThat(recipeResponse.getMetadata().getSessionId()).startsWith("custom-session");
+        assertThat(recipeResponse.getMetadata().getSessionId()).isEqualTo("custom-session");
     }
 
     @Test
@@ -288,7 +297,7 @@ class DebugControllerTest {
         when(recipeStoreService.findCachedRecipes("hash-abc123")).thenReturn(Optional.of(cached));
         when(validationService.toYaml(recipe)).thenReturn("cached: recipe yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         RecipeResponse recipeResponse = (RecipeResponse) response.getBody();
@@ -307,7 +316,7 @@ class DebugControllerTest {
 
         when(recipeStoreService.findCachedRecipes("hash-abc123")).thenReturn(Optional.of(cached));
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         RecipeResponse recipeResponse = (RecipeResponse) response.getBody();
@@ -334,7 +343,7 @@ class DebugControllerTest {
         when(htmlPreprocessor.process(htmlContent, "https://example.com/recipes")).thenReturn(cleanResults);
         when(transformer.transform(htmlContent, "https://example.com/recipes")).thenReturn(transformResponse);
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         assertThat(response.getBody()).isInstanceOf(RecipeResponse.class);
@@ -358,7 +367,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe"))
                 .thenThrow(new RuntimeException("Transformer error"));
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
         RecipeResponse recipeResponse = (RecipeResponse) response.getBody();
@@ -380,7 +389,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         verify(htmlPreprocessor, never()).process(anyString(), anyString());
@@ -402,7 +411,7 @@ class DebugControllerTest {
         when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
         when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
 
-        ResponseEntity<?> response = controller.testTransform(request, null);
+        ResponseEntity<?> response = controller.testTransform(request);
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         verify(htmlPreprocessor, never()).process(anyString(), anyString());
