@@ -12,12 +12,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class GoogleDriveStorageProvider implements StorageProvider {
 
-    private final GoogleDriveService googleDriveService;
+    private final DriveService googleDriveService;
 
     @Value("${cookbook.drive.folder-name}")
     private String folderName;
 
-    public GoogleDriveStorageProvider(GoogleDriveService googleDriveService) {
+    public GoogleDriveStorageProvider(DriveService googleDriveService) {
         this.googleDriveService = googleDriveService;
     }
 

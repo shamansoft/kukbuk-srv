@@ -47,7 +47,9 @@ class RecipeServiceFromDescriptionTest {
     @Mock
     private ContentHashService contentHashService;
     @Mock
-    private DriveService driveService;
+    private StorageProvider driveService;
+    @Mock
+    private StorageProviderResolver storageProviderResolver;
     @Mock
     private StorageService storageService;
     @Mock
@@ -73,7 +75,10 @@ class RecipeServiceFromDescriptionTest {
 
     @BeforeEach
     void setUp() {
-        recipeService = new RecipeService(contentHashService, driveService, storageService,
+        org.mockito.Mockito.lenient()
+                .when(storageProviderResolver.resolve(any(net.shamansoft.cookbook.dto.StorageType.class)))
+                .thenReturn(driveService);
+        recipeService = new RecipeService(contentHashService, storageProviderResolver, storageService,
                 recipeStoreService, recipeParser, recipeMapper, htmlExtractor,
                 compressor, transformer, validationService, geminiRestTransformer);
         mockStorageInfo = StorageInfo.builder()
