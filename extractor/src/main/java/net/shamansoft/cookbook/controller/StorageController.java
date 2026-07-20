@@ -94,6 +94,72 @@ public class StorageController {
     }
 
     /**
+     * Connect Dropbox storage for the authenticated user.
+     * Mirrors the Google Drive connect flow; provider selection is server-side.
+     */
+    @PostMapping("/dropbox/connect")
+    public ResponseEntity<StorageConnectionResponse> connectDropbox(
+            @RequestAttribute("userId") String userId,
+            @RequestBody @Valid StorageConnectionRequest request) {
+
+        log.info("Connecting Dropbox storage for user: {}", userId);
+        try {
+            StorageService.FolderInfo folderInfo = storageService.connectDropbox(
+                    userId,
+                    request.getAuthorizationCode(),
+                    request.getRedirectUri(),
+                    request.getFolderName());
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(StorageConnectionResponse.success(
+                            "Dropbox connected successfully",
+                            true,
+                            folderInfo.folderId(),
+                            folderInfo.folderName()));
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid Dropbox authorization code for user {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(StorageConnectionResponse.error("Invalid authorization code: " + e.getMessage()));
+        } catch (IllegalStateException e) {
+            log.error("Dropbox OAuth configuration error for user {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(StorageConnectionResponse.error("OAuth error: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Provider-neutral status: returns whichever provider is currently connected.
+     */
+    @GetMapping("/status")
+    public ResponseEntity<StorageStatusResponse> getStatus(
+            @RequestAttribute("userId") String userId) {
+        log.debug("Getting storage status for user: {}", userId);
+        try {
+            StorageInfo info = storageService.getStorageInfo(userId);
+            return ResponseEntity.ok(StorageStatusResponse.fromStorageInfo(info));
+        } catch (StorageNotConnectedException e) {
+            log.debug("Storage not connected for user: {}", userId);
+            return ResponseEntity.ok(StorageStatusResponse.notConnected());
+        }
+    }
+
+    /**
+     * Provider-neutral disconnect: clears whichever provider is connected.
+     */
+    @DeleteMapping("/disconnect")
+    public ResponseEntity<StorageConnectionResponse> disconnect(
+            @RequestAttribute("userId") String userId) {
+        log.info("Disconnecting storage for user: {}", userId);
+        storageService.disconnectStorage(userId);
+        return ResponseEntity.ok(
+                StorageConnectionResponse.success("Storage disconnected successfully", false));
+    }
+
+    /**
      * Disconnect Google Drive storage for the authenticated user.
      * Removes all stored tokens and configuration.
      *
