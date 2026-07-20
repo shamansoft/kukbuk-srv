@@ -27,7 +27,7 @@ public record StorageEntity(String type,
 
     public Map<String, Object> toMap() {
         Map<String, Object> storage = new HashMap<>();
-        storage.put("type", StorageType.GOOGLE_DRIVE.getFirestoreValue());
+        storage.put("type", type != null ? type : StorageType.GOOGLE_DRIVE.getFirestoreValue());
         storage.put("connected", connected);
         storage.put("accessToken", accessToken);
         if (refreshToken != null) {
