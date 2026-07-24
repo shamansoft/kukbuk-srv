@@ -217,7 +217,7 @@ public class DebugController {
                 if (request.isVerbose()) {
                     metadataBuilder
                             .transformationTimeMs(transformTime)
-                            .geminiModel("gemini-2.5-flash-lite"); // TODO: Get from config
+                            .geminiModel("gemini-3.5-flash-lite"); // TODO: Get from config
                 }
 
                 // Dump raw LLM response if flag enabled
