@@ -193,7 +193,7 @@ public class GoogleDrive {
                             .queryParam("fields", "id")
                             .build())
                     .header("Authorization", "Bearer " + authToken)
-                    .contentType(org.springframework.http.MediaType.parseMediaType("application/x-yaml"))
+                    .contentType(new org.springframework.http.MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))
                     .body(content)
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
