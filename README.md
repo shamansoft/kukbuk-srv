@@ -13,7 +13,7 @@ native image compilation, and deployment to Google Cloud Run. Current version: *
 - **Java 21** with Spring Boot 3.4.2 for the REST API
 - **Gradle 9.2.0** for building and dependency management
 - **GraalVM Native Image** for fast startup and low memory footprint
-- **Gemini AI** (gemini-3.5-flash-lite) for intelligent recipe extraction
+- **Gemini AI** (gemini-2.5-flash-lite) for intelligent recipe extraction
 - **Docker** for containerization
 - **GitHub Actions** for CI/CD automation (Java 25 for builds)
 - **OpenTofu/Terraform** for infrastructure as code
