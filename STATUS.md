@@ -1,5 +1,5 @@
 # sar-srv — Status
-_Last updated: 2026-06-19_
+_Last updated: 2026-07-25_
 
 ## What this is
 The Spring Boot backend for the SAR / MyKukBuk recipe product. It extracts structured recipes from
@@ -19,7 +19,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - **Quality:** JaCoCo (40% min enforced; currently ~80%), OWASP Dependency Check (fails on CVSS ≥ 7.0)
 
 ## Current status
-- **Overall:** Mature and in production. Version `0.15.7-SNAPSHOT`. Actively maintained.
+- **Overall:** Mature and in production. Version `0.15.10-SNAPSHOT`. Actively maintained.
 - **Implemented / working:**
   - Recipe extraction from HTML (`POST /v1/recipes`) and free-text (`POST /v1/recipes/custom`)
   - Multi-recipe extraction (a page yielding several recipes) + adaptive HTML cleaning chain
@@ -45,6 +45,9 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 | OpenAPI YAML generation via build | Planned | [docs/plans/20260315-openapi-yaml-generation.md](docs/plans/20260315-openapi-yaml-generation.md) |
 
 ## Recent milestones
+- Fixed UTF-8 encoding loss on new-recipe uploads to Google Drive (non-ASCII text was mangled on write)
+- Gemini generation-parameter tuning; model bumped to `gemini-3.5-flash-lite` then reverted to `gemini-2.5-flash-lite`
+- Extraction prompts updated to preserve the source language instead of translating to English
 - Spring Boot 3.5.9 → 4.0.1 migration (Java 21 → 25, Jackson 2 → 3, GraalVM 25)
 - Recipe post-processing (deterministic fields after validation)
 - YouTube recipe extraction (async Cloud Tasks pipeline)

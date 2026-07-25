@@ -67,7 +67,7 @@
               "language": {
                 "type": "string",
                 "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
-                "description": "The BCP 47 language tag of the recipe (e.g., 'en', 'ru', 'fr', 'en/us')."
+                "description": "Language code 'en' or region format 'en/us' (e.g., 'en', 'ru', 'fr', 'en/us')."
               },
               "date_created": {
                 "type": "string",
