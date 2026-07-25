@@ -1,5 +1,7 @@
 # Multi-Recipe Feature - Implementation Notes
 
+_Status: completed and shipped. Related: [adaptive-cleaning-chain-and-multi-recipe.md](adaptive-cleaning-chain-and-multi-recipe.md) (the design plan)._
+
 ## Cache Redesign: YAML → JSON (2026-02-17)
 
 **Problem**: Multi-recipe support required caching multiple recipes per page, but cache stored YAML strings.
