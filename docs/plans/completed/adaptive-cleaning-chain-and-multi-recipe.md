@@ -1,5 +1,7 @@
 # Plan: Adaptive HTML Cleaning Chain and Multi-Recipe Extraction
 
+_Status: completed and shipped (`AdaptiveCleaningTransformerService`, `GeminiExtractionResult`, `RecipeItemResult` are in the codebase; multi-recipe responses are live). Note: the as-built version kept `recipe-schema-1.0.0.json` rather than introducing `2.0.0` as this plan proposed. Related: [multi-recipe-implementation-notes.md](multi-recipe-implementation-notes.md)._
+
 ## Overview
 
 Two interrelated features:
