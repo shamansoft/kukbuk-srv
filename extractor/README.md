@@ -101,7 +101,7 @@ cookbook:
   gemini:
     api-key: "YOUR_GEMINI_API_KEY"
     base-url: "https://generativelanguage.googleapis.com/v1beta"
-    model: "gemini-2.5-flash-lite"
+    model: "gemini-3.5-flash-lite"
     temperature: 0.1
     top-p: 0.8
     max-output-tokens: 4096
