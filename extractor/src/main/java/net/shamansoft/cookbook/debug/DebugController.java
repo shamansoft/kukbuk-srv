@@ -11,6 +11,8 @@ import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
+import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +59,7 @@ public class DebugController {
     private final ContentHashService contentHashService;
     private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
+    private final GeminiRestTransformer geminiRestTransformer;
 
     // DumpService is optional - only available in local profile
     @Autowired(required = false)
@@ -111,6 +114,20 @@ public class DebugController {
                     .body("{\"error\": \"Either 'url' or 'text' field is required\"}");
         }
 
+        GenerationOverrides overrides = request.overrides();
+        boolean hasOverrides = !overrides.isEmpty();
+        if (hasOverrides) {
+            String overridesError = overrides.validationError();
+            if (overridesError != null) {
+                return ResponseEntity.badRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\": \"" + overridesError + "\"}");
+            }
+        }
+        // Tuning calls are never cached: a result produced with non-default generation
+        // parameters must never be read back as (or overwrite) the canonical cached recipe.
+        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides;
+
         // Build response with metadata tracking
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder();
         RecipeResponse.ProcessingMetadata.ProcessingMetadataBuilder metadataBuilder = request.isVerbose()
@@ -128,7 +145,7 @@ public class DebugController {
                 metadataBuilder.contentHash(contentHash);
             }
 
-            if (!request.isSkipCache()) {
+            if (!effectiveSkipCache) {
                 Optional<RecipeStoreService.CachedRecipes> cached = recipeStoreService.findCachedRecipes(contentHash);
                 if (cached.isPresent()) {
                     cacheHit = true;
@@ -211,13 +228,15 @@ public class DebugController {
                 }
 
                 // 2c. Transform to Recipe using Gemini
-                transformResponse = transformer.transform(preprocessed.cleanedHtml(), url);
+                transformResponse = hasOverrides
+                        ? geminiRestTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
+                        : transformer.transform(preprocessed.cleanedHtml(), url);
 
                 long transformTime = System.currentTimeMillis() - transformStart;
                 if (request.isVerbose()) {
                     metadataBuilder
                             .transformationTimeMs(transformTime)
-                            .geminiModel("gemini-3.5-flash-lite"); // TODO: Get from config
+                            .geminiModel(overrides.model() != null ? overrides.model() : "gemini-2.5-flash-lite"); // TODO: Get non-override default from config
                 }
 
                 // Dump raw LLM response if flag enabled
@@ -234,8 +253,8 @@ public class DebugController {
                     }
                 }
 
-                // 2d. Cache result (unless skipCache=true)
-                if (!request.isSkipCache()) {
+                // 2d. Cache result (unless skipCache=true, or generation overrides were used)
+                if (!effectiveSkipCache) {
                     if (transformResponse.isRecipe()) {
                         recipeStoreService.storeValidRecipes(contentHash, url, transformResponse.recipes());
                         log.info("Cached {} recipe(s) - Hash: {}", transformResponse.recipes().size(), contentHash);

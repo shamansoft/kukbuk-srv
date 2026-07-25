@@ -6,6 +6,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("RecipeRequest tests")
@@ -14,49 +16,49 @@ class RecipeRequestTest {
     @Test
     @DisplayName("hasUrl returns true when url is set")
     void hasUrlTrue() {
-        RecipeRequest request = new RecipeRequest("https://example.com", null, null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest("https://example.com", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasUrl()).isTrue();
     }
 
     @Test
     @DisplayName("hasUrl returns false when url is null")
     void hasUrlFalseNull() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasUrl()).isFalse();
     }
 
     @Test
     @DisplayName("hasUrl returns false when url is empty")
     void hasUrlFalseEmpty() {
-        RecipeRequest request = new RecipeRequest("", "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest("", "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasUrl()).isFalse();
     }
 
     @Test
     @DisplayName("hasText returns true when text is set")
     void hasTextTrue() {
-        RecipeRequest request = new RecipeRequest(null, "<html>content</html>", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "<html>content</html>", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasText()).isTrue();
     }
 
     @Test
     @DisplayName("hasText returns false when text is null")
     void hasTextFalseNull() {
-        RecipeRequest request = new RecipeRequest("https://example.com", null, null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest("https://example.com", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasText()).isFalse();
     }
 
     @Test
     @DisplayName("hasText returns false when text is empty")
     void hasTextFalseEmpty() {
-        RecipeRequest request = new RecipeRequest("https://example.com", "", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest("https://example.com", "", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.hasText()).isFalse();
     }
 
     @Test
     @DisplayName("getReturnFormat defaults to 'yaml' when null")
     void getReturnFormatDefaultYaml() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getReturnFormat()).isEqualTo("yaml");
     }
 
@@ -64,21 +66,21 @@ class RecipeRequestTest {
     @ValueSource(strings = {"YAML", "Yaml", "YaMl"})
     @DisplayName("getReturnFormat normalizes to lowercase")
     void getReturnFormatLowercase(String format) {
-        RecipeRequest request = new RecipeRequest(null, "text", null, format, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, format, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getReturnFormat()).isEqualTo("yaml");
     }
 
     @Test
     @DisplayName("getReturnFormat returns 'json' in lowercase")
     void getReturnFormatJson() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, "JSON", null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, "JSON", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getReturnFormat()).isEqualTo("json");
     }
 
     @Test
     @DisplayName("getCleanHtml defaults to 'auto' when null")
     void getCleanHtmlDefaultAuto() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getCleanHtml()).isEqualTo("auto");
     }
 
@@ -86,7 +88,7 @@ class RecipeRequestTest {
     @ValueSource(strings = {"AUTO", "Auto", "AuTo"})
     @DisplayName("getCleanHtml normalizes to lowercase")
     void getCleanHtmlLowercase(String strategy) {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, strategy, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, strategy, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getCleanHtml()).isEqualTo("auto");
     }
 
@@ -105,91 +107,91 @@ class RecipeRequestTest {
     })
     @DisplayName("getCleanHtml handles all valid strategies")
     void getCleanHtmlStrategies(String input, String expected) {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, input, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, input, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.getCleanHtml()).isEqualTo(expected);
     }
 
     @Test
     @DisplayName("isSkipCache returns false when null")
     void isSkipCacheFalseNull() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isSkipCache()).isFalse();
     }
 
     @Test
     @DisplayName("isSkipCache returns true when true")
     void isSkipCacheTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, true, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isSkipCache()).isTrue();
     }
 
     @Test
     @DisplayName("isSkipCache returns false when false")
     void isSkipCacheFalse() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, false, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isSkipCache()).isFalse();
     }
 
     @Test
     @DisplayName("isVerbose returns false when null")
     void isVerboseFalseNull() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isVerbose()).isFalse();
     }
 
     @Test
     @DisplayName("isVerbose returns true when true")
     void isVerboseTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, true, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isVerbose()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpRawHtml returns true when true")
     void isDumpRawHtmlTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, true, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpRawHtml()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpExtractedHtml returns true when true")
     void isDumpExtractedHtmlTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, true, null, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpExtractedHtml()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpCleanedHtml returns true when true")
     void isDumpCleanedHtmlTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, true, null, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpCleanedHtml()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpLLMResponse returns true when true")
     void isDumpLLMResponseTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, true, null, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpLLMResponse()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpResultJson returns true when true")
     void isDumpResultJsonTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, true, null);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpResultJson()).isTrue();
     }
 
     @Test
     @DisplayName("isDumpResultYaml returns true when true")
     void isDumpResultYamlTrue() {
-        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, true);
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpResultYaml()).isTrue();
     }
 
     @Test
     @DisplayName("All dump flags default to false when null")
     void allDumpFlagsDefaultFalse() {
-        RecipeRequest request = new RecipeRequest("url", "text", null, "json", "raw", true, true, null, null, null, null, null, null);
+        RecipeRequest request = new RecipeRequest("url", "text", null, "json", "raw", true, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         assertThat(request.isDumpRawHtml()).isFalse();
         assertThat(request.isDumpExtractedHtml()).isFalse();
         assertThat(request.isDumpCleanedHtml()).isFalse();
@@ -203,7 +205,8 @@ class RecipeRequestTest {
     void allBooleanFieldsIndependent() {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com", null, null, "json", "raw",
-                true, true, true, false, true, false, null, null
+                true, true, true, false, true, false, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
 
         assertThat(request.isSkipCache()).isTrue();
@@ -212,5 +215,46 @@ class RecipeRequestTest {
         assertThat(request.isDumpExtractedHtml()).isFalse();
         assertThat(request.isDumpCleanedHtml()).isTrue();
         assertThat(request.isDumpLLMResponse()).isFalse();
+    }
+
+    @Test
+    @DisplayName("overrides returns empty GenerationOverrides when no override fields set")
+    void overridesEmptyWhenNoOverrideFieldsSet() {
+        RecipeRequest request = new RecipeRequest(null, "text", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        assertThat(request.overrides().isEmpty()).isTrue();
+    }
+
+    @Test
+    @DisplayName("overrides carries through provided generation parameter values")
+    void overridesCarriesThroughProvidedValues() {
+        RecipeRequest request = new RecipeRequest(
+                null, "text", null, null, null, null, null, null, null, null, null, null, null,
+                0.4f, 0.6, 2048, 100, "gemini-2.5-flash", null, null, null, null, null
+        );
+
+        var overrides = request.overrides();
+        assertThat(overrides.isEmpty()).isFalse();
+        assertThat(overrides.temperature()).isEqualTo(0.4f);
+        assertThat(overrides.topP()).isEqualTo(0.6);
+        assertThat(overrides.maxOutputTokens()).isEqualTo(2048);
+        assertThat(overrides.thinkingBudget()).isEqualTo(100);
+        assertThat(overrides.model()).isEqualTo("gemini-2.5-flash");
+    }
+
+    @Test
+    @DisplayName("overrides carries through the newly added generation parameter values")
+    void overridesCarriesThroughNewParameterValues() {
+        RecipeRequest request = new RecipeRequest(
+                null, "text", null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, 40, 42, 0.5f, -0.5f, List.of("END", "STOP")
+        );
+
+        var overrides = request.overrides();
+        assertThat(overrides.isEmpty()).isFalse();
+        assertThat(overrides.topK()).isEqualTo(40);
+        assertThat(overrides.seed()).isEqualTo(42);
+        assertThat(overrides.presencePenalty()).isEqualTo(0.5f);
+        assertThat(overrides.frequencyPenalty()).isEqualTo(-0.5f);
+        assertThat(overrides.stopSequences()).containsExactly("END", "STOP");
     }
 }

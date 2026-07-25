@@ -33,14 +33,28 @@ public class GeminiClient {
     }
 
     public <T> GeminiResponse<T> request(GeminiRequest geminiRequest, Class<T> clazz) {
+        return request(geminiRequest, clazz, null);
+    }
+
+    /**
+     * Debug-only entry point: same as {@link #request(GeminiRequest, Class)} but allows
+     * overriding the target model for tuning. Resolves the URL into a local variable rather
+     * than mutating the shared {@code url}/{@code model} fields, since this bean is a singleton
+     * and requests may run concurrently.
+     */
+    public <T> GeminiResponse<T> request(GeminiRequest geminiRequest, Class<T> clazz, String modelOverride) {
         // Null safety checks
         Objects.requireNonNull(geminiRequest, "geminiRequest cannot be null");
         Objects.requireNonNull(clazz, "clazz cannot be null");
 
+        String requestUrl = modelOverride != null
+                ? "/models/%s:generateContent".formatted(modelOverride)
+                : this.url;
+
         JsonNode response;
         try {
             response = geminiRestClient.post()
-                    .uri(url)
+                    .uri(requestUrl)
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
                     .body(objectMapper.writeValueAsString(geminiRequest))

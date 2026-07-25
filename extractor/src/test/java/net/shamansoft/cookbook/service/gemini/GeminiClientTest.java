@@ -304,6 +304,79 @@ class GeminiClientTest {
         assertThat(url).isEqualTo("/models/gemini-2.0-flash:generateContent");
     }
 
+    @Test
+    void requestWithModelOverrideUsesOverrideUrlInsteadOfConfigured() throws JacksonException {
+        // Given - configured model is gemini-2.0-flash (see setUp), override to a different model
+        GeminiRequest request = createSampleRequest();
+        String geminiResponseJson = """
+                {
+                  "candidates": [
+                    {
+                      "content": {"parts": [{"text": "{\\"title\\": \\"Test Recipe\\"}"}]},
+                      "finishReason": "STOP"
+                    }
+                  ]
+                }
+                """;
+        setupSuccessfulRestClientMock(geminiResponseJson);
+
+        // When
+        GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class, "gemini-2.5-pro");
+
+        // Then
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.SUCCESS);
+        org.mockito.Mockito.verify(requestBodyUriSpec).uri("/models/gemini-2.5-pro:generateContent");
+    }
+
+    @Test
+    void requestWithNullModelOverrideUsesConfiguredUrl() throws JacksonException {
+        // Given
+        GeminiRequest request = createSampleRequest();
+        String geminiResponseJson = """
+                {
+                  "candidates": [
+                    {
+                      "content": {"parts": [{"text": "{\\"title\\": \\"Test Recipe\\"}"}]},
+                      "finishReason": "STOP"
+                    }
+                  ]
+                }
+                """;
+        setupSuccessfulRestClientMock(geminiResponseJson);
+
+        // When
+        GeminiResponse<TestRecipe> response = geminiClient.request(request, TestRecipe.class, null);
+
+        // Then
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.SUCCESS);
+        org.mockito.Mockito.verify(requestBodyUriSpec).uri("/models/gemini-2.0-flash:generateContent");
+    }
+
+    @Test
+    void requestWithModelOverrideDoesNotMutateConfiguredUrlField() throws JacksonException {
+        // Given - a model-override call must not leak into the shared instance state
+        // (GeminiClient is a singleton bean; mutating `this.url` would race across concurrent requests)
+        GeminiRequest request = createSampleRequest();
+        String geminiResponseJson = """
+                {
+                  "candidates": [
+                    {
+                      "content": {"parts": [{"text": "{\\"title\\": \\"Test Recipe\\"}"}]},
+                      "finishReason": "STOP"
+                    }
+                  ]
+                }
+                """;
+        setupSuccessfulRestClientMock(geminiResponseJson);
+
+        // When
+        geminiClient.request(request, TestRecipe.class, "gemini-2.5-pro");
+
+        // Then
+        String url = (String) ReflectionTestUtils.getField(geminiClient, "url");
+        assertThat(url).isEqualTo("/models/gemini-2.0-flash:generateContent");
+    }
+
     private GeminiRequest createSampleRequest() {
         return GeminiRequest.builder()
                 .contents(List.of(

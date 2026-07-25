@@ -440,4 +440,143 @@ class RequestBuilderTest {
         assertThat(systemText).doesNotContain("Ignore previous instructions");
         assertThat(systemText).doesNotContain("is_recipe");
     }
+
+    @Test
+    void buildRequestWithOverridesUsesOverrideValuesInsteadOfConfigured() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 100, null, null, null, null, null, null);
+
+        // When
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+
+        // Then
+        assertThat(request.getGenerationConfig().getTemperature()).isEqualTo(0.2f);
+        assertThat(request.getGenerationConfig().getTopP()).isEqualTo(0.5);
+        assertThat(request.getGenerationConfig().getMaxOutputTokens()).isEqualTo(2048);
+        assertThat(request.getGenerationConfig().getThinkingConfig().getThinkingBudget()).isEqualTo(100);
+    }
+
+    @Test
+    void buildRequestWithPartialOverridesFallsBackToConfiguredForUnsetFields() throws JacksonException {
+        // Given - only temperature overridden, everything else should use configured defaults
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null);
+
+        // When
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+
+        // Then
+        assertThat(request.getGenerationConfig().getTemperature()).isEqualTo(0.3f);
+        assertThat(request.getGenerationConfig().getTopP()).isEqualTo(0.9f);
+        assertThat(request.getGenerationConfig().getMaxOutputTokens()).isEqualTo(4096);
+    }
+
+    @Test
+    void buildRequestWithNullOverridesBehavesLikeNoOverrides() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+
+        // When
+        GeminiRequest withNullOverrides = requestBuilder.buildRequest(htmlContent, null);
+        GeminiRequest withoutOverrides = requestBuilder.buildRequest(htmlContent);
+
+        // Then
+        assertThat(withNullOverrides.getGenerationConfig().getTemperature())
+                .isEqualTo(withoutOverrides.getGenerationConfig().getTemperature());
+        assertThat(withNullOverrides.getGenerationConfig().getTopP())
+                .isEqualTo(withoutOverrides.getGenerationConfig().getTopP());
+    }
+
+    @Test
+    void buildRequestWithOverridesNeverOverridesSafetyThreshold() throws JacksonException {
+        // Given - safetyThreshold has no field on GenerationOverrides at all, this proves
+        // that even with other overrides set, safety settings stay pinned to configuration.
+        String htmlContent = "<html></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, 0.99, 100, 50, null, null, null, null, null, null);
+
+        // When
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+
+        // Then
+        assertThat(request.getSafetySettings()).hasSize(4);
+        request.getSafetySettings().forEach(setting -> assertThat(setting.getThreshold()).isEqualTo("BLOCK_NONE"));
+    }
+
+    @Test
+    void buildRequestWithOverridesThrowsExceptionWhenHtmlContentIsNull() {
+        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> requestBuilder.buildRequest(null, overrides))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("htmlContent cannot be null");
+    }
+
+    @Test
+    void buildRequestFromDescriptionWithOverridesUsesOverrideValues() throws JacksonException {
+        // Given
+        String description = "Mix flour and eggs. Fry until golden.";
+        GenerationOverrides overrides = new GenerationOverrides(0.1f, 0.4, 1024, null, null, null, null, null, null, null);
+
+        // When
+        GeminiRequest request = requestBuilder.buildRequestFromDescription(description, overrides);
+
+        // Then
+        assertThat(request.getGenerationConfig().getTemperature()).isEqualTo(0.1f);
+        assertThat(request.getGenerationConfig().getTopP()).isEqualTo(0.4);
+        assertThat(request.getGenerationConfig().getMaxOutputTokens()).isEqualTo(1024);
+        String userContent = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(userContent).contains("<USER_DESCRIPTION>");
+        assertThat(userContent).contains(description);
+    }
+
+    @Test
+    void buildRequestFromDescriptionWithOverridesThrowsExceptionWhenDescriptionIsNull() {
+        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> requestBuilder.buildRequestFromDescription(null, overrides))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("description cannot be null");
+    }
+
+    @Test
+    void buildRequestWithOverridesSetsNewGenerationParamsWhenProvided() throws JacksonException {
+        String htmlContent = "<html></html>";
+        GenerationOverrides overrides = new GenerationOverrides(
+                null, null, null, null, null, 40, 42, 0.5f, -0.5f, List.of("END", "STOP"));
+
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+
+        assertThat(request.getGenerationConfig().getTopK()).isEqualTo(40);
+        assertThat(request.getGenerationConfig().getSeed()).isEqualTo(42);
+        assertThat(request.getGenerationConfig().getPresencePenalty()).isEqualTo(0.5f);
+        assertThat(request.getGenerationConfig().getFrequencyPenalty()).isEqualTo(-0.5f);
+        assertThat(request.getGenerationConfig().getStopSequences()).containsExactly("END", "STOP");
+    }
+
+    @Test
+    void buildRequestWithoutOverridesLeavesNewGenerationParamsUnset() throws JacksonException {
+        String htmlContent = "<html></html>";
+
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent);
+
+        assertThat(request.getGenerationConfig().getTopK()).isNull();
+        assertThat(request.getGenerationConfig().getSeed()).isNull();
+        assertThat(request.getGenerationConfig().getPresencePenalty()).isNull();
+        assertThat(request.getGenerationConfig().getFrequencyPenalty()).isNull();
+        assertThat(request.getGenerationConfig().getStopSequences()).isNull();
+    }
+
+    @Test
+    void buildRequestWithOverridesLeavesNewGenerationParamsUnsetWhenNotProvided() throws JacksonException {
+        // Given - overrides object present (temperature set) but new fields left null
+        String htmlContent = "<html></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.4f, null, null, null, null, null, null, null, null, null);
+
+        GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+
+        assertThat(request.getGenerationConfig().getTopK()).isNull();
+        assertThat(request.getGenerationConfig().getSeed()).isNull();
+        assertThat(request.getGenerationConfig().getStopSequences()).isNull();
+    }
 }

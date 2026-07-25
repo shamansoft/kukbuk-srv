@@ -9,6 +9,8 @@ import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
+import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,6 +48,7 @@ class DebugControllerTest {
     @Mock private ContentHashService contentHashService;
     @Mock private RecipeStoreService recipeStoreService;
     @Mock private RecipeParser recipeParser;
+    @Mock private GeminiRestTransformer geminiRestTransformer;
 
     private DebugController controller;
 
@@ -57,7 +61,8 @@ class DebugControllerTest {
                 validationService,
                 contentHashService,
                 recipeStoreService,
-                recipeParser
+                recipeParser,
+                geminiRestTransformer
         );
 
         lenient().when(contentHashService.generateContentHash(anyString())).thenReturn("hash-abc123");
@@ -89,7 +94,8 @@ class DebugControllerTest {
     void testTransformWithUrlHappyPath() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -117,7 +123,8 @@ class DebugControllerTest {
         String htmlText = "<html><body>Recipe content</body></html>";
         RecipeRequest request = new RecipeRequest(
                 null, htmlText, null, "yaml", "auto",
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Test Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -141,7 +148,8 @@ class DebugControllerTest {
     void testTransformWithoutUrlOrText() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 null, null, null, "yaml", "auto",
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -156,7 +164,8 @@ class DebugControllerTest {
     void testTransformNotRecipeYamlFormat() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Not a recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -181,7 +190,8 @@ class DebugControllerTest {
     void testTransformJsonFormat() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -206,7 +216,8 @@ class DebugControllerTest {
     void testTransformVerboseMode() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                null, true, null, null, null, null, null, null
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -230,11 +241,38 @@ class DebugControllerTest {
     }
 
     @Test
+    @DisplayName("testTransform with model override reports the overridden model in verbose metadata")
+    void testTransformVerboseModeReportsOverriddenModel() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, "gemini-3.5-flash-lite", null, null, null, null, null
+        );
+        String htmlContent = "<html><body>Recipe</body></html>";
+        Recipe recipe = createTestRecipe("Test Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        Transformer.Response transformResponse = Transformer.Response.recipe(recipe);
+
+        when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
+        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(net.shamansoft.cookbook.service.gemini.GenerationOverrides.class)))
+                .thenReturn(transformResponse);
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        RecipeResponse recipeResponse = (RecipeResponse) response.getBody();
+        assertThat(recipeResponse.getMetadata().getGeminiModel()).isEqualTo("gemini-3.5-flash-lite");
+    }
+
+    @Test
     @DisplayName("testTransform with skipCache option")
     void testTransformSkipCache() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                true, null, null, null, null, null, null, null
+                true, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -259,7 +297,8 @@ class DebugControllerTest {
     void testTransformCustomSessionHeader() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                null, true, null, null, null, null, null, null
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -286,7 +325,8 @@ class DebugControllerTest {
     void testTransformCacheHitValidRecipe() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                null, true, null, null, null, null, null, null
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Cached Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -310,7 +350,8 @@ class DebugControllerTest {
     void testTransformCacheHitInvalidRecipe() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
-                null, true, null, null, null, null, null, null
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         RecipeStoreService.CachedRecipes cached = new RecipeStoreService.CachedRecipes(false, List.of());
 
@@ -329,7 +370,8 @@ class DebugControllerTest {
     void testTransformMultipleRecipes() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipes", null, null, "json", "auto",
-                null, false, null, null, null, null, null, null
+                null, false, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Multiple recipes</body></html>";
         Recipe recipe1 = createTestRecipe("Recipe 1");
@@ -355,7 +397,8 @@ class DebugControllerTest {
     void testTransformTransformerException() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
-                null, true, null, null, null, null, null, null
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -379,7 +422,8 @@ class DebugControllerTest {
     void testTransformRawHtmlStrategy() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "raw",
-                null, false, null, null, null, null, null, null
+                null, false, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -401,7 +445,8 @@ class DebugControllerTest {
     void testTransformDisabledCleaning() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "disabled",
-                null, false, null, null, null, null, null, null
+                null, false, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -415,5 +460,127 @@ class DebugControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
         verify(htmlPreprocessor, never()).process(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with generation overrides routes to GeminiRestTransformer directly")
+    void testTransformWithOverridesRoutesToGeminiRestTransformer() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, false, null, null, null, null, null, null,
+                0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null
+        );
+        String htmlContent = "<html><body>Recipe</body></html>";
+        Recipe recipe = createTestRecipe("Tuned Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        Transformer.Response transformResponse = Transformer.Response.recipe(recipe);
+
+        when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
+        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenReturn(transformResponse);
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+        verify(geminiRestTransformer).transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class));
+        verify(transformer, never()).transform(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform without overrides never calls GeminiRestTransformer")
+    void testTransformWithoutOverridesNeverCallsGeminiRestTransformer() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "yaml", "auto",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
+        );
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        Recipe recipe = createTestRecipe("Test Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        Transformer.Response transformResponse = Transformer.Response.recipe(recipe);
+
+        when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
+        when(transformer.transform(htmlContent, "https://example.com/recipe")).thenReturn(transformResponse);
+        when(validationService.toYaml(recipe)).thenReturn("recipe: yaml content");
+
+        controller.testTransform(request);
+
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("testTransform with invalid override returns bad request and touches nothing else")
+    void testTransformWithInvalidOverrideReturnsBadRequest() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                3.0f, null, null, null, null, null, null, null, null, null
+        );
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).containsIgnoringCase("temperature");
+        verify(htmlExtractor, never()).extractHtml(anyString(), any());
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+        verify(recipeStoreService, never()).findCachedRecipes(anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with overrides forces skipCache on read even when skipCache not set")
+    void testTransformWithOverridesForcesSkipCacheOnRead() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                0.2f, null, null, null, null, null, null, null, null, null
+        );
+        String htmlContent = "<html><body>Recipe</body></html>";
+        Recipe recipe = createTestRecipe("Tuned Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        Transformer.Response transformResponse = Transformer.Response.recipe(recipe);
+
+        when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
+        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenReturn(transformResponse);
+
+        controller.testTransform(request);
+
+        verify(recipeStoreService, never()).findCachedRecipes(anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with overrides forces skipCache on write even when skipCache not set")
+    void testTransformWithOverridesForcesSkipCacheOnWrite() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                0.2f, null, null, null, null, null, null, null, null, null
+        );
+        String htmlContent = "<html><body>Recipe</body></html>";
+        Recipe recipe = createTestRecipe("Tuned Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        Transformer.Response transformResponse = Transformer.Response.recipe(recipe);
+
+        when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
+        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenReturn(transformResponse);
+
+        controller.testTransform(request);
+
+        verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
+        verify(recipeStoreService, never()).storeInvalidRecipe(anyString(), anyString());
     }
 }

@@ -83,7 +83,16 @@ public class RequestBuilder {
 
     public GeminiRequest buildRequest(String htmlContent) throws JacksonException {
         Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
-        return buildRequestBodyWithSchema(htmlSystemPrompt, withHtml(htmlContent));
+        return buildRequestBodyWithSchema(htmlSystemPrompt, withHtml(htmlContent), null);
+    }
+
+    /**
+     * Debug-only entry point: same as {@link #buildRequest(String)} but allows overriding
+     * generation parameters for tuning. safetyThreshold is never affected by overrides.
+     */
+    public GeminiRequest buildRequest(String htmlContent, GenerationOverrides overrides) throws JacksonException {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
+        return buildRequestBodyWithSchema(htmlSystemPrompt, withHtml(htmlContent), overrides);
     }
 
     public GeminiRequest buildRequest(String htmlContent, Recipe feedback, String validationError)
@@ -91,16 +100,37 @@ public class RequestBuilder {
         Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
         Objects.requireNonNull(feedback, "feedback cannot be null");
         Objects.requireNonNull(validationError, "validationError cannot be null");
-        return buildRequestBodyWithSchema(htmlSystemPrompt, withHtmlAndFeedback(htmlContent, feedback, validationError));
+        return buildRequestBodyWithSchema(htmlSystemPrompt, withHtmlAndFeedback(htmlContent, feedback, validationError), null);
     }
 
     public GeminiRequest buildRequestFromDescription(String description) throws JacksonException {
         Objects.requireNonNull(description, "description cannot be null");
         return buildRequestBodyWithSchema(descSystemPrompt,
-                DESC_USER_TEMPLATE.replace("%s", description.replace("</USER_DESCRIPTION>", "")));
+                DESC_USER_TEMPLATE.replace("%s", description.replace("</USER_DESCRIPTION>", "")), null);
     }
 
-    private GeminiRequest buildRequestBodyWithSchema(String systemPromptText, String userContent) {
+    /**
+     * Debug-only entry point: same as {@link #buildRequestFromDescription(String)} but allows
+     * overriding generation parameters for tuning.
+     */
+    public GeminiRequest buildRequestFromDescription(String description, GenerationOverrides overrides)
+            throws JacksonException {
+        Objects.requireNonNull(description, "description cannot be null");
+        return buildRequestBodyWithSchema(descSystemPrompt,
+                DESC_USER_TEMPLATE.replace("%s", description.replace("</USER_DESCRIPTION>", "")), overrides);
+    }
+
+    private GeminiRequest buildRequestBodyWithSchema(String systemPromptText, String userContent,
+                                                       GenerationOverrides overrides) {
+        float effTemperature = overrides != null && overrides.temperature() != null
+                ? overrides.temperature() : temperature;
+        double effTopP = overrides != null && overrides.topP() != null
+                ? overrides.topP() : topP;
+        int effMaxOutputTokens = overrides != null && overrides.maxOutputTokens() != null
+                ? overrides.maxOutputTokens() : maxOutputTokens;
+        int effThinkingBudget = overrides != null && overrides.thinkingBudget() != null
+                ? overrides.thinkingBudget() : thinkingBudget;
+
         return GeminiRequest.builder()
                 .systemInstruction(GeminiRequest.Content.builder()
                         .parts(List.of(
@@ -117,14 +147,19 @@ public class RequestBuilder {
                                                 .build()))
                                 .build()))
                 .generationConfig(GeminiRequest.GenerationConfig.builder()
-                        .temperature(temperature)
-                        .topP(topP)
-                        .maxOutputTokens(maxOutputTokens)
+                        .temperature(effTemperature)
+                        .topP(effTopP)
+                        .maxOutputTokens(effMaxOutputTokens)
                         .responseMimeType("application/json")
                         .responseSchema(parsedJsonSchema)
                         .thinkingConfig(GeminiRequest.ThinkingConfig.builder()
-                                .thinkingBudget(thinkingBudget)
+                                .thinkingBudget(effThinkingBudget)
                                 .build())
+                        .topK(overrides != null ? overrides.topK() : null)
+                        .seed(overrides != null ? overrides.seed() : null)
+                        .presencePenalty(overrides != null ? overrides.presencePenalty() : null)
+                        .frequencyPenalty(overrides != null ? overrides.frequencyPenalty() : null)
+                        .stopSequences(overrides != null ? overrides.stopSequences() : null)
                         .build())
                 .safetySettings(List.of(
                         GeminiRequest.SafetySetting.builder().category("HARM_CATEGORY_HARASSMENT")

@@ -67,6 +67,24 @@ public class GeminiRequest {
         @JsonProperty
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private ThinkingConfig thinkingConfig;
+
+        // Debug-tuning-only fields below: unset (null/omitted) unless a debug request
+        // explicitly overrides them. Production requests never set these.
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Integer topK;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Integer seed;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Float presencePenalty;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Float frequencyPenalty;
+        @JsonProperty
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private List<String> stopSequences;
     }
 
     @Builder
