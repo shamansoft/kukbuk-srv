@@ -375,7 +375,8 @@ class GoogleDriveTest {
         when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
         when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
         when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
+        when(mockUploadReqBodySpec.contentType(eq(new MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))))
+                .thenReturn(mockUploadReqBodySpec);
         doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
         when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
 
