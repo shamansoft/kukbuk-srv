@@ -467,6 +467,127 @@ class GeminiRestTransformerTest {
     }
 
     @Test
+    void transformWithOverridesUsesOverridesRequestBuilderAndPassesModelToClient() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 50, "gemini-2.5-pro", null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = recipeResult("Tuned Recipe");
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq("gemini-2.5-pro")))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transformWithOverrides(htmlContent, overrides);
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipe().metadata().title()).isEqualTo("Tuned Recipe");
+
+        verify(requestBuilder).buildRequest(eq(htmlContent), eq(overrides));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class), eq("gemini-2.5-pro"));
+        verify(requestBuilder, never()).buildRequest(anyString());
+    }
+
+    @Test
+    void transformWithOverridesPassesNullModelWhenOverridesHasNoModel() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, null, null, null, null, null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = recipeResult("Tuned Recipe");
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq((String) null)))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        transformer.transformWithOverrides(htmlContent, overrides);
+
+        // Then
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class), eq((String) null));
+    }
+
+    @Test
+    void transformWithOverridesReturnsNonRecipeWhenIsRecipeIsFalse() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Not a recipe</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq((String) null)))
+                .thenReturn(GeminiResponse.success(nonRecipeResult(0.1), "{\"is_recipe\": false}"));
+
+        // When
+        Transformer.Response response = transformer.transformWithOverrides(htmlContent, overrides);
+
+        // Then
+        assertThat(response.isRecipe()).isFalse();
+        assertThat(response.confidence()).isEqualTo(0.1);
+        assertThat(response.recipes()).isEmpty();
+    }
+
+    @Test
+    void transformWithOverridesThrowsClientExceptionOnGeminiError() throws JacksonException {
+        // Given
+        String htmlContent = "<html><body>Recipe content</body></html>";
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq((String) null)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Blocked"));
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transformWithOverrides(htmlContent, overrides))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+    }
+
+    @Test
+    void transformDescriptionWithOverridesUsesOverridesRequestBuilderAndPassesModelToClient() throws JacksonException {
+        // Given
+        String description = "Mix flour and eggs. Fry until golden.";
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, "gemini-2.0-flash", null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+        GeminiExtractionResult extraction = recipeResult("Tuned Crepes");
+
+        when(requestBuilder.buildRequestFromDescription(eq(description), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq("gemini-2.0-flash")))
+                .thenReturn(GeminiResponse.success(extraction, "{\"is_recipe\": true}"));
+
+        // When
+        Transformer.Response response = transformer.transformDescriptionWithOverrides(description, overrides);
+
+        // Then
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.confidence()).isEqualTo(1.0);
+        assertThat(response.recipe().metadata().title()).isEqualTo("Tuned Crepes");
+
+        verify(requestBuilder).buildRequestFromDescription(eq(description), eq(overrides));
+        verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class), eq("gemini-2.0-flash"));
+    }
+
+    @Test
+    void transformDescriptionWithOverridesThrowsClientExceptionOnGeminiError() throws JacksonException {
+        // Given
+        String description = "Some description";
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildRequestFromDescription(eq(description), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq((String) null)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "Blocked"));
+
+        // When/Then
+        assertThatThrownBy(() -> transformer.transformDescriptionWithOverrides(description, overrides))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+    }
+
+    @Test
     void transformFiltersOutNullRecipesFromList() throws JacksonException {
         // Given: recipes list contains null entries
         String htmlContent = "<html><body>Recipe content</body></html>";

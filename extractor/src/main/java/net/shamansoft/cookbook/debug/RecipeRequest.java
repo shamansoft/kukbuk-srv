@@ -1,5 +1,9 @@
 package net.shamansoft.cookbook.debug;
 
+import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
+
+import java.util.List;
+
 /**
  * Request DTO for debug/test endpoint - mirrors production flow with configurable options.
  * Only available in non-production environments (local/dev profiles).
@@ -26,7 +30,23 @@ public record RecipeRequest(
         Boolean dumpCleanedHtml,
         Boolean dumpLLMResponse,
         Boolean dumpResultJson,
-        Boolean dumpResultYaml
+        Boolean dumpResultYaml,
+
+        // Gemini generation parameter overrides for tuning (optional; omitted fields fall back
+        // to configured defaults). safetyThreshold is deliberately not overridable here.
+        // When any of these is set, the request bypasses caching entirely (no read, no write)
+        // and routes directly to GeminiRestTransformer, skipping the adaptive-cleaning/
+        // validation retry chain used by production traffic.
+        Float temperature,
+        Double topP,
+        Integer maxOutputTokens,
+        Integer thinkingBudget,
+        String model,
+        Integer topK,
+        Integer seed,
+        Float presencePenalty,
+        Float frequencyPenalty,
+        List<String> stopSequences
 ) {
     public boolean hasUrl() {
         return url != null && !url.isEmpty();
@@ -74,5 +94,10 @@ public record RecipeRequest(
 
     public boolean isDumpResultYaml() {
         return dumpResultYaml != null && dumpResultYaml;
+    }
+
+    public GenerationOverrides overrides() {
+        return new GenerationOverrides(temperature, topP, maxOutputTokens, thinkingBudget, model,
+                topK, seed, presencePenalty, frequencyPenalty, stopSequences);
     }
 }

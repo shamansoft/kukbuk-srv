@@ -167,7 +167,7 @@ class AddRecipeIT {
 
     private void setupGeminiMock() {
         // Mock Gemini API response for recipe transformation
-        stubFor(post(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*"))
+        stubFor(post(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -357,11 +357,11 @@ class AddRecipeIT {
                         true);
 
         // Verify Gemini was called for transformation
-        verify(postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
         // Verify request body sent to Gemini contains the extraction instruction and
         // page title
-        verify(postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*"))
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
                 .withRequestBody(containing("You are a strict Recipe Data Extractor"))
                 .withRequestBody(containing("Chocolate Chip Cookies")));
 
@@ -412,7 +412,7 @@ class AddRecipeIT {
         assertThat(response.getBody().get("error")).asString().isEqualTo("Storage Not Connected");
 
         // Verify that Gemini and Drive were NOT called
-        verify(0, postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*")));
+        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
         verify(0, getRequestedFor(urlPathEqualTo("/files")));
     }
 
@@ -467,7 +467,7 @@ class AddRecipeIT {
         assertThat(response.getBody().url()).isEqualTo(testUrl);
 
         // Verify Gemini was NOT called (cache hit)
-        verify(0, postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*")));
+        verify(0, postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
         // Verify Drive was still called to upload
         verify(postRequestedFor(urlPathEqualTo("/files")));
@@ -480,7 +480,7 @@ class AddRecipeIT {
         setupStorageInfoInFirestore("test-user-123", "valid-drive-token");
 
         // AND: Gemini returns isRecipe=false
-        stubFor(post(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*"))
+        stubFor(post(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -515,7 +515,7 @@ class AddRecipeIT {
         assertThat(response.getBody().driveFileUrl()).isNull();
 
         // Verify Gemini was called but Drive was NOT
-        verify(postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
         verify(0, postRequestedFor(urlPathEqualTo("/files")));
     }
 
@@ -592,7 +592,7 @@ class AddRecipeIT {
 
         // Verify that HTML sent to Gemini was preprocessed (smaller than original)
         // We can check the request body size sent to Gemini
-        verify(postRequestedFor(urlPathMatching("/models/gemini-3.5-flash-lite:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-2.5-flash-lite:generateContent.*")));
 
         // The preprocessed HTML should not contain scripts, styles, nav, footer, ads
         // This is validated by the fact that the request succeeded and was processed

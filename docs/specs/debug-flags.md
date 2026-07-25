@@ -28,6 +28,54 @@ Add to the `POST /debug/v1/recipes` JSON body:
 
 ---
 
+## Generation Parameter Overrides (tuning)
+
+Optional fields on the same `POST /debug/v1/recipes` body let you vary Gemini generation
+parameters per request, without restarting the app to change `application-local.yaml`:
+
+| Field | Type | Range / allow-list |
+|---|---|---|
+| `temperature` | float | 0.0 – 2.0 |
+| `topP` | double | 0.0 – 1.0 |
+| `maxOutputTokens` | int | 1 – 65536 |
+| `thinkingBudget` | int | -1 (unlimited) or ≥ 0 |
+| `model` | string | one of: `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-pro` |
+
+Any field you omit falls back to the value configured in `application*.yaml`. An invalid value
+(out of range, or a `model` not in the allow-list) returns `400` before any Gemini call is made.
+
+```bash
+curl -X POST http://localhost:8080/debug/v1/recipes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://www.allrecipes.com/recipe/24074/...",
+    "returnFormat": "json",
+    "temperature": 0.2,
+    "model": "gemini-2.5-pro"
+  }'
+```
+
+**Design notes / safety constraints:**
+
+- `safetyThreshold` is **not** overridable — safety filtering always comes from configuration,
+  regardless of request input. This is deliberate: tuning is about extraction quality, not safety
+  filtering, and the allow-list on `model` plus the fixed safety threshold keep the debug endpoint
+  from becoming a way to bypass content-safety controls.
+- When any override is set, the request **bypasses the cache entirely** — no read, no write. A
+  result produced with non-default parameters must never be served back to (or contaminate) real
+  `/v1/recipes` traffic reading from the same cache.
+- When any override is set, the request calls `GeminiRestTransformer` directly, **bypassing**
+  `AdaptiveCleaningTransformerService`/`ValidatingTransformerService` (the retry-chain wrapper
+  used by production traffic). This isolates the tuning signal to one raw Gemini call per
+  request/parameter combination, and means none of those two classes were touched to add this
+  feature — zero behavior change for production requests.
+- Every change is an additive overload (`buildRequest(html, overrides)`,
+  `request(req, class, modelOverride)`, etc.) — the existing no-overrides methods used by
+  production code paths (`RecipeService`, `POST /v1/recipes`, `POST /v1/recipes/custom`) are
+  unchanged and still call into the same code as before.
+
+---
+
 ## File Naming
 
 ```

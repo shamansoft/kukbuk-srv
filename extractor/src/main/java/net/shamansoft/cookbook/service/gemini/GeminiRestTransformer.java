@@ -65,6 +65,65 @@ public class GeminiRestTransformer implements Transformer {
         }
     }
 
+    /**
+     * Debug-only entry point for parameter tuning: transforms HTML directly via Gemini with
+     * overridden generation parameters, bypassing the adaptive-cleaning/validation retry chain
+     * so a single call reflects exactly the given parameters.
+     */
+    public Response transformWithOverrides(String htmlContent, GenerationOverrides overrides) {
+        try {
+            GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+            GeminiResponse<GeminiExtractionResult> geminiResponse =
+                    geminiClient.request(request, GeminiExtractionResult.class,
+                            overrides != null ? overrides.model() : null);
+
+            if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
+                GeminiExtractionResult result = geminiResponse.data();
+                double confidence = result.recipeConfidence();
+
+                if (!result.isRecipe()) {
+                    return Transformer.Response.withRawResponse(false, confidence, List.of(), geminiResponse.rawResponse());
+                }
+
+                List<Recipe> recipes = toRecipes(result.recipes());
+                return Transformer.Response.withRawResponse(true, confidence, recipes, geminiResponse.rawResponse());
+            } else {
+                log.error("Gemini Client returned error code: {} for tuning request, input html length: {}",
+                        geminiResponse.code(), htmlContent.length());
+                throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
+            }
+        } catch (JacksonException e) {
+            log.error("Failed to prepare tuning request for Gemini API. HTML length: {}, Error: {}",
+                    htmlContent.length(), e.getMessage(), e);
+            throw new ClientException("Failed to transform content via Gemini API", e);
+        }
+    }
+
+    /**
+     * Debug-only entry point for parameter tuning of the free-text description flow.
+     */
+    public Response transformDescriptionWithOverrides(String description, GenerationOverrides overrides) {
+        try {
+            GeminiRequest request = requestBuilder.buildRequestFromDescription(description, overrides);
+            GeminiResponse<GeminiExtractionResult> geminiResponse =
+                    geminiClient.request(request, GeminiExtractionResult.class,
+                            overrides != null ? overrides.model() : null);
+
+            if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
+                GeminiExtractionResult result = geminiResponse.data();
+                List<Recipe> recipes = toRecipes(result.recipes());
+                return Transformer.Response.withRawResponse(true, 1.0, recipes, geminiResponse.rawResponse());
+            } else {
+                log.error("Gemini Client returned error code: {} for tuning description input", geminiResponse.code());
+                throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
+            }
+        } catch (JacksonException e) {
+            log.error("Failed to prepare tuning request for Gemini API. Description length: {}, Error: {}",
+                    description.length(), e.getMessage(), e);
+            throw new ClientException("Failed to transform description via Gemini API", e);
+        }
+    }
+
     private Response transformInternal(String htmlContent, Recipe previousRecipe, String validationError) {
         try {
             GeminiRequest request;
