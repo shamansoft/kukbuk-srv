@@ -1,199 +1,86 @@
-# Cookbook Project
+# sar-srv — Cookbook Service
 
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
-![Java](https://img.shields.io/badge/Java-21-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen)
+![Java](https://img.shields.io/badge/Java-25-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen)
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
 
-A recipe extraction and management system with a Java Spring Boot backend, featuring automated CI/CD pipelines, GraalVM
-native image compilation, and deployment to Google Cloud Run. Current version: **0.9.0-SNAPSHOT**
+Spring Boot (Kotlin/Java) backend for the **SAR / MyKukBuk** recipe product. It extracts structured
+recipes from web pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces
+per-user quotas (entitlements), and stores recipes in Firestore + the user's Google Drive. Deployed
+as a GraalVM native image on Google Cloud Run.
 
-## Technologies
+It is the backend consumed by **sar-ext** (browser extension) and **sar-kmp** (Kotlin Multiplatform
+client). Infrastructure lives in **sar-infra** (OpenTofu/Terraform).
 
-- **Java 21** with Spring Boot 3.4.2 for the REST API
-- **Gradle 9.2.0** for building and dependency management
-- **GraalVM Native Image** for fast startup and low memory footprint
-- **Gemini AI** (gemini-2.5-flash-lite) for intelligent recipe extraction
-- **Docker** for containerization
-- **GitHub Actions** for CI/CD automation (Java 25 for builds)
-- **OpenTofu/Terraform** for infrastructure as code
-- **Google Cloud Platform** (Cloud Run, Firestore, Secret Manager, KMS)
+> For day-to-day status see [STATUS.md](STATUS.md). For the full documentation index, build/test
+> commands, architecture, and agent guidance see [CLAUDE.md](CLAUDE.md).
 
-## CI/CD Workflow
+## Modules
 
-This project uses automated CI/CD pipelines for all deployments:
+| Path | Gradle name | Purpose |
+|---|---|---|
+| `extractor/` | `:cookbook` | Spring Boot REST API — extraction, entitlements, storage, YouTube |
+| `recipe-sdk/` | `:recipe-sdk` | Shared recipe models, YAML parse/serialize, validation |
+| `token-broker/` | (Node.js) | Google Cloud Function for OAuth token handling |
 
-### Pull Request Workflow
+> **Note:** `extractor/` is renamed to `:cookbook` in `settings.gradle`. Use `:cookbook` for Gradle
+> tasks; use `extractor/` for file paths.
 
-When you create a PR to `main`:
+## Tech stack
 
-1. ✅ **Automated Testing**
-   - Unit tests
-   - Integration tests
-   - Code coverage check (40% minimum)
-   - Security vulnerability scan (OWASP Dependency Check)
+- **Java 25** (toolchain enforced), **Spring Boot 4.0.1** (Spring Framework 7.x), **Gradle 9.2.0**
+- **Google Gemini** (`gemini-2.5-flash-lite`) for recipe extraction
+- **GraalVM native image** for production (fast cold start, low memory)
+- **Firestore** for storage; **Google Drive** for recipe files; **Firebase Auth** for identity
+- **GitHub Actions** CI/CD → builds native image, pushes to GCR, dispatches deploy to `sar-infra`
+- **Cloud Run** (`us-west1`, project `kukbuk-tf`)
 
-2. 📊 **Automated PR Comments**
-   - Coverage report with line-by-line breakdown
-   - Security scan results with vulnerability counts
-
-3. ✅ **Build Verification**
-   - JAR build validation
-   - All checks must pass before merge
-
-### Deployment Workflow
-
-When PR is merged to `main`:
-
-1. 🧪 **Test & Validate** (2-3 min)
-   - Remove `-SNAPSHOT` from version
-   - Run all tests
-   - Generate coverage report
-
-2. 🏗️ **Build & Push** (10-15 min)
-   - Build GraalVM native image for linux/amd64
-   - Push to Google Container Registry
-   - Tag with release version
-
-3. 🚀 **Deploy** (2-3 min)
-   - Deploy to Cloud Run via Terraform
-   - Health check validation
-   - Automatic rollback on failure
-
-4. 📝 **Finalize** (1 min)
-   - Create git tag (e.g., `v0.6.5`)
-   - Bump version to next SNAPSHOT (e.g., `0.6.6-SNAPSHOT`)
-   - Update coverage badge in README
-   - Create GitHub Release with deployment details
-
-**Total deployment time**: ~15-20 minutes from merge to production
-
-### Version Management
-
-- Versions follow **Maven/Gradle conventions**: `X.Y.Z-SNAPSHOT`
-- Current development version: `0.9.0-SNAPSHOT`
-- Development uses `-SNAPSHOT` suffix
-- Releases remove `-SNAPSHOT` (e.g., `0.9.0` when deployed)
-- Version auto-incremented after each release (e.g., to `0.9.1-SNAPSHOT`)
-- Version managed by `extractor/scripts/version-updater.sh`
-
-### Manual Deployment Triggers
+## Quick start
 
 ```bash
-# Manually trigger deployment workflow
-gh workflow run deploy.yml --ref main
+# Build everything
+./gradlew build
 
-# Test finalize step only (skip build, deployment)
-gh workflow run deploy.yml --ref main \
-  -f skip_build=true \
-  -f skip_deploy=true \
-  -f skip_finalize=false
+# Run the API locally (JVM) — requires COOKBOOK_GEMINI_API_KEY
+./gradlew :cookbook:bootRun
 
-# Build and push only (skip deployment)
-gh workflow run deploy.yml --ref main \
-  -f skip_deploy=true
-```
-
-## Local Development
-
-### Build the Project
-
-```bash
-# Build JAR (fast, for development)
-./gradlew :cookbook:build
-
-# Build native image (slow, for production testing)
-./gradlew :cookbook:nativeCompile
-
-# Run tests
+# Unit tests / integration tests (Testcontainers + WireMock, needs Docker)
 ./gradlew :cookbook:test
-
-# Run integration tests
 ./gradlew :cookbook:intTest
 
-# Check coverage
+# Coverage check
 ./gradlew :cookbook:checkCoverage
 ```
 
-### Run Locally
+Required env for local development:
 
 ```bash
-# Run with Spring Boot (JVM)
-./gradlew :cookbook:bootRun
-
-# Run with Docker (JVM image)
-cd extractor/scripts && ./build.sh --local
-docker run -p 8080:8080 \
-  -e COOKBOOK_GEMINI_API_KEY=$COOKBOOK_GEMINI_API_KEY \
-  gcr.io/kukbuk-tf/cookbook:latest
-
-# Run with Docker (native image, local build)
-cd extractor/scripts && ./build.sh --native --local --memory=12g
-docker run -p 8080:8080 \
-  -e COOKBOOK_GEMINI_API_KEY=$COOKBOOK_GEMINI_API_KEY \
-  gcr.io/kukbuk-tf/cookbook:latest
+COOKBOOK_GEMINI_API_KEY=your_gemini_api_key
+COOKBOOK_GOOGLE_OAUTH_ID=your_google_oauth_client_id
 ```
 
-### Environment Variables
+See [CLAUDE.md](CLAUDE.md) for the complete build/run/test reference, Docker builds, and
+native-image notes.
 
-Required for local development:
+## CI/CD
 
-```bash
-# .env file or export
-COOKBOOK_GEMINI_API_KEY=your_api_key_here
-COOKBOOK_GOOGLE_OAUTH_ID=your_oauth_id_here
+Every PR runs unit + integration tests, coverage, and an OWASP dependency scan. Merging to `main`
+triggers `deploy.yml`, which tests, builds a GraalVM native image, pushes to
+`gcr.io/kukbuk-tf/cookbook`, then dispatches a `repository_dispatch` event to
+[`shamansoft/sar-infra`](https://github.com/shamansoft/sar-infra) where the actual Terraform apply
+and health check run.
 
-# For GCP deployment (handled by Cloud Run)
-GOOGLE_CLOUD_PROJECT_ID=kukbuk-tf
-FIRESTORE_PROJECT_ID=kukbuk-tf
-FIRESTORE_ENABLED=true
-```
-
-## Legacy/Manual Deployment
-
-For manual deployment using scripts (not recommended for production):
-
-See [extractor/scripts/README.md](extractor/scripts/README.md) for legacy deployment instructions.
-
-## Project Structure
-
-```
-.
-├── .github/workflows/     # CI/CD workflows
-│   ├── deploy.yml        # Main deployment pipeline
-│   └── pr-validation.yml # PR checks
-├── extractor/            # Main application (renamed to 'cookbook' in Gradle)
-│   ├── src/             # Java source code
-│   ├── build.gradle.kts # Build configuration
-│   ├── Dockerfile.native # Native image Docker build
-│   └── scripts/         # Legacy deployment scripts
-├── recipe-sdk/          # Recipe data models
-└── token-broker/        # Node.js OAuth helper
-```
-
-## Architecture
-
-- **Native Image**: GraalVM AOT compilation for fast startup (<1s) and low memory (~200MB)
-- **Stateless API**: Horizontally scalable, auto-scaling 0→N instances
-- **Firestore**: NoSQL database for recipe storage
-- **Cloud Run**: Serverless container platform with built-in load balancing
-- **GitHub App**: Automated version management with branch protection bypass
+- [CI/CD Workflow Guide](docs/CI_CD_WORKFLOW.md)
+- [Deployment Strategy](docs/deployment/strategy.md) · [Rollback](docs/deployment/rollback.md) · [Monitoring](docs/deployment/monitoring.md) · [Production Readiness](docs/deployment/production-readiness.md)
 
 ## Documentation
 
-- [CI/CD Workflow Guide](docs/CI_CD_WORKFLOW.md) - Detailed pipeline documentation
-- [Testing Strategy](docs/TESTING_WORKFLOW.md) - Test automation guide
-- [Deployment Strategy](docs/CD.md) - Full deployment process
-- [GitHub App Setup](.github/GITHUB_APP_SETUP.md) - Bot configuration for automation
-- [Branch Protection](.github/BRANCH_PROTECTION.md) - Repository security setup
+[CLAUDE.md](CLAUDE.md) contains the full **Documentation Index** (architecture, specs/RFCs, plans,
+runbooks, deployment/CI, setup, module READMEs, and the archive). Start there.
 
 ## Contributing
 
-1. Create feature branch from `main`
-2. Make changes and commit
-3. Push and create Pull Request
-4. Wait for automated checks to pass
-5. Request review from `@khisamutdinov` (code owner)
-6. Merge PR (triggers automatic deployment)
-
-All merges to `main` automatically deploy to production.
+1. Branch from `main`, make changes with tests.
+2. Open a PR — automated checks must pass.
+3. Request review from `@khisamutdinov` (code owner).
+4. Merge to `main` triggers automatic deployment to production.

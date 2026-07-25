@@ -158,4 +158,6 @@ diff <(cat /tmp/sar-srv/dumps/llm-response-*.json | jq -S .) \
      <(cat /tmp/sar-srv/dumps/result-json-*.json | jq -S .)
 ```
 
-See `docs/postman/DUMP_FLAGS_TESTING.md` for full Postman test scenarios.
+**Related:** [Runbook: Prompt Evaluation Loop](../runbooks/prompt-evaluation.md) uses these dump flags
+to score extraction quality. The Postman collection at `extractor/cookbook-api.postman_collection.json`
+includes the debug endpoint.

@@ -1,11 +1,14 @@
-# Kukbuk Server - Recipe Extractor
+# Cookbook (`:cookbook`) — Recipe Extractor
 
-[![PR Validation](https://github.com/username/kukbuk-srv/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/username/kukbuk-srv/actions/workflows/pr-validation.yml)
-[![codecov](https://codecov.io/gh/username/kukbuk-srv/branch/main/graph/badge.svg)](https://codecov.io/gh/username/kukbuk-srv)
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.java.net/projects/jdk/25/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
-A Spring Boot service that extracts recipe data from web pages using AI (Google Gemini) and stores them in Firestore.
+The Spring Boot REST API of `sar-srv` (Gradle module `:cookbook`). Extracts recipe data from web
+pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces per-user quotas,
+and stores recipes in Firestore + Google Drive.
+
+> This README covers the `extractor/` module. For repo-wide build/run/test, the documentation index,
+> and architecture, see the root [CLAUDE.md](../CLAUDE.md) and [STATUS.md](../STATUS.md).
 
 ## Features
 
@@ -219,9 +222,9 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 For detailed CI/CD documentation, see:
 - `../docs/CI_CD_WORKFLOW.md` - Complete CI/CD workflow guide
-- `../docs/TESTING_WORKFLOW.md` - Testing workflow on feature branches
 - `../docs/deployment/` - Deployment strategy, rollback, and monitoring
 - `../docs/github-setup/` - GitHub Actions and branch protection setup
+- `../CLAUDE.md` - Documentation index (links every doc)
 
 ## Security
 
@@ -259,7 +262,7 @@ For detailed CI/CD documentation, see:
 - **CompressorHTMLBase64**: Content compression/decompression
 - **HtmlExtractor**: HTML cleanup and preparation
 
-For detailed Firestore schema, see `../terraform/firestore-schema.md`.
+For the Firestore schema, see the [`shamansoft/sar-infra`](https://github.com/shamansoft/sar-infra) repository.
 
 ## Recipe Schema
 
@@ -354,7 +357,8 @@ GraalVM 25+ native image builds require x86-64-v3 CPU support:
 - Local development uses JVM builds only (./gradlew :cookbook:bootRun)
 - Production uses native images deployed via GitHub Actions
 
-For detailed migration documentation, see `docs/plans/20260125-spring-boot-4-migration.md`.
+The Spring Boot 4 migration progress log is archived at
+`docs/archive/progress/progress-20260125-spring-boot-4-migration.txt`.
 
 ## License
 
