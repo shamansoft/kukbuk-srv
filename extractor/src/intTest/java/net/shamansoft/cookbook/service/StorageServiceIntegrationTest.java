@@ -81,7 +81,12 @@ class StorageServiceIntegrationTest {
         when(googleDrive.createFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
                 .thenReturn(folderItem);
 
-        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive);
+        net.shamansoft.cookbook.client.DropboxAuthClient dropboxAuthClient =
+                mock(net.shamansoft.cookbook.client.DropboxAuthClient.class);
+        net.shamansoft.cookbook.service.DropboxStorageProvider dropboxStorageProvider =
+                mock(net.shamansoft.cookbook.service.DropboxStorageProvider.class);
+        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive,
+                dropboxAuthClient, dropboxStorageProvider);
 
         // Set required @Value fields using reflection
         ReflectionTestUtils.setField(storageService, "defaultFolderName", FOLDER_NAME);

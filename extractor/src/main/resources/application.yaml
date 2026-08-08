@@ -254,6 +254,17 @@ cookbook:
     oauth-secret: "${SAR_SRV_GOOGLE_OAUTH_SECRET:REPLACE_WITH_YOUR_OAUTH_SECRET}"
 
   # ---------------------------------------------------------------------------
+  # DROPBOX CONFIGURATION (App-folder access level)
+  # ---------------------------------------------------------------------------
+  dropbox:
+    # Dropbox app key (public value, safe in clients). Used by DropboxAuthClient.
+    app-key: "${COOKBOOK_DROPBOX_APP_KEY:REPLACE_WITH_DROPBOX_APP_KEY}"
+    # Dropbox app secret — provisioned via Secret Manager in sar-infra. NEVER commit a real value.
+    app-secret: "${COOKBOOK_DROPBOX_APP_SECRET:REPLACE_WITH_DROPBOX_APP_SECRET}"
+    # Default recipe subfolder inside the app folder. Empty = app-folder root ("").
+    folder-name: "${COOKBOOK_DROPBOX_FOLDER_NAME:}"
+
+  # ---------------------------------------------------------------------------
   # LEGACY GOOGLE OAUTH CONFIGURATION (UserProfileService)
   # ---------------------------------------------------------------------------
   google:

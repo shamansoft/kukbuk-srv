@@ -315,4 +315,90 @@ class StorageControllerTest {
                 controller.getGoogleDriveStatus(TEST_USER_ID)
         ).isInstanceOf(DatabaseUnavailableException.class);
     }
+
+    // ========== DROPBOX + NEUTRAL TESTS ==========
+
+    @Test
+    @DisplayName("POST /dropbox/connect - Success")
+    void connectDropbox_Success() {
+        StorageConnectionRequest request = StorageConnectionRequest.builder()
+                .authorizationCode(TEST_AUTH_CODE)
+                .redirectUri(TEST_REDIRECT_URI)
+                .folderName(null)
+                .build();
+        when(storageService.connectDropbox(eq(TEST_USER_ID), eq(TEST_AUTH_CODE), eq(TEST_REDIRECT_URI), isNull()))
+                .thenReturn(new StorageService.FolderInfo("", "MyKukBuk"));
+
+        ResponseEntity<StorageConnectionResponse> response =
+                controller.connectDropbox(TEST_USER_ID, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getStatus()).isEqualTo("success");
+        assertThat(response.getBody().getMessage()).isEqualTo("Dropbox connected successfully");
+        assertThat(response.getBody().isConnected()).isTrue();
+        assertThat(response.getBody().getDefaultFolderId()).isEqualTo("");
+        assertThat(response.getBody().getDefaultFolderName()).isEqualTo("MyKukBuk");
+    }
+
+    @Test
+    @DisplayName("POST /dropbox/connect - Invalid code returns 400")
+    void connectDropbox_InvalidCode_Returns400() {
+        StorageConnectionRequest request = StorageConnectionRequest.builder()
+                .authorizationCode("bad")
+                .redirectUri(TEST_REDIRECT_URI)
+                .build();
+        doThrow(new IllegalArgumentException("Invalid authorization code"))
+                .when(storageService).connectDropbox(anyString(), anyString(), anyString(), any());
+
+        ResponseEntity<StorageConnectionResponse> response =
+                controller.connectDropbox(TEST_USER_ID, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().getStatus()).isEqualTo("error");
+    }
+
+    @Test
+    @DisplayName("GET /status - neutral status returns connected provider")
+    void getStatus_Connected() {
+        StorageInfo storageInfo = StorageInfo.builder()
+                .type(StorageType.DROPBOX)
+                .connected(true)
+                .accessToken("t")
+                .folderId("")
+                .folderName("MyKukBuk")
+                .build();
+        when(storageService.getStorageInfo(TEST_USER_ID)).thenReturn(storageInfo);
+
+        ResponseEntity<StorageStatusResponse> response = controller.getStatus(TEST_USER_ID);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isConnected()).isTrue();
+        assertThat(response.getBody().getStorageType()).isEqualTo("dropbox");
+    }
+
+    @Test
+    @DisplayName("GET /status - not connected returns connected=false")
+    void getStatus_NotConnected() {
+        when(storageService.getStorageInfo(TEST_USER_ID))
+                .thenThrow(new StorageNotConnectedException("none"));
+
+        ResponseEntity<StorageStatusResponse> response = controller.getStatus(TEST_USER_ID);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isConnected()).isFalse();
+        assertThat(response.getBody().getStorageType()).isNull();
+    }
+
+    @Test
+    @DisplayName("DELETE /disconnect - neutral disconnect")
+    void disconnect_Neutral() {
+        doNothing().when(storageService).disconnectStorage(TEST_USER_ID);
+
+        ResponseEntity<StorageConnectionResponse> response = controller.disconnect(TEST_USER_ID);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isConnected()).isFalse();
+        assertThat(response.getBody().getMessage()).isEqualTo("Storage disconnected successfully");
+        verify(storageService).disconnectStorage(TEST_USER_ID);
+    }
 }

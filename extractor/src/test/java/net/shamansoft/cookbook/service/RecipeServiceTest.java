@@ -21,7 +21,9 @@ class RecipeServiceTest {
     void createRecipe_storesYaml_whenRecipeDetected() throws Exception {
         // Arrange: minimal happy path with many dependencies mocked
         ContentHashService contentHashService = mock(ContentHashService.class);
-        DriveService driveService = mock(DriveService.class);
+        StorageProvider driveService = mock(StorageProvider.class);
+        StorageProviderResolver storageProviderResolver = mock(StorageProviderResolver.class);
+        when(storageProviderResolver.resolve(any(net.shamansoft.cookbook.dto.StorageType.class))).thenReturn(driveService);
         StorageService storageService = mock(StorageService.class);
         RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
         RecipeParser recipeParser = mock(RecipeParser.class);
@@ -61,7 +63,7 @@ class RecipeServiceTest {
         // Build service (AdaptiveCleaningTransformerService now owns cleaning; no HtmlCleaner in RecipeService)
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
-        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
+        RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
                 recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
 
         // Act
@@ -76,7 +78,9 @@ class RecipeServiceTest {
     @Test
     void createRecipe_throwsWhenNoFolder() throws IOException {
         ContentHashService contentHashService = mock(ContentHashService.class);
-        DriveService driveService = mock(DriveService.class);
+        StorageProvider driveService = mock(StorageProvider.class);
+        StorageProviderResolver storageProviderResolver = mock(StorageProviderResolver.class);
+        when(storageProviderResolver.resolve(any(net.shamansoft.cookbook.dto.StorageType.class))).thenReturn(driveService);
         StorageService storageService = mock(StorageService.class);
         RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
         RecipeParser recipeParser = mock(RecipeParser.class);
@@ -92,7 +96,7 @@ class RecipeServiceTest {
 
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
-        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
+        RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
                 recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
 
         try {
