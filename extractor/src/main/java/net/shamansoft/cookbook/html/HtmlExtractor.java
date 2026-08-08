@@ -9,9 +9,9 @@ import java.io.IOException;
 @Service
 public class HtmlExtractor {
 
-    private final HtmlFetcher htmlFetcher;
+    private final UrlContentFetcher htmlFetcher;
 
-    public HtmlExtractor(HtmlFetcher htmlFetcher) {
+    public HtmlExtractor(UrlContentFetcher htmlFetcher) {
         this.htmlFetcher = htmlFetcher;
     }
 
