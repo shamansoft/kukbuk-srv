@@ -7,6 +7,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -38,15 +39,76 @@ class DropboxClientTest {
         return responseSpec;
     }
 
+    /** Dropbox endpoint errors are HTTP 409 with the reason in the body's error_summary. */
+    private static RestClientResponseException endpointError(String errorSummary) {
+        byte[] body = ("{\"error_summary\": \"" + errorSummary + "\"}").getBytes(StandardCharsets.UTF_8);
+        return new RestClientResponseException("conflict", 409, "Conflict", null, body, StandardCharsets.UTF_8);
+    }
+
     @Test
-    void createFolder_conflict409_treatedAsExists() {
+    void createFolder_folderConflict409_treatedAsExists() {
         RestClient restClient = mock(RestClient.class);
         RestClient.ResponseSpec responseSpec = stubPost(restClient);
         when(responseSpec.body(any(ParameterizedTypeReference.class)))
-                .thenThrow(new RestClientResponseException("conflict", 409, "Conflict", null, null, null));
+                .thenThrow(endpointError("path/conflict/folder/.."));
 
         DropboxClient client = new DropboxClient(restClient, objectMapper);
         assertThatCode(() -> client.createFolder("/MyKukBuk", "token")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void createFolder_other409_throwsClientException() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenThrow(endpointError("path/conflict/file/."));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.createFolder("/MyKukBuk", "token"))
+                .isInstanceOf(ClientException.class);
+    }
+
+    @Test
+    void download_missingFile_reportedAsNotFound() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(byte[].class)).thenThrow(endpointError("path/not_found/.."));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.downloadAsBytes("id:gone", "token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void getMetadata_missingFile_reportedAsNotFound() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenThrow(endpointError("path/not_found/."));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.getMetadata("id:gone", "token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void getMetadata_otherError_propagatesUnchanged() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        RestClientResponseException serverError =
+                new RestClientResponseException("server error", 500, "Error", null, null, null);
+        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenThrow(serverError);
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.getMetadata("id:abc", "token")).isSameAs(serverError);
+    }
+
+    @Test
+    void headerSafe_escapesNonAscii_keepsAscii() {
+        assertThat(DropboxClient.headerSafe("{\"path\":\"/Рецепты/a.yaml\"}"))
+                .isEqualTo("{\"path\":\"/\\u0420\\u0435\\u0446\\u0435\\u043f\\u0442\\u044b/a.yaml\"}");
     }
 
     @Test

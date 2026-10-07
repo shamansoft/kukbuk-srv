@@ -1,11 +1,13 @@
 package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.client.DropboxClient;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -18,11 +20,14 @@ import java.util.List;
 @Service
 public class DropboxStorageProvider implements StorageProvider {
 
+    private static final String DROPBOX_HOME = "https://www.dropbox.com/home";
+
     private final DropboxClient dropboxClient;
     private final Transliterator transliterator;
 
-    @Value("${cookbook.dropbox.folder-name:}")
-    private String folderName;
+    /** Name of the app folder under the user's /Apps (= the Dropbox app's name); only used to build web links. */
+    @Value("${cookbook.dropbox.app-folder-name:}")
+    private String appFolderName;
 
     public DropboxStorageProvider(DropboxClient dropboxClient, Transliterator transliterator) {
         this.dropboxClient = dropboxClient;
@@ -59,8 +64,18 @@ public class DropboxStorageProvider implements StorageProvider {
         String path = joinPath(folderId, fileName);
         DropboxClient.FileEntry entry =
                 dropboxClient.upload(path, content.getBytes(StandardCharsets.UTF_8), accessToken);
-        String url = entry.pathDisplay() != null ? entry.pathDisplay() : path;
-        return new DriveService.UploadResult(entry.id(), url);
+        return new DriveService.UploadResult(entry.id(), webUrl(entry.pathDisplay() != null ? entry.pathDisplay() : path));
+    }
+
+    /**
+     * Browser link to a file. Clients open {@code fileUrl} as-is, so it must be a real URL, not a
+     * Dropbox path. Without a configured app-folder name the best we can do is the Dropbox home.
+     */
+    private String webUrl(String pathInAppFolder) {
+        if (appFolderName == null || appFolderName.isBlank()) {
+            return DROPBOX_HOME;
+        }
+        return DROPBOX_HOME + UriUtils.encodePath("/Apps/" + appFolderName.trim() + pathInAppFolder, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -80,23 +95,35 @@ public class DropboxStorageProvider implements StorageProvider {
 
     @Override
     public String getFileContent(String accessToken, String fileId) {
-        return dropboxClient.downloadAsString(fileId, accessToken);
+        return dropboxClient.downloadAsString(fileRef(fileId), accessToken);
     }
 
     @Override
     public byte[] downloadFile(String accessToken, String fileId) {
-        return dropboxClient.downloadAsBytes(fileId, accessToken);
+        return dropboxClient.downloadAsBytes(fileRef(fileId), accessToken);
     }
 
     @Override
     public String getFileMimeType(String accessToken, String fileId) {
-        return mimeTypeForName(dropboxClient.getMetadata(fileId, accessToken).name());
+        return mimeTypeForName(dropboxClient.getMetadata(fileRef(fileId), accessToken).name());
     }
 
     @Override
     public GoogleDrive.DriveFileMetadata getFileMetadata(String accessToken, String fileId) {
-        DropboxClient.FileEntry e = dropboxClient.getMetadata(fileId, accessToken);
+        DropboxClient.FileEntry e = dropboxClient.getMetadata(fileRef(fileId), accessToken);
         return new GoogleDrive.DriveFileMetadata(e.id(), e.name(), mimeTypeForName(e.name()), e.serverModified());
+    }
+
+    /**
+     * Dropbox only accepts {@code id:...} or {@code /path} references. Anything else (e.g. a Google
+     * Drive id a client cached before the user switched provider) cannot exist here: report it as
+     * not found instead of letting Dropbox reject the request as malformed.
+     */
+    static String fileRef(String fileId) {
+        if (fileId == null || !(fileId.startsWith("id:") || fileId.startsWith("/"))) {
+            throw new ClientException("Dropbox file not found: " + fileId);
+        }
+        return fileId;
     }
 
     /** App-folder root is "" (also accept "/"); a stored subfolder path is returned as-is. */

@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.service;
 
+import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.client.DropboxClient;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageType;
@@ -14,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -33,7 +35,7 @@ class DropboxStorageProviderTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        ReflectionTestUtils.setField(provider, "folderName", "");
+        ReflectionTestUtils.setField(provider, "appFolderName", "");
     }
 
     @Test
@@ -73,7 +75,30 @@ class DropboxStorageProviderTest {
         verify(dropboxClient).upload(path.capture(), any(), eq("token"));
         assertThat(path.getValue()).isEqualTo("/a.yaml");
         assertThat(result.fileId()).isEqualTo("id:abc");
-        assertThat(result.fileUrl()).isEqualTo("/a.yaml");
+        assertThat(result.fileUrl()).isEqualTo("https://www.dropbox.com/home");
+    }
+
+    @Test
+    void uploadRecipeYaml_appFolderNameConfigured_returnsWebLinkToFile() {
+        ReflectionTestUtils.setField(provider, "appFolderName", "MyKukBuk Recipes");
+        when(dropboxClient.upload(any(), any(), eq("token")))
+                .thenReturn(new DropboxClient.FileEntry("id:abc", "a.yaml", "/Sub/a.yaml", null));
+
+        DriveService.UploadResult result = provider.uploadRecipeYaml("token", "/Sub", "a.yaml", "yaml");
+
+        assertThat(result.fileUrl())
+                .isEqualTo("https://www.dropbox.com/home/Apps/MyKukBuk%20Recipes/Sub/a.yaml");
+    }
+
+    @Test
+    void fileOperations_nonDropboxId_reportedAsNotFound_noApiCall() {
+        assertThatThrownBy(() -> provider.getFileMetadata("token", "1AbCdriveFileId"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("not found");
+        assertThatThrownBy(() -> provider.downloadFile("token", "1AbCdriveFileId"))
+                .isInstanceOf(ClientException.class);
+        verify(dropboxClient, never()).getMetadata(any(), any());
+        verify(dropboxClient, never()).downloadAsBytes(any(), any());
     }
 
     @Test

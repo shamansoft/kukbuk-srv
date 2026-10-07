@@ -263,6 +263,10 @@ cookbook:
     app-secret: "${COOKBOOK_DROPBOX_APP_SECRET:REPLACE_WITH_DROPBOX_APP_SECRET}"
     # Default recipe subfolder inside the app folder. Empty = app-folder root ("").
     folder-name: "${COOKBOOK_DROPBOX_FOLDER_NAME:}"
+    # Name of the app folder Dropbox creates under the user's /Apps — it equals the app's name in the
+    # Dropbox App Console. Only used to build browser links to saved recipes (driveFileUrl);
+    # empty = link to the Dropbox home page instead of the file.
+    app-folder-name: "${COOKBOOK_DROPBOX_APP_FOLDER_NAME:}"
 
   # ---------------------------------------------------------------------------
   # LEGACY GOOGLE OAUTH CONFIGURATION (UserProfileService)

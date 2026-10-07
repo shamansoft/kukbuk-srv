@@ -33,13 +33,16 @@ public class DropboxClient {
         this.objectMapper = objectMapper;
     }
 
-    /** Create a folder; a 409 path/conflict is treated as "already exists". */
+    /**
+     * Create a folder; a 409 {@code path/conflict/folder} is treated as "already exists".
+     * Every other 409 (a file at that path, malformed path, no space, ...) is a real failure.
+     */
     public void createFolder(String path, String token) {
         try {
             rpc(API + "/2/files/create_folder_v2", Map.of("path", path, "autorename", false), token);
             log.info("Created Dropbox folder: {}", path);
         } catch (RestClientResponseException e) {
-            if (e.getStatusCode().value() == 409) {
+            if (isEndpointError(e, "path/conflict/folder")) {
                 log.info("Dropbox folder already exists: {}", path);
                 return;
             }
@@ -66,12 +69,17 @@ public class DropboxClient {
 
     public byte[] downloadAsBytes(String path, String token) {
         String arg = writeArg(Map.of("path", path));
-        byte[] bytes = restClient.post()
-                .uri(CONTENT + "/2/files/download")
-                .header("Authorization", "Bearer " + token)
-                .header("Dropbox-API-Arg", arg)
-                .retrieve()
-                .body(byte[].class);
+        byte[] bytes;
+        try {
+            bytes = restClient.post()
+                    .uri(CONTENT + "/2/files/download")
+                    .header("Authorization", "Bearer " + token)
+                    .header("Dropbox-API-Arg", arg)
+                    .retrieve()
+                    .body(byte[].class);
+        } catch (RestClientResponseException e) {
+            throw notFoundOrSame(e, path);
+        }
         if (bytes == null) {
             throw new ClientException("Dropbox download returned no content for path: " + path);
         }
@@ -83,7 +91,12 @@ public class DropboxClient {
     }
 
     public FileEntry getMetadata(String path, String token) {
-        Map<String, Object> resp = rpc(API + "/2/files/get_metadata", Map.of("path", path), token);
+        Map<String, Object> resp;
+        try {
+            resp = rpc(API + "/2/files/get_metadata", Map.of("path", path), token);
+        } catch (RestClientResponseException e) {
+            throw notFoundOrSame(e, path);
+        }
         if (resp == null || resp.get("id") == null) {
             throw new ClientException("Dropbox get_metadata returned no id for path: " + path);
         }
@@ -138,10 +151,36 @@ public class DropboxClient {
 
     private String writeArg(Map<String, Object> arg) {
         try {
-            return objectMapper.writeValueAsString(arg);
+            return headerSafe(objectMapper.writeValueAsString(arg));
         } catch (Exception e) {
             throw new ClientException("Failed to build Dropbox-API-Arg header", e);
         }
+    }
+
+    /** Dropbox requires JSON sent in a header to be ASCII: 0x7F and above become JSON unicode escapes. */
+    static String headerSafe(String json) {
+        StringBuilder sb = new StringBuilder(json.length());
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c >= 0x7F) {
+                sb.append(String.format("\\u%04x", (int) c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Dropbox reports endpoint-specific errors as 409 with the reason in the body's {@code error_summary}. */
+    private static boolean isEndpointError(RestClientResponseException e, String reason) {
+        return e.getStatusCode().value() == 409 && e.getResponseBodyAsString().contains(reason);
+    }
+
+    /** A missing file is a 409 {@code path/not_found}; callers map "not found" messages to HTTP 404. */
+    private static RuntimeException notFoundOrSame(RestClientResponseException e, String path) {
+        return isEndpointError(e, "not_found")
+                ? new ClientException("Dropbox file not found: " + path, e)
+                : e;
     }
 
     public record FileEntry(String id, String name, String pathDisplay, String serverModified) {

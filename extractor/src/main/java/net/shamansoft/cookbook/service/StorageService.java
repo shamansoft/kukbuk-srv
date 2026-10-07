@@ -81,9 +81,11 @@ public class StorageService {
             Item folder = getOrCreateFolder(resolvedFolderName, tokens.accessToken());
             log.info("Using folder '{}' with ID: {}", folder.name(), folder.id());
 
-            // 4. Store tokens and folder information (encrypted)
+            // 4. Store tokens and folder information (encrypted); a replaced Dropbox connection is revoked
+            String replacedDropboxToken = currentDropboxAccessToken(userId);
             connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
                     tokens.expiresIn(), folder.id(), folder.name());
+            revokeDropboxToken(replacedDropboxToken);
 
             return new FolderInfo(folder.id(), folder.name());
 
@@ -209,8 +211,11 @@ public class StorageService {
                     dropboxStorageProvider.getOrCreateFolder(tokens.accessToken(), resolvedFolderName);
             log.info("Using Dropbox folder '{}' (id='{}')", folder.name(), folder.id());
 
+            // Re-connecting Dropbox issues a new grant; revoke the one it replaces so it is not orphaned.
+            String replacedDropboxToken = currentDropboxAccessToken(userId);
             storeConnection(userId, StorageType.DROPBOX, tokens.accessToken(), tokens.refreshToken(),
                     tokens.expiresIn(), folder.id(), folder.name());
+            revokeDropboxToken(replacedDropboxToken);
 
             return new FolderInfo(folder.id(), folder.name());
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -455,7 +460,7 @@ public class StorageService {
      * @param userId Firebase user ID
      */
     public void disconnectStorage(String userId) {
-        revokeProviderTokenBestEffort(userId);
+        revokeDropboxToken(currentDropboxAccessToken(userId));
         log.info("Disconnecting storage for user: {}", userId);
 
         try {
@@ -474,30 +479,42 @@ public class StorageService {
     }
 
     /**
-     * If the connected provider is Dropbox, revoke its token server-side before disconnect.
-     * Best-effort: never blocks or fails the disconnect.
+     * A usable access token for the user's stored Dropbox connection, or null if the connected
+     * provider is not Dropbox. Revocation needs a live access token and Dropbox ones last ~4h, so
+     * an expired one is refreshed first. Best-effort: never throws.
      */
     @SuppressWarnings("unchecked")
-    private void revokeProviderTokenBestEffort(String userId) {
+    private String currentDropboxAccessToken(String userId) {
         try {
             DocumentSnapshot doc = firestore.collection(USERS_COLLECTION)
                     .document(userId).get().get();
-            Map<String, Object> storageMap = (Map<String, Object>) doc.get("storage");
-            if (storageMap == null) {
-                return;
+            Map<String, Object> storageMap = doc != null ? (Map<String, Object>) doc.get(STORAGE_FIELD) : null;
+            if (storageMap == null
+                    || !StorageType.DROPBOX.getFirestoreValue().equals(storageMap.get("type"))) {
+                return null;
             }
-            String type = (String) storageMap.get("type");
-            if (!StorageType.DROPBOX.getFirestoreValue().equals(type)) {
-                return;
+            String encryptedRefresh = (String) storageMap.get("refreshToken");
+            if (encryptedRefresh != null
+                    && dropboxAuthClient.isTokenExpired((Timestamp) storageMap.get("expiresAt"))) {
+                return dropboxAuthClient
+                        .refreshAccessToken(tokenEncryptionService.decrypt(encryptedRefresh))
+                        .accessToken();
             }
             String encryptedAccess = (String) storageMap.get("accessToken");
-            if (encryptedAccess == null) {
-                return;
-            }
-            String accessToken = tokenEncryptionService.decrypt(encryptedAccess);
-            dropboxAuthClient.revokeToken(accessToken);
+            return encryptedAccess != null ? tokenEncryptionService.decrypt(encryptedAccess) : null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
         } catch (Exception e) {
-            log.warn("Best-effort Dropbox token revoke failed for user {}: {}", userId, e.getMessage());
+            log.warn("Could not load Dropbox token to revoke for user {}: {}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Revoke a Dropbox token server-side; no-op for null. Never blocks or fails the caller. */
+    private void revokeDropboxToken(String accessToken) {
+        if (accessToken != null) {
+            dropboxAuthClient.revokeToken(accessToken);
         }
     }
 
