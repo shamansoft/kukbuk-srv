@@ -13,19 +13,19 @@ top-level `sar/research/` directory).
 
 ## Checklist
 
-- [ ] **Phase 1 — Decisions** (You)
-  - [ ] 1.1 Pick the app name
-  - [ ] 1.2 Pick the default recipe subfolder (or none)
+- [x] **Phase 1 — Decisions** (You)
+  - [x] 1.1 Pick the app name — `sar01`
+  - [x] 1.2 Pick the default recipe subfolder (or none) — `_save_a_recipe`
 - [ ] **Phase 2 — Register the Dropbox app** (You)
-  - [ ] 2.1 Create the app (Scoped access, App folder)
-  - [ ] 2.2 Enable the two file scopes
-  - [ ] 2.3 Register the redirect URI
-  - [ ] 2.4 Copy the app key and app secret
+  - [x] 2.1 Create the app (Scoped access, App folder)
+  - [ ] 2.2 Enable the two file scopes — _confirm_
+  - [ ] 2.3 Register the redirect URI — _confirm_
+  - [x] 2.4 Copy the app key and app secret
 - [ ] **Phase 3 — Wire the values in**
-  - [ ] 3.1 Store the app secret in Secret Manager (You)
-  - [ ] 3.2 Give Claude the non-secret values (You)
-  - [ ] 3.3 Terraform: secret + Cloud Run env vars in `sar-infra` (Claude)
-  - [ ] 3.4 Set `DROPBOX_APP_KEY` in the KMP build config (Claude)
+  - [ ] 3.1 Store the app secret in Secret Manager (You) — **must be done before the `sar-infra` PR is applied**
+  - [x] 3.2 Give Claude the non-secret values (You)
+  - [x] 3.3 Terraform: secret + Cloud Run env vars in `sar-infra` (Claude) — PR open, not merged
+  - [x] 3.4 Set `DROPBOX_APP_KEY` in the KMP build config (Claude) — in `sar-kmp` #24
 - [ ] **Phase 4 — Merge and deploy**
   - [ ] 4.1 Review and merge `sar-infra`, then `sar-srv` #88 (You)
   - [ ] 4.2 Confirm the native image starts on Cloud Run (Claude, via logs)
@@ -45,14 +45,16 @@ This is not cosmetic. With App-folder access Dropbox creates `/Apps/<app name>/`
 Dropbox, shows the name on the consent screen, and it cannot be changed casually later.
 
 - Must not contain "Dropbox", must not start with "drop", must not imply partnership.
-- The KMP picker currently says recipes live in **`/Apps/MyKukBuk`**
-  (`StorageProviderRegistry.kt`). If you register a different name, tell Claude — that string and
-  the backend link setting (3.3) must match it exactly.
+- **Decided: `sar01`.** Users will see "sar01" on the Dropbox consent screen and as the folder
+  `/Apps/sar01` in their Dropbox. The KMP picker copy (`StorageProviderRegistry.kt`) and the backend
+  link setting (`COOKBOOK_DROPBOX_APP_FOLDER_NAME`) both use this value and must match it exactly.
 
 ### 1.2 Default recipe subfolder
 `COOKBOOK_DROPBOX_FOLDER_NAME`. Empty (the default) puts recipes directly in the app folder,
 `/Apps/<app name>/pasta.yaml`. A value such as `recipes` gives `/Apps/<app name>/recipes/pasta.yaml`.
-Allowed characters: `A-Z a-z 0-9 . _ -`. Recommended: leave it empty.
+Allowed characters: `A-Z a-z 0-9 . _ -`.
+
+**Decided: `_save_a_recipe`** — recipes are stored at `/Apps/sar01/_save_a_recipe/<name>.yaml`.
 
 ## Phase 2 — Register the Dropbox app (You)
 
@@ -100,9 +102,9 @@ Until this lands the backend runs with placeholder credentials and
 `POST /v1/storage/dropbox/connect` answers 400 — harmless, nothing else is affected.
 
 ### 3.4 KMP build config (Claude)
-Set `DROPBOX_APP_KEY` in `shared/build.gradle.kts` for the `dev` and `prod` flavors (the default is
-`""`, which makes the app show "Dropbox isn't set up in this build yet"), and correct the
-`/Apps/...` copy if the app name differs from `MyKukBuk`.
+Done in `sar-kmp` #24: `DROPBOX_APP_KEY` is set once in `defaultConfigs` of
+`shared/build.gradle.kts` (all flavors use the same Dropbox app), and the picker copy says
+`/Apps/sar01`. A blank key makes the app show "Dropbox isn't set up in this build yet".
 
 ## Phase 4 — Merge and deploy
 
