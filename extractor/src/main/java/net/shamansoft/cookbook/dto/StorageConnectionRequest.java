@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,4 +32,12 @@ public class StorageConnectionRequest {
      */
     @ValidFolderName
     private String folderName;
+
+    /**
+     * PKCE code verifier (RFC 7636) for providers whose authorize page the client opens itself
+     * (Dropbox). Optional: when the client sent a code_challenge, the provider rejects the exchange
+     * without the matching verifier.
+     */
+    @Pattern(regexp = "^[A-Za-z0-9._~-]{43,128}$", message = "Invalid PKCE code verifier")
+    private String codeVerifier;
 }

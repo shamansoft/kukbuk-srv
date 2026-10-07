@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * HTTP client for the Dropbox file API (App-folder access).
@@ -24,9 +25,12 @@ public class DropboxClient {
 
     private static final String API = "https://api.dropboxapi.com";
     private static final String CONTENT = "https://content.dropboxapi.com";
+    private static final int MAX_RATE_LIMIT_RETRIES = 2;
+    private static final long MAX_RETRY_AFTER_SECONDS = 5;
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    Sleeper sleeper = Thread::sleep;
 
     public DropboxClient(@Qualifier("genericRestClient") RestClient restClient, ObjectMapper objectMapper) {
         this.restClient = restClient;
@@ -52,7 +56,7 @@ public class DropboxClient {
 
     public FileEntry upload(String path, byte[] content, String token) {
         String arg = writeArg(Map.of("path", path, "mode", "overwrite", "mute", true));
-        Map<String, Object> resp = restClient.post()
+        Map<String, Object> resp = withRateLimitRetry(() -> restClient.post()
                 .uri(CONTENT + "/2/files/upload")
                 .header("Authorization", "Bearer " + token)
                 .header("Dropbox-API-Arg", arg)
@@ -60,7 +64,7 @@ public class DropboxClient {
                 .body(content)
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                });
+                }));
         if (resp == null || resp.get("id") == null) {
             throw new ClientException("Dropbox upload returned no id for path: " + path);
         }
@@ -71,12 +75,12 @@ public class DropboxClient {
         String arg = writeArg(Map.of("path", path));
         byte[] bytes;
         try {
-            bytes = restClient.post()
+            bytes = withRateLimitRetry(() -> restClient.post()
                     .uri(CONTENT + "/2/files/download")
                     .header("Authorization", "Bearer " + token)
                     .header("Dropbox-API-Arg", arg)
                     .retrieve()
-                    .body(byte[].class);
+                    .body(byte[].class));
         } catch (RestClientResponseException e) {
             throw notFoundOrSame(e, path);
         }
@@ -112,14 +116,55 @@ public class DropboxClient {
     }
 
     private Map<String, Object> rpc(String uri, Map<String, Object> body, String token) {
-        return restClient.post()
+        return withRateLimitRetry(() -> restClient.post()
                 .uri(uri)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                });
+                }));
+    }
+
+    /**
+     * Dropbox throttles with 429 + {@code Retry-After} (seconds). Wait and retry a couple of times
+     * when the wait is short; a longer back-off is not worth holding the request thread for.
+     * Every call made through here is idempotent (uploads use mode=overwrite).
+     */
+    private <T> T withRateLimitRetry(Supplier<T> call) {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return call.get();
+            } catch (RestClientResponseException e) {
+                long waitSeconds = retryAfterSeconds(e);
+                if (e.getStatusCode().value() != 429
+                        || attempt >= MAX_RATE_LIMIT_RETRIES
+                        || waitSeconds > MAX_RETRY_AFTER_SECONDS) {
+                    throw e;
+                }
+                log.warn("Dropbox rate limit hit, retrying in {}s (attempt {})", waitSeconds, attempt + 1);
+                try {
+                    sleeper.sleep(waitSeconds * 1000);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+    }
+
+    private static long retryAfterSeconds(RestClientResponseException e) {
+        String header = e.getResponseHeaders() != null ? e.getResponseHeaders().getFirst("Retry-After") : null;
+        try {
+            return header != null ? Math.max(0, Long.parseLong(header.trim())) : 1;
+        } catch (NumberFormatException notSeconds) {
+            return 1;
+        }
+    }
+
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep(long millis) throws InterruptedException;
     }
 
     @SuppressWarnings("unchecked")

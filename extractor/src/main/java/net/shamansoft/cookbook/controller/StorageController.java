@@ -108,7 +108,8 @@ public class StorageController {
                     userId,
                     request.getAuthorizationCode(),
                     request.getRedirectUri(),
-                    request.getFolderName());
+                    request.getFolderName(),
+                    request.getCodeVerifier());
 
             return ResponseEntity
                     .status(HttpStatus.CREATED)

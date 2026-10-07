@@ -17,6 +17,7 @@ import net.shamansoft.cookbook.repository.firestore.model.StorageEntity;
 import net.shamansoft.cookbook.security.TokenEncryptionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -81,11 +82,11 @@ public class StorageService {
             Item folder = getOrCreateFolder(resolvedFolderName, tokens.accessToken());
             log.info("Using folder '{}' with ID: {}", folder.name(), folder.id());
 
-            // 4. Store tokens and folder information (encrypted); a replaced Dropbox connection is revoked
-            String replacedDropboxToken = currentDropboxAccessToken(userId);
+            // 4. Store tokens and folder information (encrypted), then revoke the connection it replaced
+            RevocableToken replaced = currentRevocableToken(userId);
             connectGoogleDriveWithTokens(userId, tokens.accessToken(), tokens.refreshToken(),
                     tokens.expiresIn(), folder.id(), folder.name());
-            revokeDropboxToken(replacedDropboxToken);
+            revokeReplaced(replaced, StorageType.GOOGLE_DRIVE);
 
             return new FolderInfo(folder.id(), folder.name());
 
@@ -197,11 +198,11 @@ public class StorageService {
      * (or an optional subfolder), and store the encrypted connection.
      */
     public FolderInfo connectDropbox(String userId, String authorizationCode, String redirectUri,
-                                     String folderName) {
+                                     String folderName, String codeVerifier) {
         log.info("Connecting Dropbox storage for user: {}", userId);
         try {
             DropboxAuthClient.TokenResponse tokens =
-                    dropboxAuthClient.exchangeAuthorizationCode(authorizationCode, redirectUri);
+                    dropboxAuthClient.exchangeAuthorizationCode(authorizationCode, redirectUri, codeVerifier);
 
             String resolvedFolderName = (folderName == null || folderName.isBlank())
                     ? defaultDropboxFolderName
@@ -211,11 +212,10 @@ public class StorageService {
                     dropboxStorageProvider.getOrCreateFolder(tokens.accessToken(), resolvedFolderName);
             log.info("Using Dropbox folder '{}' (id='{}')", folder.name(), folder.id());
 
-            // Re-connecting Dropbox issues a new grant; revoke the one it replaces so it is not orphaned.
-            String replacedDropboxToken = currentDropboxAccessToken(userId);
+            RevocableToken replaced = currentRevocableToken(userId);
             storeConnection(userId, StorageType.DROPBOX, tokens.accessToken(), tokens.refreshToken(),
                     tokens.expiresIn(), folder.id(), folder.name());
-            revokeDropboxToken(replacedDropboxToken);
+            revokeReplaced(replaced, StorageType.DROPBOX);
 
             return new FolderInfo(folder.id(), folder.name());
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -322,9 +322,28 @@ public class StorageService {
                     .build();
 
         } catch (Exception e) {
+            if (isGrantRevoked(e)) {
+                // The user removed the app at the provider (or the grant expired): retrying can never
+                // succeed, so report "not connected" rather than a transient 503.
+                log.warn("Stored storage grant is no longer valid for user {}", userId);
+                throw new StorageNotConnectedException(
+                        "Storage access was revoked or has expired. Please reconnect storage.");
+            }
             log.error("Failed to refresh OAuth token for user {}: {}", userId, e.getMessage(), e);
             throw new DatabaseUnavailableException("Failed to refresh OAuth token: " + e.getMessage(), e);
         }
+    }
+
+    /** Both Google and Dropbox answer a dead refresh token with 400 {"error": "invalid_grant"}. */
+    private static boolean isGrantRevoked(Throwable error) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            if (t instanceof RestClientResponseException response
+                    && response.getStatusCode().is4xxClientError()
+                    && response.getResponseBodyAsString().contains("invalid_grant")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -460,7 +479,7 @@ public class StorageService {
      * @param userId Firebase user ID
      */
     public void disconnectStorage(String userId) {
-        revokeDropboxToken(currentDropboxAccessToken(userId));
+        revoke(currentRevocableToken(userId));
         log.info("Disconnecting storage for user: {}", userId);
 
         try {
@@ -479,43 +498,78 @@ public class StorageService {
     }
 
     /**
-     * A usable access token for the user's stored Dropbox connection, or null if the connected
-     * provider is not Dropbox. Revocation needs a live access token and Dropbox ones last ~4h, so
-     * an expired one is refreshed first. Best-effort: never throws.
+     * The token to revoke for the user's stored connection, or null if there is none.
+     * Best-effort: never throws.
+     * <ul>
+     * <li>Dropbox revokes with a live access token; they last ~4h, so an expired one is refreshed first.</li>
+     * <li>Google revokes the whole grant from any of its tokens; the refresh token never expires.</li>
+     * </ul>
      */
     @SuppressWarnings("unchecked")
-    private String currentDropboxAccessToken(String userId) {
+    private RevocableToken currentRevocableToken(String userId) {
         try {
             DocumentSnapshot doc = firestore.collection(USERS_COLLECTION)
                     .document(userId).get().get();
             Map<String, Object> storageMap = doc != null ? (Map<String, Object>) doc.get(STORAGE_FIELD) : null;
-            if (storageMap == null
-                    || !StorageType.DROPBOX.getFirestoreValue().equals(storageMap.get("type"))) {
+            if (storageMap == null) {
                 return null;
             }
-            String encryptedRefresh = (String) storageMap.get("refreshToken");
-            if (encryptedRefresh != null
-                    && dropboxAuthClient.isTokenExpired((Timestamp) storageMap.get("expiresAt"))) {
-                return dropboxAuthClient
-                        .refreshAccessToken(tokenEncryptionService.decrypt(encryptedRefresh))
-                        .accessToken();
-            }
+            String typeValue = (String) storageMap.get("type");
+            StorageType type = typeValue != null ? StorageType.fromFirestoreValue(typeValue) : StorageType.GOOGLE_DRIVE;
             String encryptedAccess = (String) storageMap.get("accessToken");
-            return encryptedAccess != null ? tokenEncryptionService.decrypt(encryptedAccess) : null;
+            String encryptedRefresh = (String) storageMap.get("refreshToken");
+
+            String token;
+            if (type == StorageType.DROPBOX) {
+                if (encryptedRefresh != null
+                        && dropboxAuthClient.isTokenExpired((Timestamp) storageMap.get("expiresAt"))) {
+                    token = dropboxAuthClient
+                            .refreshAccessToken(tokenEncryptionService.decrypt(encryptedRefresh))
+                            .accessToken();
+                } else {
+                    token = encryptedAccess != null ? tokenEncryptionService.decrypt(encryptedAccess) : null;
+                }
+            } else if (type == StorageType.GOOGLE_DRIVE) {
+                String encrypted = encryptedRefresh != null ? encryptedRefresh : encryptedAccess;
+                token = encrypted != null ? tokenEncryptionService.decrypt(encrypted) : null;
+            } else {
+                token = null;
+            }
+            return token != null ? new RevocableToken(type, token) : null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
         } catch (Exception e) {
-            log.warn("Could not load Dropbox token to revoke for user {}: {}", userId, e.getMessage());
+            log.warn("Could not load the stored token to revoke for user {}: {}", userId, e.getMessage());
             return null;
         }
     }
 
-    /** Revoke a Dropbox token server-side; no-op for null. Never blocks or fails the caller. */
-    private void revokeDropboxToken(String accessToken) {
-        if (accessToken != null) {
-            dropboxAuthClient.revokeToken(accessToken);
+    /** Revoke a token at its provider; no-op for null. Never blocks or fails the caller. */
+    private void revoke(RevocableToken token) {
+        if (token == null) {
+            return;
         }
+        if (token.type() == StorageType.DROPBOX) {
+            dropboxAuthClient.revokeToken(token.token());
+        } else {
+            googleAuthClient.revokeToken(token.token());
+        }
+    }
+
+    /**
+     * Revoke the connection a new connect just replaced. Google → Google is skipped: Google revokes
+     * per user+client, so revoking the old token would also kill the grant that was just issued.
+     * (Dropbox revokes per refresh token, so a Dropbox → Dropbox reconnect is safe to clean up.)
+     */
+    private void revokeReplaced(RevocableToken replaced, StorageType newType) {
+        if (replaced != null
+                && !(replaced.type() == StorageType.GOOGLE_DRIVE && newType == StorageType.GOOGLE_DRIVE)) {
+            revoke(replaced);
+        }
+    }
+
+    private record RevocableToken(StorageType type, String token) {
     }
 
     /**

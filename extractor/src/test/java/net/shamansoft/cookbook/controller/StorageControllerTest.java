@@ -41,6 +41,7 @@ class StorageControllerTest {
     private static final String TEST_USER_ID = "test-user-123";
     private static final String TEST_AUTH_CODE = "auth-code-123";
     private static final String TEST_REDIRECT_URI = "https://example.com/callback";
+    private static final String TEST_CODE_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     private static final String TEST_FOLDER_ID = "folder-123";
     private static final String TEST_FOLDER_NAME = "test-folder";
     @Autowired
@@ -325,8 +326,10 @@ class StorageControllerTest {
                 .authorizationCode(TEST_AUTH_CODE)
                 .redirectUri(TEST_REDIRECT_URI)
                 .folderName(null)
+                .codeVerifier(TEST_CODE_VERIFIER)
                 .build();
-        when(storageService.connectDropbox(eq(TEST_USER_ID), eq(TEST_AUTH_CODE), eq(TEST_REDIRECT_URI), isNull()))
+        when(storageService.connectDropbox(eq(TEST_USER_ID), eq(TEST_AUTH_CODE), eq(TEST_REDIRECT_URI), isNull(),
+                eq(TEST_CODE_VERIFIER)))
                 .thenReturn(new StorageService.FolderInfo("", "MyKukBuk"));
 
         ResponseEntity<StorageConnectionResponse> response =
@@ -348,7 +351,7 @@ class StorageControllerTest {
                 .redirectUri(TEST_REDIRECT_URI)
                 .build();
         doThrow(new IllegalArgumentException("Invalid authorization code"))
-                .when(storageService).connectDropbox(anyString(), anyString(), anyString(), any());
+                .when(storageService).connectDropbox(anyString(), anyString(), anyString(), any(), any());
 
         ResponseEntity<StorageConnectionResponse> response =
                 controller.connectDropbox(TEST_USER_ID, request);

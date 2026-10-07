@@ -16,7 +16,8 @@ import java.util.Map;
 
 /**
  * Client for Dropbox OAuth2 (authorization-code + offline refresh token).
- * Mirrors {@link GoogleAuthClient}. Non-PKCE: the app secret is held server-side.
+ * Mirrors {@link GoogleAuthClient}. The app secret is held server-side; clients additionally
+ * use PKCE, because a custom-scheme redirect can be intercepted by another app on the device.
  */
 @Service
 @Slf4j
@@ -38,7 +39,12 @@ public class DropboxAuthClient {
         this.restClient = restClient;
     }
 
-    public TokenResponse exchangeAuthorizationCode(String authorizationCode, String redirectUri) {
+    /**
+     * @param codeVerifier PKCE verifier matching the code_challenge the client sent to the authorize
+     *                     page; null/blank when the client did not use PKCE
+     */
+    public TokenResponse exchangeAuthorizationCode(String authorizationCode, String redirectUri,
+                                                   String codeVerifier) {
         log.info("Exchanging Dropbox authorization code for tokens, redirect_uri: {}", redirectUri);
         try {
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
@@ -47,6 +53,9 @@ public class DropboxAuthClient {
             params.add("client_id", appKey);
             params.add("client_secret", appSecret);
             params.add("redirect_uri", redirectUri);
+            if (codeVerifier != null && !codeVerifier.isBlank()) {
+                params.add("code_verifier", codeVerifier);
+            }
 
             Map<String, Object> response = restClient.post()
                     .uri(TOKEN_URL)

@@ -195,6 +195,27 @@ public class GoogleAuthClient {
     }
 
     /**
+     * Best-effort revocation of the user's grant. Never throws.
+     * Google revokes per user+client: revoking any one token (access or refresh) invalidates every
+     * token of that grant, so never call this for a connection that was just re-authorized.
+     */
+    public void revokeToken(String token) {
+        try {
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("token", token);
+            restClient.post()
+                    .uri("https://oauth2.googleapis.com/revoke")
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(params)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Revoked Google OAuth grant");
+        } catch (Exception e) {
+            log.warn("Google token revoke failed (ignored): {}", e.getMessage());
+        }
+    }
+
+    /**
      * Response from exchanging authorization code for tokens.
      *
      * @param accessToken  OAuth access token

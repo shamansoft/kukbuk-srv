@@ -2,12 +2,14 @@ package net.shamansoft.cookbook.client;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -103,6 +105,60 @@ class DropboxClientTest {
 
         DropboxClient client = new DropboxClient(restClient, objectMapper);
         assertThatThrownBy(() -> client.getMetadata("id:abc", "token")).isSameAs(serverError);
+    }
+
+    private static RestClientResponseException rateLimited(String retryAfter) {
+        HttpHeaders headers = new HttpHeaders();
+        if (retryAfter != null) {
+            headers.add("Retry-After", retryAfter);
+        }
+        return new RestClientResponseException("Too Many Requests", 429, "Too Many Requests", headers, null, null);
+    }
+
+    @Test
+    void rateLimited_waitsRetryAfterAndRetries() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenThrow(rateLimited("2"))
+                .thenReturn(Map.of("id", "id:abc", "name", "a.yaml"));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        List<Long> slept = new ArrayList<>();
+        client.sleeper = slept::add;
+
+        assertThat(client.getMetadata("id:abc", "token").id()).isEqualTo("id:abc");
+        assertThat(slept).containsExactly(2000L);
+    }
+
+    @Test
+    void rateLimited_givesUpAfterTwoRetries() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenThrow(rateLimited(null));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        List<Long> slept = new ArrayList<>();
+        client.sleeper = slept::add;
+
+        assertThatThrownBy(() -> client.listFolder("", 20, "token"))
+                .isInstanceOf(RestClientResponseException.class);
+        assertThat(slept).containsExactly(1000L, 1000L);
+    }
+
+    @Test
+    void rateLimited_longRetryAfter_failsFastWithoutSleeping() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenThrow(rateLimited("300"));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        List<Long> slept = new ArrayList<>();
+        client.sleeper = slept::add;
+
+        assertThatThrownBy(() -> client.listFolder("", 20, "token"))
+                .isInstanceOf(RestClientResponseException.class);
+        assertThat(slept).isEmpty();
     }
 
     @Test

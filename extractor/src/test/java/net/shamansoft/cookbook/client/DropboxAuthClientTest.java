@@ -2,9 +2,11 @@ package net.shamansoft.cookbook.client;
 
 import com.google.cloud.Timestamp;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
 import java.util.HashMap;
@@ -51,11 +53,45 @@ class DropboxAuthClientTest {
         when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(response);
 
         DropboxAuthClient.TokenResponse result =
-                newClient(restClient).exchangeAuthorizationCode("code", "sar://dropbox-callback");
+                newClient(restClient).exchangeAuthorizationCode("code", "sar://dropbox-callback", null);
 
         assertThat(result.accessToken()).isEqualTo("dbx-access");
         assertThat(result.refreshToken()).isEqualTo("dbx-refresh");
         assertThat(result.expiresIn()).isEqualTo(14400);
+    }
+
+    /** Captures the form the client posts to the token endpoint. */
+    private MultiValueMap<String, String> exchangeAndCaptureForm(String codeVerifier) {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec bodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec reqSpec = mock(RestClient.RequestBodySpec.class);
+        RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
+        when(restClient.post()).thenReturn(bodySpec);
+        when(bodySpec.uri(anyString())).thenReturn(reqSpec);
+        when(reqSpec.contentType(any(MediaType.class))).thenReturn(reqSpec);
+        ArgumentCaptor<Object> form = ArgumentCaptor.forClass(Object.class);
+        when(reqSpec.body(form.capture())).thenReturn(reqSpec);
+        when(reqSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(Map.of("access_token", "a", "refresh_token", "r", "expires_in", 14400));
+
+        newClient(restClient).exchangeAuthorizationCode("code", "sar://dropbox-callback", codeVerifier);
+
+        return (MultiValueMap<String, String>) form.getValue();
+    }
+
+    @Test
+    void exchangeAuthorizationCode_sendsPkceVerifierAlongsideTheSecret() {
+        MultiValueMap<String, String> form = exchangeAndCaptureForm("verifier-123");
+
+        assertThat(form.getFirst("code_verifier")).isEqualTo("verifier-123");
+        assertThat(form.getFirst("client_secret")).isEqualTo("app-secret");
+    }
+
+    @Test
+    void exchangeAuthorizationCode_withoutVerifier_omitsTheParameter() {
+        assertThat(exchangeAndCaptureForm(null)).doesNotContainKey("code_verifier");
+        assertThat(exchangeAndCaptureForm(" ")).doesNotContainKey("code_verifier");
     }
 
     @Test
@@ -66,7 +102,7 @@ class DropboxAuthClientTest {
         response.put("access_token", "dbx-access");
         when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(response);
 
-        assertThatThrownBy(() -> newClient(restClient).exchangeAuthorizationCode("code", "sar://cb"))
+        assertThatThrownBy(() -> newClient(restClient).exchangeAuthorizationCode("code", "sar://cb", null))
                 .isInstanceOf(IllegalStateException.class);
     }
 
