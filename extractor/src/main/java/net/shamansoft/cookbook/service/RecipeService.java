@@ -8,7 +8,6 @@ import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.StorageInfo;
-import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
@@ -25,8 +24,7 @@ import java.util.Optional;
 
 /**
  * Core business logic for recipe operations.
- * Orchestrates Drive access, YAML parsing, and DTO mapping.
- * Supports extracting multiple recipes from a single page.
+ * Routes storage I/O to the provider selected by the user's connected storage type.
  */
 @Service
 @RequiredArgsConstructor
@@ -34,7 +32,7 @@ import java.util.Optional;
 public class RecipeService {
 
     private final ContentHashService contentHashService;
-    private final DriveService googleDriveService;
+    private final StorageProviderResolver storageProviderResolver;
     private final StorageService storageService;
     private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
@@ -50,8 +48,10 @@ public class RecipeService {
 
         if (storage.folderId() == null) {
             throw new StorageNotConnectedException(
-                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+                    "No folder configured for recipe storage. Please reconnect storage or configure a folder.");
         }
+
+        StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
         var transformerResponse = createOrGetCached(url, sourceHtml, compression);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
@@ -65,9 +65,9 @@ public class RecipeService {
             for (Recipe recipe : transformerResponse.recipes()) {
                 String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                         ? recipe.metadata().title() : title;
-                String fileName = googleDriveService.generateFileName(recipeTitle);
+                String fileName = provider.generateFileName(recipeTitle);
                 String yamlContent = convertRecipeToYaml(recipe);
-                DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+                DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
                         storage.accessToken(), storage.folderId(), fileName, yamlContent);
                 uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
             }
@@ -83,7 +83,7 @@ public class RecipeService {
                         .driveFileUrl(first.driveFileUrl());
             }
         } else {
-            log.info("Content is not a recipe. Skipping Drive storage - URL: {}", url);
+            log.info("Content is not a recipe. Skipping storage - URL: {}", url);
         }
 
         return responseBuilder.build();
@@ -94,8 +94,10 @@ public class RecipeService {
 
         if (storage.folderId() == null) {
             throw new StorageNotConnectedException(
-                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+                    "No folder configured for recipe storage. Please reconnect storage or configure a folder.");
         }
+
+        StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
         String plainDescription = decompressContent(description, compression);
         var transformerResponse = geminiRestTransformer.transformDescription(plainDescription);
@@ -104,9 +106,9 @@ public class RecipeService {
         for (Recipe recipe : transformerResponse.recipes()) {
             String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                     ? recipe.metadata().title() : title;
-            String fileName = googleDriveService.generateFileName(recipeTitle);
+            String fileName = provider.generateFileName(recipeTitle);
             String yamlContent = convertRecipeToYaml(recipe);
-            DriveService.UploadResult uploadResult = googleDriveService.uploadRecipeYaml(
+            DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
                     storage.accessToken(), storage.folderId(), fileName, yamlContent);
             uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
         }
@@ -167,14 +169,7 @@ public class RecipeService {
     }
 
     /**
-     * List all recipes from user's Drive folder with full parsing.
-     *
-     * @param userId    Firebase user ID
-     * @param pageSize  Number of items per page (1-100)
-     * @param pageToken Pagination token from previous response (null for first page)
-     * @return RecipeListResult with recipes and next page token
-     * @throws net.shamansoft.cookbook.exception.StorageNotConnectedException if storage not connected
-     * @throws net.shamansoft.cookbook.exception.DatabaseUnavailableException if Firestore unavailable
+     * List all recipes from the user's storage folder with full parsing.
      */
     public RecipeListResult listRecipes(String userId, int pageSize, String pageToken) {
         log.info("Listing recipes for user: {}, pageSize: {}, pageToken: {}",
@@ -182,25 +177,22 @@ public class RecipeService {
 
         StorageInfo storage = storageService.getStorageInfo(userId);
 
-        if (storage.type() != StorageType.GOOGLE_DRIVE) {
-            throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
-        }
-
         if (storage.folderId() == null) {
             throw new StorageNotConnectedException(
-                    "No folder configured for recipe storage. Please reconnect Google Drive or configure a folder.");
+                    "No folder configured for recipe storage. Please reconnect storage or configure a folder.");
         }
 
+        StorageProvider provider = storageProviderResolver.resolve(storage.type());
         String folderId = storage.folderId();
         log.debug("Using folder ID from user profile: {}", folderId);
 
-        GoogleDrive.DriveFileListResult driveFiles = googleDriveService.listRecipeFiles(
+        GoogleDrive.DriveFileListResult driveFiles = provider.listRecipeFiles(
                 storage.accessToken(), folderId, pageSize, pageToken);
 
         log.info("Found {} YAML files in folder: {}", driveFiles.files().size(), folderId);
 
         List<RecipeDto> recipes = driveFiles.files().stream()
-                .map(file -> parseRecipeFile(storage.accessToken(), file))
+                .map(file -> parseRecipeFile(provider, storage.accessToken(), file))
                 .filter(Objects::nonNull)
                 .toList();
 
@@ -210,31 +202,21 @@ public class RecipeService {
     }
 
     /**
-     * Get single recipe by Drive file ID.
-     *
-     * @param userId Firebase user ID
-     * @param fileId Google Drive file ID
-     * @return Recipe DTO with full data
-     * @throws net.shamansoft.cookbook.exception.StorageNotConnectedException if storage not connected
-     * @throws RecipeNotFoundException                                        if file not found
-     * @throws net.shamansoft.cookbook.exception.InvalidRecipeFormatException if YAML invalid
+     * Get single recipe by storage file ID.
      */
     public RecipeDto getRecipe(String userId, String fileId) {
         log.info("Getting recipe: {} for user: {}", fileId, userId);
 
         StorageInfo storage = storageService.getStorageInfo(userId);
-
-        if (storage.type() != StorageType.GOOGLE_DRIVE) {
-            throw new IllegalStateException("Expected Google Drive storage, got: " + storage.type());
-        }
+        StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
         try {
-            GoogleDrive.DriveFileMetadata metadata = googleDriveService.getFileMetadata(
+            GoogleDrive.DriveFileMetadata metadata = provider.getFileMetadata(
                     storage.accessToken(), fileId);
 
             log.debug("Found file: {} ({})", metadata.name(), metadata.mimeType());
 
-            String yamlContent = googleDriveService.getFileContent(storage.accessToken(), fileId);
+            String yamlContent = provider.getFileContent(storage.accessToken(), fileId);
             Recipe recipe = recipeParser.parse(yamlContent);
             RecipeDto dto = recipeMapper.toDto(recipe, metadata);
 
@@ -253,10 +235,10 @@ public class RecipeService {
         }
     }
 
-    private RecipeDto parseRecipeFile(String authToken, GoogleDrive.DriveFileInfo fileInfo) {
+    private RecipeDto parseRecipeFile(StorageProvider provider, String authToken, GoogleDrive.DriveFileInfo fileInfo) {
         try {
             log.debug("Parsing recipe file: {} ({})", fileInfo.name(), fileInfo.id());
-            String yamlContent = googleDriveService.getFileContent(authToken, fileInfo.id());
+            String yamlContent = provider.getFileContent(authToken, fileInfo.id());
             Recipe recipe = recipeParser.parse(yamlContent);
             RecipeDto dto = recipeMapper.toDto(recipe, fileInfo);
             log.debug("Successfully parsed: {}", dto.getTitle());
@@ -270,7 +252,6 @@ public class RecipeService {
 
     /**
      * Decompresses content only when compression is BASE64_GZIP.
-     * Null or NONE compression passes content through unchanged.
      */
     private String decompressContent(String content, Compression compression) throws IOException {
         if (content == null || content.isBlank()) return content;
@@ -288,12 +269,6 @@ public class RecipeService {
         }
     }
 
-    /**
-     * Result of listing recipes with pagination.
-     *
-     * @param recipes       List of recipe DTOs
-     * @param nextPageToken Token for next page (null if no more pages)
-     */
     public record RecipeListResult(List<RecipeDto> recipes, String nextPageToken) {
     }
 }

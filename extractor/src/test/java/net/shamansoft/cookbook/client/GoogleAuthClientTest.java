@@ -160,4 +160,30 @@ class GoogleAuthClientTest {
         Timestamp expiresAt = Timestamp.ofTimeSecondsAndNanos(now - 3600, 0);
         assertThat(client.isTokenExpired(expiresAt)).isTrue();
     }
+
+    @Test
+    void testRevokeTokenPostsToRevokeEndpoint() {
+        RestClient mockRestClient = mock(RestClient.class);
+        RestClient.RequestBodyUriSpec bodySpec = mock(RestClient.RequestBodyUriSpec.class);
+        RestClient.RequestBodySpec reqSpec = mock(RestClient.RequestBodySpec.class);
+        RestClient.ResponseSpec responseSpec = mock(RestClient.ResponseSpec.class);
+        when(mockRestClient.post()).thenReturn(bodySpec);
+        when(bodySpec.uri("https://oauth2.googleapis.com/revoke")).thenReturn(reqSpec);
+        when(reqSpec.contentType(any(MediaType.class))).thenReturn(reqSpec);
+        when(reqSpec.body(any(Object.class))).thenReturn(reqSpec);
+        when(reqSpec.retrieve()).thenReturn(responseSpec);
+
+        new GoogleAuthClient(mockRestClient).revokeToken("refresh-token");
+
+        verify(responseSpec).toBodilessEntity();
+    }
+
+    @Test
+    void testRevokeTokenSwallowsErrors() {
+        RestClient mockRestClient = mock(RestClient.class);
+        when(mockRestClient.post()).thenThrow(new RuntimeException("boom"));
+
+        assertThatCode(() -> new GoogleAuthClient(mockRestClient).revokeToken("refresh-token"))
+                .doesNotThrowAnyException();
+    }
 }

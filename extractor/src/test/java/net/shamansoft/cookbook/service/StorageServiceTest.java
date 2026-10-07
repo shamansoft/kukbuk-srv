@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,11 +68,17 @@ class StorageServiceTest {
     private StorageService storageService;
     @Mock
     private net.shamansoft.cookbook.client.GoogleDrive googleDrive;
+    @Mock
+    private net.shamansoft.cookbook.client.DropboxAuthClient dropboxAuthClient;
+    @Mock
+    private DropboxStorageProvider dropboxStorageProvider;
 
     @BeforeEach
     void setUp() {
-        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive);
+        storageService = new StorageService(firestore, tokenEncryptionService, googleAuthClient, googleDrive,
+                dropboxAuthClient, dropboxStorageProvider);
         ReflectionTestUtils.setField(storageService, "defaultFolderName", "kukbuk");
+        ReflectionTestUtils.setField(storageService, "defaultDropboxFolderName", "kukbuk");
         when(firestore.collection("users")).thenReturn(usersCollection);
         when(usersCollection.document(USER_ID)).thenReturn(userDocument);
     }
@@ -117,6 +124,249 @@ class StorageServiceTest {
         assertThat(storage.get("refreshToken")).isEqualTo(ENCRYPTED_REFRESH);
         assertThat(storage.get("folderId")).isEqualTo(FOLDER_ID);
         assertThat(storage.get("folderName")).isEqualTo(FOLDER_NAME);
+    }
+
+    // ====================== Dropbox Tests ======================
+
+    @Test
+    @DisplayName("Should connect Dropbox and persist type=dropbox with app-root folder")
+    void shouldConnectDropbox() throws Exception {
+        net.shamansoft.cookbook.client.DropboxAuthClient.TokenResponse tokens =
+                new net.shamansoft.cookbook.client.DropboxAuthClient.TokenResponse(ACCESS_TOKEN, REFRESH_TOKEN, 14400L);
+        when(dropboxAuthClient.exchangeAuthorizationCode("dbx-code", "sar://cb", "verifier")).thenReturn(tokens);
+        when(dropboxStorageProvider.getOrCreateFolder(ACCESS_TOKEN, "kukbuk"))
+                .thenReturn(new StorageProvider.FolderRef("", "kukbuk"));
+        when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
+        when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+        when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        StorageService.FolderInfo result =
+                storageService.connectDropbox(USER_ID, "dbx-code", "sar://cb", null, "verifier");
+
+        assertThat(result.folderId()).isEqualTo("");
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(userDocument).update(eq("storage"), captor.capture());
+        assertThat(captor.getValue().get("type")).isEqualTo("dropbox");
+        assertThat(captor.getValue().get("accessToken")).isEqualTo(ENCRYPTED_ACCESS);
+    }
+
+    @Test
+    @DisplayName("Should refresh Dropbox token via DropboxAuthClient")
+    void shouldRefreshDropboxToken() throws Exception {
+        long past = System.currentTimeMillis() / 1000 - 3600;
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(past, 0);
+        StorageEntity entity = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken(ENCRYPTED_ACCESS).refreshToken(ENCRYPTED_REFRESH)
+                .expiresAt(expiredAt).connectedAt(Timestamp.now()).folderId("").build();
+
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.exists()).thenReturn(true);
+        when(documentSnapshot.get("storage")).thenReturn(entity.toMap());
+        when(dropboxAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
+        when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
+
+        Timestamp newExpiry = Timestamp.ofTimeSecondsAndNanos(System.currentTimeMillis() / 1000 + 14400, 0);
+        when(dropboxAuthClient.refreshAccessToken(REFRESH_TOKEN))
+                .thenReturn(new net.shamansoft.cookbook.client.DropboxAuthClient.RefreshTokenResponse("dbx-new", newExpiry));
+        when(tokenEncryptionService.encrypt("dbx-new")).thenReturn("enc-new");
+        when(userDocument.update(anyString(), any(), anyString(), any())).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        StorageInfo result = storageService.getStorageInfo(USER_ID);
+
+        assertThat(result.accessToken()).isEqualTo("dbx-new");
+        assertThat(result.type()).isEqualTo(StorageType.DROPBOX);
+        verify(dropboxAuthClient).refreshAccessToken(REFRESH_TOKEN);
+    }
+
+    @Test
+    @DisplayName("Should revoke Dropbox token before clearing storage on disconnect")
+    void shouldRevokeDropboxTokenOnDisconnect() throws Exception {
+        StorageEntity entity = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken(ENCRYPTED_ACCESS).folderId("").build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.get("storage")).thenReturn(entity.toMap());
+        when(tokenEncryptionService.decrypt(ENCRYPTED_ACCESS)).thenReturn(ACCESS_TOKEN);
+        when(userDocument.update("storage", null)).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.disconnectStorage(USER_ID);
+
+        verify(dropboxAuthClient).revokeToken(ACCESS_TOKEN);
+        verify(userDocument).update("storage", null);
+    }
+
+    @Test
+    @DisplayName("Should refresh an expired Dropbox token so the revoke on disconnect actually works")
+    void shouldRefreshExpiredDropboxTokenBeforeRevoke() throws Exception {
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(System.currentTimeMillis() / 1000 - 3600, 0);
+        StorageEntity entity = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken(ENCRYPTED_ACCESS).refreshToken(ENCRYPTED_REFRESH)
+                .expiresAt(expiredAt).folderId("").build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.get("storage")).thenReturn(entity.toMap());
+        when(dropboxAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
+        when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
+        when(dropboxAuthClient.refreshAccessToken(REFRESH_TOKEN))
+                .thenReturn(new net.shamansoft.cookbook.client.DropboxAuthClient.RefreshTokenResponse(
+                        "dbx-fresh", Timestamp.now()));
+        when(userDocument.update("storage", null)).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.disconnectStorage(USER_ID);
+
+        verify(dropboxAuthClient).revokeToken("dbx-fresh");
+        verify(userDocument).update("storage", null);
+    }
+
+    @Test
+    @DisplayName("Should still disconnect when the Dropbox token cannot be refreshed for revoke")
+    void shouldDisconnectWhenRevokePreparationFails() throws Exception {
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(System.currentTimeMillis() / 1000 - 3600, 0);
+        StorageEntity entity = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken(ENCRYPTED_ACCESS).refreshToken(ENCRYPTED_REFRESH)
+                .expiresAt(expiredAt).folderId("").build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.get("storage")).thenReturn(entity.toMap());
+        when(dropboxAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
+        when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
+        when(dropboxAuthClient.refreshAccessToken(REFRESH_TOKEN))
+                .thenThrow(new DatabaseUnavailableException("invalid_grant", null));
+        when(userDocument.update("storage", null)).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.disconnectStorage(USER_ID);
+
+        verify(dropboxAuthClient, never()).revokeToken(anyString());
+        verify(userDocument).update("storage", null);
+    }
+
+    @Test
+    @DisplayName("Should revoke the replaced Dropbox token when the user switches to Google Drive")
+    void shouldRevokeDropboxTokenWhenReplacedByGoogleDrive() throws Exception {
+        StorageEntity previous = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken("encrypted-dropbox-access").folderId("").build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.get("storage")).thenReturn(previous.toMap());
+        when(tokenEncryptionService.decrypt("encrypted-dropbox-access")).thenReturn("dbx-old");
+
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(new GoogleAuthClient.TokenResponse(ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN));
+        when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
+        when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+        when(googleDrive.getFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
+                .thenReturn(java.util.Optional.of(
+                        new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, FOLDER_NAME)));
+        when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", FOLDER_NAME);
+
+        org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(userDocument, dropboxAuthClient);
+        inOrder.verify(userDocument).update(eq("storage"), any(Map.class));
+        inOrder.verify(dropboxAuthClient).revokeToken("dbx-old");
+    }
+
+    /** Stubs the stored connection as Google Drive with the given encrypted refresh token. */
+    private void stubStoredGoogleConnection(String encryptedRefresh, String refreshToken) throws Exception {
+        StorageEntity previous = StorageEntity.builder()
+                .type("googleDrive").connected(true)
+                .accessToken("encrypted-google-access").refreshToken(encryptedRefresh)
+                .folderId(FOLDER_ID).build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.get("storage")).thenReturn(previous.toMap());
+        when(tokenEncryptionService.decrypt(encryptedRefresh)).thenReturn(refreshToken);
+    }
+
+    @Test
+    @DisplayName("Should revoke the Google grant (via its refresh token) on disconnect")
+    void shouldRevokeGoogleGrantOnDisconnect() throws Exception {
+        stubStoredGoogleConnection("encrypted-google-refresh", "google-refresh");
+        when(userDocument.update("storage", null)).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.disconnectStorage(USER_ID);
+
+        verify(googleAuthClient).revokeToken("google-refresh");
+        verify(userDocument).update("storage", null);
+    }
+
+    @Test
+    @DisplayName("Should revoke the replaced Google grant when the user switches to Dropbox")
+    void shouldRevokeGoogleGrantWhenReplacedByDropbox() throws Exception {
+        stubStoredGoogleConnection("encrypted-google-refresh", "google-refresh");
+        when(dropboxAuthClient.exchangeAuthorizationCode("dbx-code", "sar://cb", null))
+                .thenReturn(new net.shamansoft.cookbook.client.DropboxAuthClient.TokenResponse(
+                        ACCESS_TOKEN, REFRESH_TOKEN, 14400L));
+        when(dropboxStorageProvider.getOrCreateFolder(ACCESS_TOKEN, "kukbuk"))
+                .thenReturn(new StorageProvider.FolderRef("", "kukbuk"));
+        when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
+        when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+        when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.connectDropbox(USER_ID, "dbx-code", "sar://cb", null, null);
+
+        verify(googleAuthClient).revokeToken("google-refresh");
+    }
+
+    @Test
+    @DisplayName("Should NOT revoke on a Google -> Google reconnect (it would kill the new grant too)")
+    void shouldNotRevokeGoogleGrantOnGoogleReconnect() throws Exception {
+        stubStoredGoogleConnection("encrypted-google-refresh", "google-refresh");
+        when(googleAuthClient.exchangeAuthorizationCode("auth-code", "https://callback"))
+                .thenReturn(new GoogleAuthClient.TokenResponse(ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_IN));
+        when(tokenEncryptionService.encrypt(ACCESS_TOKEN)).thenReturn(ENCRYPTED_ACCESS);
+        when(tokenEncryptionService.encrypt(REFRESH_TOKEN)).thenReturn(ENCRYPTED_REFRESH);
+        when(googleDrive.getFolder(eq(FOLDER_NAME), eq(ACCESS_TOKEN)))
+                .thenReturn(java.util.Optional.of(
+                        new net.shamansoft.cookbook.client.GoogleDrive.Item(FOLDER_ID, FOLDER_NAME)));
+        when(userDocument.update(eq("storage"), any(Map.class))).thenReturn(writeFuture);
+        when(writeFuture.get()).thenReturn(mock(WriteResult.class));
+
+        storageService.connectGoogleDrive(USER_ID, "auth-code", "https://callback", FOLDER_NAME);
+
+        verify(googleAuthClient, never()).revokeToken(anyString());
+        verify(dropboxAuthClient, never()).revokeToken(anyString());
+    }
+
+    @Test
+    @DisplayName("Should report not-connected (not 503) when the provider says the grant is revoked")
+    void shouldReportNotConnectedWhenGrantRevoked() throws Exception {
+        Timestamp expiredAt = Timestamp.ofTimeSecondsAndNanos(System.currentTimeMillis() / 1000 - 3600, 0);
+        StorageEntity entity = StorageEntity.builder()
+                .type("dropbox").connected(true)
+                .accessToken(ENCRYPTED_ACCESS).refreshToken(ENCRYPTED_REFRESH)
+                .expiresAt(expiredAt).folderId("").build();
+        when(userDocument.get()).thenReturn(documentFuture);
+        when(documentFuture.get()).thenReturn(documentSnapshot);
+        when(documentSnapshot.exists()).thenReturn(true);
+        when(documentSnapshot.get("storage")).thenReturn(entity.toMap());
+        when(dropboxAuthClient.isTokenExpired(expiredAt)).thenReturn(true);
+        when(tokenEncryptionService.decrypt(ENCRYPTED_REFRESH)).thenReturn(REFRESH_TOKEN);
+        byte[] body = "{\"error\": \"invalid_grant\", \"error_description\": \"refresh token is invalid or revoked\"}"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(dropboxAuthClient.refreshAccessToken(REFRESH_TOKEN))
+                .thenThrow(new DatabaseUnavailableException("Failed to refresh Dropbox token",
+                        new org.springframework.web.client.RestClientResponseException(
+                                "Bad Request", 400, "Bad Request", null, body,
+                                java.nio.charset.StandardCharsets.UTF_8)));
+
+        assertThatThrownBy(() -> storageService.getStorageInfo(USER_ID))
+                .isInstanceOf(StorageNotConnectedException.class)
+                .hasMessageContaining("reconnect");
     }
 
     @Test
