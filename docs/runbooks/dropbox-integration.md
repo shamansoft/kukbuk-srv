@@ -22,9 +22,10 @@ top-level `sar/research/` directory).
   - [ ] 2.3 Register the redirect URI — _confirm_
   - [x] 2.4 Copy the app key and app secret
 - [ ] **Phase 3 — Wire the values in**
-  - [ ] 3.1 Store the app secret in Secret Manager (You) — **must be done before the `sar-infra` PR is applied**
+  - [x] 3.1 Store the app secret in Secret Manager (You) — `dropbox-app-secret`, one enabled version
   - [x] 3.2 Give Claude the non-secret values (You)
-  - [x] 3.3 Terraform: secret + Cloud Run env vars in `sar-infra` (Claude) — PR open, not merged
+  - [x] 3.3 Terraform: secret + Cloud Run env vars in `sar-infra` (Claude) — `sar-infra` #1, plan is
+        "1 to import, 1 to change"; not merged
   - [x] 3.4 Set `DROPBOX_APP_KEY` in the KMP build config (Claude) — in `sar-kmp` #24
 - [ ] **Phase 4 — Merge and deploy**
   - [ ] 4.1 Review and merge `sar-infra`, then `sar-srv` #88 (You)
