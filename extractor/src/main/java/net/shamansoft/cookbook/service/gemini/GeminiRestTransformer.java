@@ -3,20 +3,64 @@ package net.shamansoft.cookbook.service.gemini;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.TunableTransformer;
 import net.shamansoft.recipe.model.Recipe;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 
 import java.util.List;
+import java.util.Set;
 
 @Service("geminiTransformer")
 @Slf4j
 @RequiredArgsConstructor
-public class GeminiRestTransformer implements Transformer {
+public class GeminiRestTransformer implements TunableTransformer {
+
+    public static final String PROVIDER = "gemini";
+
+    // Allow-list prevents an arbitrary string from being formatted into the Gemini request URL.
+    private static final Set<String> ALLOWED_MODELS = Set.of(
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3.6-flash"
+    );
 
     private final GeminiClient geminiClient;
     private final RequestBuilder requestBuilder;
+    @Value("${cookbook.gemini.model}")
+    private String defaultModel;
+
+    @Override
+    public String provider() {
+        return PROVIDER;
+    }
+
+    @Override
+    public String defaultModel() {
+        return defaultModel;
+    }
+
+    @Override
+    public String validateOverrides(GenerationOverrides overrides) {
+        if (overrides == null) {
+            return null;
+        }
+        if (overrides.model() != null && !ALLOWED_MODELS.contains(overrides.model())) {
+            return "model must be one of: " + ALLOWED_MODELS;
+        }
+        if (overrides.reasoningEffort() != null) {
+            return "reasoningEffort is not supported by provider 'gemini'; use thinkingBudget";
+        }
+        return null;
+    }
 
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
@@ -70,6 +114,7 @@ public class GeminiRestTransformer implements Transformer {
      * overridden generation parameters, bypassing the adaptive-cleaning/validation retry chain
      * so a single call reflects exactly the given parameters.
      */
+    @Override
     public Response transformWithOverrides(String htmlContent, GenerationOverrides overrides) {
         try {
             GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);

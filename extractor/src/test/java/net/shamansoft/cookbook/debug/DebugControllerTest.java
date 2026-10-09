@@ -9,8 +9,9 @@ import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.TunableTransformer;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
-import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
@@ -49,6 +50,7 @@ class DebugControllerTest {
     @Mock private RecipeStoreService recipeStoreService;
     @Mock private RecipeParser recipeParser;
     @Mock private GeminiRestTransformer geminiRestTransformer;
+    @Mock private TunableTransformer openAiTransformer;
 
     private DebugController controller;
 
@@ -62,8 +64,11 @@ class DebugControllerTest {
                 contentHashService,
                 recipeStoreService,
                 recipeParser,
-                geminiRestTransformer
+                List.of(geminiRestTransformer, openAiTransformer)
         );
+
+        lenient().when(geminiRestTransformer.provider()).thenReturn("gemini");
+        lenient().when(openAiTransformer.provider()).thenReturn("openai");
 
         lenient().when(contentHashService.generateContentHash(anyString())).thenReturn("hash-abc123");
         lenient().when(recipeStoreService.findCachedRecipes(anyString())).thenReturn(Optional.empty());
@@ -95,7 +100,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -124,7 +129,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 null, htmlText, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Test Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -149,7 +154,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 null, null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -165,7 +170,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Not a recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -191,7 +196,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -217,7 +222,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -246,7 +251,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, "gemini-3.5-flash-lite", null, null, null, null, null
+                null, null, null, null, "gemini-3.5-flash-lite", null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -257,7 +262,7 @@ class DebugControllerTest {
 
         when(htmlExtractor.extractHtml("https://example.com/recipe", null)).thenReturn(htmlContent);
         when(htmlPreprocessor.process(htmlContent, "https://example.com/recipe")).thenReturn(cleanResults);
-        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(net.shamansoft.cookbook.service.gemini.GenerationOverrides.class)))
+        when(geminiRestTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
                 .thenReturn(transformResponse);
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -272,7 +277,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 true, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -298,7 +303,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -326,7 +331,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Cached Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -351,7 +356,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         RecipeStoreService.CachedRecipes cached = new RecipeStoreService.CachedRecipes(false, List.of());
 
@@ -371,7 +376,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipes", null, null, "json", "auto",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Multiple recipes</body></html>";
         Recipe recipe1 = createTestRecipe("Recipe 1");
@@ -398,7 +403,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -423,7 +428,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "raw",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -446,7 +451,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "disabled",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -468,7 +473,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, false, null, null, null, null, null, null,
-                0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null
+                0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -495,7 +500,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -520,7 +525,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                3.0f, null, null, null, null, null, null, null, null, null
+                3.0f, null, null, null, null, null, null, null, null, null, null, null
         );
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -539,7 +544,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                0.2f, null, null, null, null, null, null, null, null, null
+                0.2f, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -564,7 +569,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                0.2f, null, null, null, null, null, null, null, null, null
+                0.2f, null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -582,5 +587,132 @@ class DebugControllerTest {
 
         verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
         verify(recipeStoreService, never()).storeInvalidRecipe(anyString(), anyString());
+    }
+
+    private RecipeRequest openAiRequest(String model, String reasoningEffort, Integer thinkingBudget) {
+        return new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, true, null, null, null, null, null, null,
+                null, null, null, thinkingBudget, model, null, null, null, null, null, "openai", reasoningEffort
+        );
+    }
+
+    private String stubHtml(String url) throws IOException {
+        String htmlContent = "<html><body>Recipe</body></html>";
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                htmlContent, htmlContent.length(), htmlContent.length(), 0.0, Strategy.DISABLED, "Strategy: DISABLED"
+        );
+        when(htmlExtractor.extractHtml(url, null)).thenReturn(htmlContent);
+        when(htmlPreprocessor.process(htmlContent, url)).thenReturn(cleanResults);
+        return htmlContent;
+    }
+
+    @Test
+    @DisplayName("provider=openai routes to the OpenAI transformer, even without overrides")
+    void testTransformWithOpenAiProviderRoutesToOpenAiTransformer() throws IOException, Exception {
+        RecipeRequest request = openAiRequest(null, null, null);
+        String htmlContent = stubHtml("https://example.com/recipe");
+        when(openAiTransformer.defaultModel()).thenReturn("gpt-6-luna");
+        when(openAiTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe("OpenAI Recipe")));
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+        verify(openAiTransformer).transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class));
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+        verify(transformer, never()).transform(anyString(), anyString());
+
+        RecipeResponse.ProcessingMetadata metadata = ((RecipeResponse) response.getBody()).getMetadata();
+        assertThat(metadata.getProvider()).isEqualTo("openai");
+        assertThat(metadata.getModel()).isEqualTo("gpt-6-luna");
+        assertThat(metadata.getGeminiModel()).isNull();
+    }
+
+    @Test
+    @DisplayName("provider=openai never reads or writes the recipe cache")
+    void testTransformWithOpenAiProviderSkipsCache() throws IOException, Exception {
+        RecipeRequest request = openAiRequest("gpt-6-luna", "low", null);
+        String htmlContent = stubHtml("https://example.com/recipe");
+        when(openAiTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe("OpenAI Recipe")));
+
+        controller.testTransform(request);
+
+        verify(recipeStoreService, never()).findCachedRecipes(anyString());
+        verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("provider-specific validation error returns bad request before any LLM call")
+    void testTransformWithProviderValidationErrorReturnsBadRequest() throws IOException, Exception {
+        RecipeRequest request = openAiRequest(null, null, 1024);
+        when(openAiTransformer.validateOverrides(any(GenerationOverrides.class)))
+                .thenReturn("thinkingBudget is not supported by provider 'openai'; use reasoningEffort");
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("thinkingBudget");
+        verify(htmlExtractor, never()).extractHtml(anyString(), any());
+        verify(openAiTransformer, never()).transformWithOverrides(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("failed provider call reports provider, model and the provider's error in verbose metadata")
+    void testTransformWithFailedProviderCallReportsProviderAndError() throws IOException, Exception {
+        RecipeRequest request = openAiRequest(null, null, null);
+        String htmlContent = stubHtml("https://example.com/recipe");
+        when(openAiTransformer.defaultModel()).thenReturn("gpt-6-luna");
+        when(openAiTransformer.transformWithOverrides(eq(htmlContent), any(GenerationOverrides.class)))
+                .thenThrow(new net.shamansoft.cookbook.client.ClientException(
+                        "OpenAI request failed: OpenAI API error 429: You have no credits remaining."));
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+        RecipeResponse.ProcessingMetadata metadata = ((RecipeResponse) response.getBody()).getMetadata();
+        assertThat(metadata.getProvider()).isEqualTo("openai");
+        assertThat(metadata.getModel()).isEqualTo("gpt-6-luna");
+        assertThat(metadata.getValidationError()).contains("You have no credits remaining.");
+    }
+
+    @Test
+    @DisplayName("unknown provider returns bad request listing the available providers")
+    void testTransformWithUnknownProviderReturnsBadRequest() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, "mistral", null
+        );
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("provider").contains("gemini").contains("openai");
+        verify(htmlExtractor, never()).extractHtml(anyString(), any());
+        verify(transformer, never()).transform(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("explicit provider=gemini without overrides still runs the production chain")
+    void testTransformWithExplicitGeminiProviderUsesProductionChain() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", null, null, "json", "auto",
+                null, true, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, "gemini", null
+        );
+        String htmlContent = stubHtml("https://example.com/recipe");
+        when(geminiRestTransformer.defaultModel()).thenReturn("gemini-2.5-flash-lite");
+        when(transformer.transform(htmlContent, "https://example.com/recipe"))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe("Gemini Recipe")));
+
+        ResponseEntity<?> response = controller.testTransform(request);
+
+        verify(transformer).transform(htmlContent, "https://example.com/recipe");
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+        RecipeResponse.ProcessingMetadata metadata = ((RecipeResponse) response.getBody()).getMetadata();
+        assertThat(metadata.getProvider()).isEqualTo("gemini");
+        assertThat(metadata.getGeminiModel()).isEqualTo("gemini-2.5-flash-lite");
     }
 }

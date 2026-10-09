@@ -40,7 +40,9 @@ public class RecipeResponse {
         private String contentHash;
 
         // Transformation
-        private String geminiModel;
+        private String provider;
+        private String model;
+        private String geminiModel; // same as model; set only when provider is gemini
         private Long transformationTimeMs;
 
         // Validation

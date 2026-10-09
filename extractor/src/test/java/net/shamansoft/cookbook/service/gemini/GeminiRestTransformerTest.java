@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.service.gemini;
 
 import net.shamansoft.cookbook.client.ClientException;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -470,7 +471,7 @@ class GeminiRestTransformerTest {
     void transformWithOverridesUsesOverridesRequestBuilderAndPassesModelToClient() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 50, "gemini-2.5-pro", null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 50, "gemini-2.5-pro", null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
         GeminiExtractionResult extraction = recipeResult("Tuned Recipe");
 
@@ -494,7 +495,7 @@ class GeminiRestTransformerTest {
     void transformWithOverridesPassesNullModelWhenOverridesHasNoModel() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.2f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, null, null, null, null, null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
         GeminiExtractionResult extraction = recipeResult("Tuned Recipe");
 
@@ -513,7 +514,7 @@ class GeminiRestTransformerTest {
     void transformWithOverridesReturnsNonRecipeWhenIsRecipeIsFalse() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Not a recipe</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
@@ -533,7 +534,7 @@ class GeminiRestTransformerTest {
     void transformWithOverridesThrowsClientExceptionOnGeminiError() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, null, null, null, null, null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
 
         when(requestBuilder.buildRequest(eq(htmlContent), eq(overrides))).thenReturn(mockRequest);
@@ -550,7 +551,7 @@ class GeminiRestTransformerTest {
     void transformDescriptionWithOverridesUsesOverridesRequestBuilderAndPassesModelToClient() throws JacksonException {
         // Given
         String description = "Mix flour and eggs. Fry until golden.";
-        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, "gemini-2.0-flash", null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, "gemini-2.0-flash", null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
         GeminiExtractionResult extraction = recipeResult("Tuned Crepes");
 
@@ -574,7 +575,7 @@ class GeminiRestTransformerTest {
     void transformDescriptionWithOverridesThrowsClientExceptionOnGeminiError() throws JacksonException {
         // Given
         String description = "Some description";
-        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null, null);
         GeminiRequest mockRequest = mock(GeminiRequest.class);
 
         when(requestBuilder.buildRequestFromDescription(eq(description), eq(overrides))).thenReturn(mockRequest);
@@ -609,5 +610,45 @@ class GeminiRestTransformerTest {
         // Then - null should be filtered out
         assertThat(response.recipes()).hasSize(2);
         assertThat(response.recipes()).allMatch(Recipe::isRecipe);
+    }
+
+    private static GenerationOverrides overridesWithModel(String model) {
+        return new GenerationOverrides(null, null, null, null, model, null, null, null, null, null, null);
+    }
+
+    @Test
+    void providerIsGeminiAndDefaultModelComesFromConfig() {
+        org.springframework.test.util.ReflectionTestUtils.setField(transformer, "defaultModel", "gemini-2.5-flash-lite");
+
+        assertThat(transformer.provider()).isEqualTo("gemini");
+        assertThat(transformer.defaultModel()).isEqualTo("gemini-2.5-flash-lite");
+    }
+
+    @Test
+    void validateOverridesAcceptsNullAndEmptyOverrides() {
+        assertThat(transformer.validateOverrides(null)).isNull();
+        assertThat(transformer.validateOverrides(overridesWithModel(null))).isNull();
+    }
+
+    @Test
+    void validateOverridesAcceptsAllowListedModels() {
+        assertThat(transformer.validateOverrides(overridesWithModel("gemini-2.5-flash"))).isNull();
+        assertThat(transformer.validateOverrides(overridesWithModel("gemini-3.1-flash-lite"))).isNull();
+        assertThat(transformer.validateOverrides(overridesWithModel("gemini-3.5-flash-lite"))).isNull();
+        assertThat(transformer.validateOverrides(overridesWithModel("gemini-3.6-flash"))).isNull();
+    }
+
+    @Test
+    void validateOverridesRejectsModelNotInAllowList() {
+        assertThat(transformer.validateOverrides(overridesWithModel("../../v1beta2/other"))).contains("model");
+        assertThat(transformer.validateOverrides(overridesWithModel("gpt-6-luna"))).contains("model");
+    }
+
+    @Test
+    void validateOverridesRejectsReasoningEffort() {
+        GenerationOverrides overrides =
+                new GenerationOverrides(null, null, null, null, null, null, null, null, null, null, "low");
+
+        assertThat(transformer.validateOverrides(overrides)).contains("reasoningEffort").contains("thinkingBudget");
     }
 }

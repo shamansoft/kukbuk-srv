@@ -1,11 +1,14 @@
-package net.shamansoft.cookbook.service.gemini;
+package net.shamansoft.cookbook.service;
 
 import java.util.List;
-import java.util.Set;
 
 /**
- * Optional per-request overrides for Gemini generation parameters, used only by the
+ * Optional per-request overrides for LLM generation parameters, used only by the
  * local-profile debug endpoint to support fast parameter tuning without an app restart.
+ * <p>
+ * This is the union of what the supported providers accept. {@link #validationError()} checks
+ * value ranges only; which fields and models a given provider supports is checked by that
+ * provider's {@link TunableTransformer#validateOverrides(GenerationOverrides)}.
  * <p>
  * {@code safetyThreshold}, {@code responseMimeType}/{@code responseSchema}, and the prompt
  * text itself are intentionally NOT overridable here — see docs/specs/gemini-tuning.md for why.
@@ -20,31 +23,21 @@ public record GenerationOverrides(
         Integer seed,
         Float presencePenalty,
         Float frequencyPenalty,
-        List<String> stopSequences
+        List<String> stopSequences,
+        String reasoningEffort
 ) {
-    // Allow-list prevents an arbitrary string from being formatted into the Gemini request URL.
-    private static final Set<String> ALLOWED_MODELS = Set.of(
-            "gemini-2.5-flash-lite",
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
-            "gemini-2.0-flash",
-            "gemini-1.5-pro",
-            "gemini-3.1-flash-lite",
-            "gemini-3.5-flash-lite",
-            "gemini-3.6-flash"
-    );
-
     private static final int MAX_STOP_SEQUENCES = 5;
     private static final int MAX_STOP_SEQUENCE_LENGTH = 100;
 
     public boolean isEmpty() {
         return temperature == null && topP == null && maxOutputTokens == null
                 && thinkingBudget == null && model == null && topK == null && seed == null
-                && presencePenalty == null && frequencyPenalty == null && stopSequences == null;
+                && presencePenalty == null && frequencyPenalty == null && stopSequences == null
+                && reasoningEffort == null;
     }
 
     /**
-     * @return a human-readable validation error, or null if all provided fields are valid.
+     * @return a human-readable validation error, or null if all provided fields are in range.
      */
     public String validationError() {
         if (temperature != null && (temperature < 0f || temperature > 2f)) {
@@ -58,9 +51,6 @@ public record GenerationOverrides(
         }
         if (thinkingBudget != null && thinkingBudget < -1) {
             return "thinkingBudget must be -1 (unlimited) or >= 0";
-        }
-        if (model != null && !ALLOWED_MODELS.contains(model)) {
-            return "model must be one of: " + ALLOWED_MODELS;
         }
         if (topK != null && (topK < 1 || topK > 100)) {
             return "topK must be between 1 and 100";

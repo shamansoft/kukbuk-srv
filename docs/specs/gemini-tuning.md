@@ -2,6 +2,8 @@
 
 How to vary Gemini generation parameters per request against `POST /debug/v1/recipes`
 for fast, no-restart tuning — and which parameters are deliberately *not* exposed, and why.
+The same endpoint can send the request to another LLM provider (currently OpenAI) to compare
+models; see [Providers](#providers).
 Local environment only (`@Profile("local")`).
 
 See [debug-flags.md](debug-flags.md) for the dump flags this endpoint also supports.
@@ -23,12 +25,73 @@ falls back to the value configured in `application*.yaml`. When **any** override
 - Invalid values (out of range, or a `model` not on the allow-list) return `400` before any
   Gemini API call is made.
 
-Implementation: `GenerationOverrides` (`extractor/src/main/java/.../service/gemini/GenerationOverrides.java`),
+Implementation: `GenerationOverrides` (`extractor/src/main/java/.../service/GenerationOverrides.java`),
 wired through `RequestBuilder.buildRequest(html, overrides)` → `GeminiRequest.GenerationConfig`.
 
 ---
 
+## Providers
+
+The `provider` field selects which LLM the request goes to. Each provider is a
+`TunableTransformer` implementation; the debug endpoint picks the one whose `provider()` matches.
+
+| `provider` | Implementation | Models | Notes |
+|---|---|---|---|
+| `gemini` (default) | `GeminiRestTransformer` | see `model` below | The production provider. |
+| `openai` | `OpenAiRestTransformer` | `gpt-6-luna` (default), `gpt-6-astra`, `gpt-6.1-sol` | Local profile only; for evaluation. Needs `COOKBOOK_OPENAI_API_KEY` or `OPENAI_API_KEY`. |
+
+- `"provider": "openai"` is always a tuning call, even with no other override: one raw call,
+  no cache read or write, no retry chain.
+- Both providers get the same system prompt (`prompt.md`), the same `<HTML_CONTENT>` input
+  framing and the same schema (`llm-recipe-schema.json`), so their output is directly comparable.
+- A parameter the selected provider does not have returns `400` instead of being ignored, so a
+  tuning run never silently tests something other than what was asked.
+- Verbose metadata reports `provider` and `model` (`geminiModel` is kept for Gemini calls).
+
+### OpenAI specifics
+
+OpenAI is called through the Responses API with Structured Outputs in strict mode. Defaults are
+under `cookbook.openai.*` in `application.yaml`.
+
+| Field | Supported | Notes |
+|---|---|---|
+| `model` | yes | Allow-listed, see above. |
+| `reasoningEffort` | yes | `none` (default), `minimal`, `low`, `medium`, `high`, `xhigh`, `max`. The OpenAI counterpart of `thinkingBudget`. |
+| `maxOutputTokens` | yes | Includes reasoning tokens. |
+| `temperature`, `topP` | only with `reasoningEffort: none` | With any other effort the API returns `400 Unsupported parameter`. The configured default temperature is dropped automatically when reasoning is on; an explicit per-request value is sent as-is so the API's error comes back. Confirmed for `temperature`; `topP` is assumed to behave the same. |
+| `thinkingBudget`, `topK`, `seed`, `presencePenalty`, `frequencyPenalty`, `stopSequences` | no | Not part of the Responses API → `400`. |
+
+**Schema adaptation.** Strict mode requires every property to be `required` and every object to
+set `additionalProperties: false`. `OpenAiSchemaAdapter` derives that form from
+`llm-recipe-schema.json` at startup: optional properties become nullable instead (the model must
+emit them, but may emit `null`), and the `uri` format, which the API rejects, is dropped.
+The schema file itself stays the single source for both providers.
+
+**Verified against the live API (2026-10):** the adapted schema is accepted; `seed` is an
+unknown parameter; `temperature` is rejected when reasoning is on; the effort values above are
+the ones the API lists. **Not verified:** a successful extraction — the account had no credits,
+so every otherwise-valid call returned `429 insufficient_quota`.
+
+```bash
+curl -X POST http://localhost:8080/debug/v1/recipes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "... free-text or HTML recipe content ...",
+    "returnFormat": "json",
+    "verbose": true,
+    "cleanHtml": "disabled",
+    "provider": "openai",
+    "model": "gpt-6-luna",
+    "reasoningEffort": "none"
+  }'
+```
+
+---
+
 ## Parameters you CAN tune
+
+Ranges below are checked for every provider. The `model` allow-list and `thinkingBudget` rows
+describe Gemini; see "OpenAI specifics" above for what `provider: openai` accepts.
 
 | Field | Type | Range / allow-list | What it does |
 |---|---|---|---|

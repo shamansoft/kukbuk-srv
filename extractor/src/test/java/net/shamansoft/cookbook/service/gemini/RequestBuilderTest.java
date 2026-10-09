@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.service.gemini;
 
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -445,7 +446,7 @@ class RequestBuilderTest {
     void buildRequestWithOverridesUsesOverrideValuesInsteadOfConfigured() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 100, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, 0.5, 2048, 100, null, null, null, null, null, null, null);
 
         // When
         GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
@@ -461,7 +462,7 @@ class RequestBuilderTest {
     void buildRequestWithPartialOverridesFallsBackToConfiguredForUnsetFields() throws JacksonException {
         // Given - only temperature overridden, everything else should use configured defaults
         String htmlContent = "<html><body>Recipe content</body></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.3f, null, null, null, null, null, null, null, null, null, null);
 
         // When
         GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
@@ -493,7 +494,7 @@ class RequestBuilderTest {
         // Given - safetyThreshold has no field on GenerationOverrides at all, this proves
         // that even with other overrides set, safety settings stay pinned to configuration.
         String htmlContent = "<html></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.9f, 0.99, 100, 50, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.9f, 0.99, 100, 50, null, null, null, null, null, null, null);
 
         // When
         GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
@@ -505,7 +506,7 @@ class RequestBuilderTest {
 
     @Test
     void buildRequestWithOverridesThrowsExceptionWhenHtmlContentIsNull() {
-        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> requestBuilder.buildRequest(null, overrides))
                 .isInstanceOf(NullPointerException.class)
@@ -516,7 +517,7 @@ class RequestBuilderTest {
     void buildRequestFromDescriptionWithOverridesUsesOverrideValues() throws JacksonException {
         // Given
         String description = "Mix flour and eggs. Fry until golden.";
-        GenerationOverrides overrides = new GenerationOverrides(0.1f, 0.4, 1024, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.1f, 0.4, 1024, null, null, null, null, null, null, null, null);
 
         // When
         GeminiRequest request = requestBuilder.buildRequestFromDescription(description, overrides);
@@ -532,7 +533,7 @@ class RequestBuilderTest {
 
     @Test
     void buildRequestFromDescriptionWithOverridesThrowsExceptionWhenDescriptionIsNull() {
-        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.5f, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> requestBuilder.buildRequestFromDescription(null, overrides))
                 .isInstanceOf(NullPointerException.class)
@@ -543,7 +544,7 @@ class RequestBuilderTest {
     void buildRequestWithOverridesSetsNewGenerationParamsWhenProvided() throws JacksonException {
         String htmlContent = "<html></html>";
         GenerationOverrides overrides = new GenerationOverrides(
-                null, null, null, null, null, 40, 42, 0.5f, -0.5f, List.of("END", "STOP"));
+                null, null, null, null, null, 40, 42, 0.5f, -0.5f, List.of("END", "STOP"), null);
 
         GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
 
@@ -571,7 +572,7 @@ class RequestBuilderTest {
     void buildRequestWithOverridesLeavesNewGenerationParamsUnsetWhenNotProvided() throws JacksonException {
         // Given - overrides object present (temperature set) but new fields left null
         String htmlContent = "<html></html>";
-        GenerationOverrides overrides = new GenerationOverrides(0.4f, null, null, null, null, null, null, null, null, null);
+        GenerationOverrides overrides = new GenerationOverrides(0.4f, null, null, null, null, null, null, null, null, null, null);
 
         GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
 

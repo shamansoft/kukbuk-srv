@@ -44,6 +44,10 @@ parameters per request, without restarting the app to change `application-local.
 Any field you omit falls back to the value configured in `application*.yaml`. An invalid value
 (out of range, or a `model` not in the allow-list) returns `400` before any Gemini call is made.
 
+A `provider` field (`gemini` by default, or `openai`) selects which LLM the request goes to, and
+`reasoningEffort` is the OpenAI counterpart of `thinkingBudget`. The full parameter reference,
+including what each provider supports, is in [gemini-tuning.md](gemini-tuning.md).
+
 ```bash
 curl -X POST http://localhost:8080/debug/v1/recipes \
   -H "Content-Type: application/json" \

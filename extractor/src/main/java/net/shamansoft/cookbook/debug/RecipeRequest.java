@@ -1,6 +1,6 @@
 package net.shamansoft.cookbook.debug;
 
-import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 
 import java.util.List;
 
@@ -32,11 +32,11 @@ public record RecipeRequest(
         Boolean dumpResultJson,
         Boolean dumpResultYaml,
 
-        // Gemini generation parameter overrides for tuning (optional; omitted fields fall back
-        // to configured defaults). safetyThreshold is deliberately not overridable here.
+        // Generation parameter overrides for tuning (optional; omitted fields fall back to
+        // configured defaults). safetyThreshold is deliberately not overridable here.
         // When any of these is set, the request bypasses caching entirely (no read, no write)
-        // and routes directly to GeminiRestTransformer, skipping the adaptive-cleaning/
-        // validation retry chain used by production traffic.
+        // and routes directly to the selected provider's transformer, skipping the
+        // adaptive-cleaning/validation retry chain used by production traffic.
         Float temperature,
         Double topP,
         Integer maxOutputTokens,
@@ -46,8 +46,16 @@ public record RecipeRequest(
         Integer seed,
         Float presencePenalty,
         Float frequencyPenalty,
-        List<String> stopSequences
+        List<String> stopSequences,
+
+        // LLM provider to call (optional, default: gemini): "gemini" or "openai".
+        // Any provider other than the default is treated like an override: one raw call, no cache.
+        String provider,
+        // OpenAI reasoning effort override, e.g. "none", "low", "medium", "high"
+        String reasoningEffort
 ) {
+    public static final String DEFAULT_PROVIDER = "gemini";
+
     public boolean hasUrl() {
         return url != null && !url.isEmpty();
     }
@@ -58,6 +66,10 @@ public record RecipeRequest(
 
     public String getReturnFormat() {
         return returnFormat != null ? returnFormat.toLowerCase() : "yaml";
+    }
+
+    public String getProvider() {
+        return provider != null && !provider.isBlank() ? provider.trim().toLowerCase() : DEFAULT_PROVIDER;
     }
 
     public String getCleanHtml() {
@@ -98,6 +110,6 @@ public record RecipeRequest(
 
     public GenerationOverrides overrides() {
         return new GenerationOverrides(temperature, topP, maxOutputTokens, thinkingBudget, model,
-                topK, seed, presencePenalty, frequencyPenalty, stopSequences);
+                topK, seed, presencePenalty, frequencyPenalty, stopSequences, reasoningEffort);
     }
 }

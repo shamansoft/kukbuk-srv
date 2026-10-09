@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -53,6 +54,11 @@ public class RestClientConfig {
     @Bean
     public ClientHttpRequestFactory geminiHttpRequestFactory(
             @Value("${cookbook.gemini.timeout-seconds:90}") int timeoutSeconds) {
+        return llmRequestFactory(timeoutSeconds);
+    }
+
+    // LLM generation is slow: a long, configurable response timeout on a small dedicated pool.
+    private static ClientHttpRequestFactory llmRequestFactory(int timeoutSeconds) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
                 .setConnectTimeout(Timeout.ofSeconds(5))
                 .build();
@@ -86,6 +92,24 @@ public class RestClientConfig {
                 .requestInterceptor((request, body, execution) -> {
                     log.info("Request: {} {}", request.getMethod(),
                             hideKey(request.getURI().toString()));
+                    return execution.execute(request, body);
+                })
+                .build();
+    }
+
+    // Local profile only: OpenAI is used by the debug endpoint for model evaluation.
+    // The request factory is built inline rather than exposed as a bean, so it cannot become
+    // a candidate for the other ClientHttpRequestFactory injection points.
+    @Bean
+    @Profile("local")
+    public RestClient openAiRestClient(
+            @Value("${cookbook.openai.base-url}") String baseUrl,
+            @Value("${cookbook.openai.timeout-seconds:90}") int timeoutSeconds) {
+        return RestClient.builder()
+                .requestFactory(llmRequestFactory(timeoutSeconds))
+                .baseUrl(baseUrl)
+                .requestInterceptor((request, body, execution) -> {
+                    log.info("Request: {} {}", request.getMethod(), request.getURI());
                     return execution.execute(request, body);
                 })
                 .build();

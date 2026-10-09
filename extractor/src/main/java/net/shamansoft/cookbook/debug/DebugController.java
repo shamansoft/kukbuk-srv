@@ -11,8 +11,8 @@ import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
-import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
-import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
+import net.shamansoft.cookbook.service.TunableTransformer;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +59,8 @@ public class DebugController {
     private final ContentHashService contentHashService;
     private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
-    private final GeminiRestTransformer geminiRestTransformer;
+    // One per LLM provider (gemini, openai, ...); selected by the request's `provider` field.
+    private final List<TunableTransformer> tunableTransformers;
 
     // DumpService is optional - only available in local profile
     @Autowired(required = false)
@@ -85,6 +86,7 @@ public class DebugController {
      * - cleanHtml: "auto" (default), "structured", "section", "content", "raw",
      * "disabled"
      * - skipCache: Skip recipe caching (default: false)
+     * - provider: LLM provider to call, "gemini" (default) or "openai"
      * - verbose: Include detailed processing metadata (default: false)
      * <p>
      * Response format depends on returnFormat and verbose flags:
@@ -104,8 +106,9 @@ public class DebugController {
         String sessionId = CorrelationFilter.SESSION.get();
 
         log.info("🧪 DEBUG ENDPOINT - /debug/v1/recipes [session: {}]", sessionId);
-        log.info("Options: returnFormat={}, cleanHtml={}, skipCache={}, verbose={}",
-                request.getReturnFormat(), request.getCleanHtml(), request.isSkipCache(), request.isVerbose());
+        log.info("Options: returnFormat={}, cleanHtml={}, skipCache={}, verbose={}, provider={}",
+                request.getReturnFormat(), request.getCleanHtml(), request.isSkipCache(), request.isVerbose(),
+                request.getProvider());
 
         // Validate request
         if (!request.hasUrl() && !request.hasText()) {
@@ -114,10 +117,27 @@ public class DebugController {
                     .body("{\"error\": \"Either 'url' or 'text' field is required\"}");
         }
 
+        String provider = request.getProvider();
+        TunableTransformer providerTransformer = tunableTransformers.stream()
+                .filter(t -> t.provider().equals(provider))
+                .findFirst()
+                .orElse(null);
+        if (providerTransformer == null) {
+            List<String> available = tunableTransformers.stream().map(TunableTransformer::provider).sorted().toList();
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"provider must be one of: " + available + "\"}");
+        }
+
         GenerationOverrides overrides = request.overrides();
-        boolean hasOverrides = !overrides.isEmpty();
-        if (hasOverrides) {
+        // The default provider with no overrides runs the full production chain. Anything else
+        // is a tuning call: one raw LLM call through the selected provider's transformer.
+        boolean tuningCall = !overrides.isEmpty() || !RecipeRequest.DEFAULT_PROVIDER.equals(provider);
+        if (tuningCall) {
             String overridesError = overrides.validationError();
+            if (overridesError == null) {
+                overridesError = providerTransformer.validateOverrides(overrides);
+            }
             if (overridesError != null) {
                 return ResponseEntity.badRequest()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -125,8 +145,9 @@ public class DebugController {
             }
         }
         // Tuning calls are never cached: a result produced with non-default generation
-        // parameters must never be read back as (or overwrite) the canonical cached recipe.
-        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides;
+        // parameters or a non-default provider must never be read back as (or overwrite) the
+        // canonical cached recipe.
+        boolean effectiveSkipCache = request.isSkipCache() || tuningCall;
 
         // Build response with metadata tracking
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder();
@@ -227,16 +248,22 @@ public class DebugController {
                     }
                 }
 
-                // 2c. Transform to Recipe using Gemini
-                transformResponse = hasOverrides
-                        ? geminiRestTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
+                // 2c. Transform to Recipe using the selected provider
+                if (request.isVerbose()) {
+                    // Set before the call so a failed call still reports what it was sent to
+                    String model = overrides.model() != null ? overrides.model() : providerTransformer.defaultModel();
+                    metadataBuilder
+                            .provider(provider)
+                            .model(model)
+                            .geminiModel(RecipeRequest.DEFAULT_PROVIDER.equals(provider) ? model : null);
+                }
+                transformResponse = tuningCall
+                        ? providerTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
                         : transformer.transform(preprocessed.cleanedHtml(), url);
 
                 long transformTime = System.currentTimeMillis() - transformStart;
                 if (request.isVerbose()) {
-                    metadataBuilder
-                            .transformationTimeMs(transformTime)
-                            .geminiModel(overrides.model() != null ? overrides.model() : "gemini-2.5-flash-lite"); // TODO: Get non-override default from config
+                    metadataBuilder.transformationTimeMs(transformTime);
                 }
 
                 // Dump raw LLM response if flag enabled
@@ -253,7 +280,7 @@ public class DebugController {
                     }
                 }
 
-                // 2d. Cache result (unless skipCache=true, or generation overrides were used)
+                // 2d. Cache result (unless skipCache=true, or this was a tuning call)
                 if (!effectiveSkipCache) {
                     if (transformResponse.isRecipe()) {
                         recipeStoreService.storeValidRecipes(contentHash, url, transformResponse.recipes());

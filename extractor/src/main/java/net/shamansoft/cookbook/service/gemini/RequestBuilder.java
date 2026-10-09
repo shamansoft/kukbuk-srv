@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service.gemini;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import net.shamansoft.cookbook.service.GenerationOverrides;
 import net.shamansoft.cookbook.service.ResourcesLoader;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +67,22 @@ public class RequestBuilder {
             throw new IllegalStateException("Prompt file is missing required boundary sentinel: " + boundary);
         }
         return text.substring(0, idx).stripTrailing();
+    }
+
+    // The three accessors below expose the provider-neutral parts of an extraction request so
+    // other LLM providers send exactly the same instructions, input framing and schema.
+
+    public String htmlSystemPrompt() {
+        return htmlSystemPrompt;
+    }
+
+    public String htmlUserContent(String htmlContent) {
+        Objects.requireNonNull(htmlContent, "htmlContent cannot be null");
+        return withHtml(htmlContent);
+    }
+
+    public Object responseSchema() {
+        return parsedJsonSchema;
     }
 
     private String withHtml(String html) {

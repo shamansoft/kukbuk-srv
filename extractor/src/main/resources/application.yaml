@@ -214,6 +214,43 @@ cookbook:
     safety-threshold: "BLOCK_NONE"
 
   # ---------------------------------------------------------------------------
+  # OPENAI CONFIGURATION (local profile only)
+  # ---------------------------------------------------------------------------
+  # Used by the debug endpoint (POST /debug/v1/recipes with "provider": "openai") to evaluate
+  # OpenAI models against Gemini. Production traffic does not use OpenAI.
+  openai:
+    # OpenAI API key
+    # Used by: OpenAiClient.java (@Value("${cookbook.openai.api-key:}"))
+    # Set via COOKBOOK_OPENAI_API_KEY, or the standard OPENAI_API_KEY as a fallback
+    api-key: "${OPENAI_API_KEY:}"
+
+    # Base URL for the OpenAI API
+    # Used by: RestClientConfig.java (openAiRestClient bean)
+    base-url: "https://api.openai.com/v1"
+
+    # Read timeout for OpenAI API calls in seconds
+    # Used by: RestClientConfig.java (openAiRestClient bean)
+    timeout-seconds: 90
+
+    # OpenAI model to use for recipe extraction
+    # Used by: OpenAiRestTransformer.java (@Value("${cookbook.openai.model}"))
+    model: "gpt-6-luna"
+
+    # Reasoning effort: none, minimal, low, medium, high, xhigh, max
+    # Used by: OpenAiRestTransformer.java (@Value("${cookbook.openai.reasoning-effort}"))
+    # Default: none (mirrors Gemini's thinking-budget: 0)
+    reasoning-effort: "none"
+
+    # Maximum number of tokens in the model's response (includes reasoning tokens)
+    # Used by: OpenAiRestTransformer.java (@Value("${cookbook.openai.max-output-tokens}"))
+    max-output-tokens: 8192
+
+    # Sampling temperature. Optional: sent only when reasoning-effort is "none", because the
+    # API rejects it otherwise. top-p is supported the same way and unset by default.
+    # Used by: OpenAiRestTransformer.java (@Value("${cookbook.openai.temperature:#{null}}"))
+    temperature: 0.0
+
+  # ---------------------------------------------------------------------------
   # GOOGLE DRIVE CONFIGURATION
   # ---------------------------------------------------------------------------
   drive:
