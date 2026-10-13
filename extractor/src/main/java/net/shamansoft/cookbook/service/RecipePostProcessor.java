@@ -1,6 +1,10 @@
 package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.recipe.model.CoverImage;
+import net.shamansoft.recipe.model.ImageMedia;
+import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Media;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Post-processes recipes after AI transformation to populate deterministic fields.
@@ -82,7 +87,7 @@ public class RecipePostProcessor {
                     originalMetadata.cookTime(),
                     originalMetadata.totalTime(),
                     originalMetadata.difficulty(),
-                    originalMetadata.coverImage()
+                    resolveCoverImage(originalMetadata.coverImage(), sourceUrl)
             );
         }
 
@@ -95,10 +100,47 @@ public class RecipePostProcessor {
                 recipe.description(),
                 recipe.ingredients(),
                 recipe.equipment(),
-                recipe.instructions(),
+                resolveInstructionImages(recipe.instructions(), sourceUrl),
                 recipe.nutrition(),
                 recipe.notes(),
                 recipe.storage()
         );
+    }
+
+    private CoverImage resolveCoverImage(CoverImage coverImage, String sourceUrl) {
+        if (coverImage == null) {
+            return null;
+        }
+        return new CoverImage(resolveImagePath(coverImage.path(), sourceUrl), coverImage.alt());
+    }
+
+    private List<Instruction> resolveInstructionImages(List<Instruction> instructions, String sourceUrl) {
+        if (instructions == null) {
+            return null;
+        }
+        return instructions.stream()
+                .map(instruction -> instruction.media() == null ? instruction : new Instruction(
+                        instruction.step(),
+                        instruction.description(),
+                        instruction.time(),
+                        instruction.temperature(),
+                        instruction.media().stream().map(media -> resolveImage(media, sourceUrl)).toList()))
+                .toList();
+    }
+
+    private Media resolveImage(Media media, String sourceUrl) {
+        if (media instanceof ImageMedia image) {
+            return new ImageMedia(resolveImagePath(image.path(), sourceUrl), image.alt());
+        }
+        return media;
+    }
+
+    /**
+     * Makes a relative image path absolute using the page URL. A path that cannot be resolved
+     * is stored as extracted, so nothing the model returned is lost; RecipeMapper omits such
+     * paths from API responses.
+     */
+    private String resolveImagePath(String path, String sourceUrl) {
+        return ImageUrlResolver.resolve(path, sourceUrl).orElse(path);
     }
 }

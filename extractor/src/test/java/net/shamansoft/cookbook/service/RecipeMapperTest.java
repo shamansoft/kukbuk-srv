@@ -15,8 +15,11 @@ import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -317,6 +320,89 @@ class RecipeMapperTest {
         assertThat(dto.getAllImageUrls()).contains(COVER_IMAGE_URL);
     }
 
+    // ===== Test: Image URL resolution =====
+
+    @Test
+    @DisplayName("Should resolve relative cover image path against recipe source")
+    void shouldResolveRelativeCoverImagePathAgainstRecipeSource() {
+        // Given
+        Recipe recipe = createRecipeWithImages(
+                "https://www.gordonramsay.com/gr/recipes/x/", "/assets/Uploads/a.png");
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getCoverImageUrl()).isEqualTo("https://www.gordonramsay.com/assets/Uploads/a.png");
+        assertThat(dto.getAllImageUrls()).containsExactly("https://www.gordonramsay.com/assets/Uploads/a.png");
+    }
+
+    @ParameterizedTest(name = "[{index}] {1} against {0} -> {2}")
+    @CsvSource({
+            "https://site.com/recipes/x/, https://cdn.site.com/a.jpg,  https://cdn.site.com/a.jpg",
+            "https://site.com/recipes/x/, http://cdn.site.com/a.jpg,   http://cdn.site.com/a.jpg",
+            "https://site.com/recipes/x/, //cdn.example.com/a.jpg,     https://cdn.example.com/a.jpg",
+            "http://site.com/recipes/x/,  //cdn.example.com/a.jpg,     http://cdn.example.com/a.jpg",
+            "https://site.com/recipes/x/, /assets/a.png,               https://site.com/assets/a.png",
+            "https://site.com/recipes/x/, images/a.png,                https://site.com/recipes/x/images/a.png",
+            "https://site.com/recipes/x,  images/a.png,                https://site.com/recipes/images/a.png",
+            "https://site.com/recipes/x/, ../images/a.png,             https://site.com/recipes/images/a.png",
+    })
+    @DisplayName("Should return absolute URLs for cover image and instruction images")
+    void shouldReturnAbsoluteImageUrls(String source, String path, String expected) {
+        // Given
+        Recipe recipe = createRecipeWithImages(source, path, path);
+
+        // When
+        RecipeDto fromMetadata = recipeMapper.toDto(recipe, driveFileMetadata());
+        RecipeDto fromFileInfo = recipeMapper.toDto(recipe,
+                new GoogleDrive.DriveFileInfo(RECIPE_ID, "recipe.yaml", LAST_MODIFIED));
+
+        // Then
+        assertThat(fromMetadata.getCoverImageUrl()).isEqualTo(expected);
+        assertThat(fromMetadata.getAllImageUrls()).containsExactly(expected, expected);
+        assertThat(fromFileInfo.getCoverImageUrl()).isEqualTo(expected);
+        assertThat(fromFileInfo.getAllImageUrls()).containsExactly(expected, expected);
+    }
+
+    @ParameterizedTest(name = "[{index}] {1} against {0}")
+    @CsvSource(value = {
+            "https://site.com/recipes/x/ | data:image/png;base64,iVBORw0KGgo=",
+            "https://site.com/recipes/x/ | '   '",
+            "https://site.com/recipes/x/ | /images/%zz.png",
+            "NULL                        | /assets/a.png",
+            "''                          | /assets/a.png",
+            "not a url                   | /assets/a.png",
+            "NULL                        | images/a.png",
+            "NULL                        | //cdn.example.com/a.jpg",
+    }, delimiter = '|', nullValues = "NULL")
+    @DisplayName("Should omit image paths that cannot be resolved to an absolute URL")
+    void shouldOmitUnresolvableImagePaths(String source, String path) {
+        // Given
+        Recipe recipe = createRecipeWithImages(source, path, path, "https://cdn.site.com/ok.jpg");
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getCoverImageUrl()).isNull();
+        assertThat(dto.getAllImageUrls()).containsExactly("https://cdn.site.com/ok.jpg");
+    }
+
+    @Test
+    @DisplayName("Should keep absolute image URLs when recipe has no source")
+    void shouldKeepAbsoluteImageUrlsWhenRecipeHasNoSource() {
+        // Given
+        Recipe recipe = createRecipeWithImages(null, COVER_IMAGE_URL, "https://example.com/step1.jpg");
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getCoverImageUrl()).isEqualTo(COVER_IMAGE_URL);
+        assertThat(dto.getAllImageUrls()).containsExactly(COVER_IMAGE_URL, "https://example.com/step1.jpg");
+    }
+
     // ===== Test: Null/Empty handling =====
 
     @Test
@@ -555,6 +641,35 @@ class RecipeMapperTest {
                 Collections.emptyList(), Collections.emptyList(), SERVINGS, PREP_TIME,
                 COOK_TIME, TOTAL_TIME, DIFFICULTY,
                 new CoverImage(COVER_IMAGE_URL, COVER_IMAGE_ALT)
+        );
+
+        return new Recipe(
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                List.of(createIngredient("flour")), Collections.emptyList(),
+                instructions, null, NOTES, null
+        );
+    }
+
+    private GoogleDrive.DriveFileMetadata driveFileMetadata() {
+        return new GoogleDrive.DriveFileMetadata(RECIPE_ID, "recipe.yaml", "text/plain", LAST_MODIFIED);
+    }
+
+    /**
+     * Recipe with the given source, cover image path and one instruction image per extra path.
+     */
+    private Recipe createRecipeWithImages(String source, String coverPath, String... instructionImagePaths) {
+        List<Instruction> instructions = new ArrayList<>();
+        instructions.add(createInstruction(1, "Preheat"));
+        for (String path : instructionImagePaths) {
+            instructions.add(new Instruction(instructions.size() + 1, "Step", null, null,
+                    List.of(new ImageMedia(path, "Step image"))));
+        }
+
+        RecipeMetadata metadata = new RecipeMetadata(
+                RECIPE_TITLE, source, RECIPE_AUTHOR, "en", null,
+                Collections.emptyList(), Collections.emptyList(), SERVINGS, PREP_TIME,
+                COOK_TIME, TOTAL_TIME, DIFFICULTY,
+                new CoverImage(coverPath, COVER_IMAGE_ALT)
         );
 
         return new Recipe(
