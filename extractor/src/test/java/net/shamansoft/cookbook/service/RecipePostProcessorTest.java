@@ -1,11 +1,16 @@
 package net.shamansoft.cookbook.service;
 
+import net.shamansoft.recipe.model.CoverImage;
+import net.shamansoft.recipe.model.ImageMedia;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
+import net.shamansoft.recipe.model.VideoMedia;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -339,5 +344,77 @@ class RecipePostProcessorTest {
         assertFalse(processed.isRecipe(), "isRecipe flag should be preserved");
         assertEquals(SCHEMA_VERSION, processed.schemaVersion());
         assertEquals("1.0.0", processed.recipeVersion());
+    }
+
+    @ParameterizedTest(name = "[{index}] {1} against {0} -> {2}")
+    @CsvSource(value = {
+            // resolvable: stored as absolute URL
+            "https://site.com/recipes/x/ | https://cdn.site.com/a.jpg         | https://cdn.site.com/a.jpg",
+            "https://site.com/recipes/x/ | //cdn.example.com/a.jpg            | https://cdn.example.com/a.jpg",
+            "https://site.com/recipes/x/ | /assets/a.png                      | https://site.com/assets/a.png",
+            "https://site.com/recipes/x/ | images/a.png                       | https://site.com/recipes/x/images/a.png",
+            // unresolvable: stored as extracted
+            "https://site.com/recipes/x/ | data:image/png;base64,iVBORw0KGgo= | data:image/png;base64,iVBORw0KGgo=",
+            "https://site.com/recipes/x/ | /images/%zz.png                    | /images/%zz.png",
+            "NULL                        | /assets/a.png                      | /assets/a.png",
+            "''                          | /assets/a.png                      | /assets/a.png",
+            "not a url                   | images/a.png                       | images/a.png",
+    }, delimiterString = " | ", nullValues = "NULL")
+    void testProcess_resolvesImagePaths(String sourceUrl, String path, String expected) {
+        // Given
+        Recipe recipe = recipeWithImages(
+                new CoverImage(path, "Cover"),
+                List.of(new Instruction(1, "Mix ingredients", "5m", "180°C", List.of(new ImageMedia(path, "Step")))));
+
+        // When
+        Recipe processed = postProcessor.process(recipe, sourceUrl);
+
+        // Then
+        assertEquals(new CoverImage(expected, "Cover"), processed.metadata().coverImage());
+        assertEquals(
+                List.of(new Instruction(1, "Mix ingredients", "5m", "180°C", List.of(new ImageMedia(expected, "Step")))),
+                processed.instructions());
+    }
+
+    @Test
+    void testProcess_leavesNonImageMediaUntouched() {
+        // Given
+        VideoMedia video = new VideoMedia("/videos/step.mp4", "/videos/step.jpg", "2:30");
+        List<Instruction> instructions = List.of(
+                new Instruction(1, "Mix ingredients", null, null, null),
+                new Instruction(2, "Bake", null, null, List.of()),
+                new Instruction(3, "Serve", null, null, List.of(video, new ImageMedia("/assets/a.png", "Plated"))));
+        Recipe recipe = recipeWithImages(null, instructions);
+
+        // When
+        Recipe processed = postProcessor.process(recipe, SOURCE_URL);
+
+        // Then
+        assertNull(processed.metadata().coverImage());
+        assertEquals(
+                List.of(
+                        new Instruction(1, "Mix ingredients", null, null, null),
+                        new Instruction(2, "Bake", null, null, List.of()),
+                        new Instruction(3, "Serve", null, null,
+                                List.of(video, new ImageMedia("https://example.com/assets/a.png", "Plated")))),
+                processed.instructions());
+    }
+
+    private Recipe recipeWithImages(CoverImage coverImage, List<Instruction> instructions) {
+        RecipeMetadata metadata = new RecipeMetadata(
+                "Test Recipe", "https://old-source.com", null, null, null, null, null, null, null, null,
+                null, null, coverImage);
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                metadata,
+                "Test description",
+                List.of(new Ingredient("flour", "2 cups", "cups", null, null, null, null)),
+                List.of("bowl"),
+                instructions,
+                null,
+                "Test notes",
+                null);
     }
 }

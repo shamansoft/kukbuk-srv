@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -88,19 +89,20 @@ public class RecipeMapper {
     }
 
     /**
-     * Extract cover image URL from recipe metadata.
-     * Returns null if no cover image is set.
+     * Extract cover image URL from recipe metadata, resolved against the recipe source.
+     * Returns null if no cover image is set or its path cannot be resolved to an absolute URL.
      */
     private String extractCoverImageUrl(Recipe recipe) {
         if (recipe.metadata().coverImage() != null) {
-            return recipe.metadata().coverImage().path();
+            return resolveImageUrl(recipe.metadata().coverImage().path(), recipe).orElse(null);
         }
         return null;
     }
 
     /**
      * Extract all image URLs from recipe (cover image + instruction media).
-     * Returns external URLs that mobile app should fetch directly.
+     * Returns absolute external URLs that mobile app should fetch directly;
+     * paths that cannot be resolved to an absolute URL are left out.
      * Drive-hosted images should be proxied through /v1/media/{id}.
      */
     private List<String> extractAllImageUrls(Recipe recipe) {
@@ -108,7 +110,7 @@ public class RecipeMapper {
 
         // Add cover image
         if (recipe.metadata().coverImage() != null) {
-            urls.add(recipe.metadata().coverImage().path());
+            resolveImageUrl(recipe.metadata().coverImage().path(), recipe).ifPresent(urls::add);
         }
 
         // Add images from instruction media
@@ -117,11 +119,19 @@ public class RecipeMapper {
                 instruction.media().stream()
                         .filter(m -> m instanceof ImageMedia)
                         .map(Media::path)
-                        .forEach(urls::add);
+                        .forEach(path -> resolveImageUrl(path, recipe).ifPresent(urls::add));
             }
         }
 
         return urls;
+    }
+
+    private Optional<String> resolveImageUrl(String path, Recipe recipe) {
+        Optional<String> url = ImageUrlResolver.resolve(path, recipe.metadata().source());
+        if (url.isEmpty()) {
+            log.debug("Omitting unresolvable image path '{}' (recipe source: {})", path, recipe.metadata().source());
+        }
+        return url;
     }
 
     /**

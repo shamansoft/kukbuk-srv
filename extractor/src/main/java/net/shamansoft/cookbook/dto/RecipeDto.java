@@ -36,6 +36,6 @@ public class RecipeDto {
     private String notes;
 
     // Media
-    private String coverImageUrl;  // External URL or null
-    private List<String> allImageUrls;  // All images in recipe
+    private String coverImageUrl;  // Absolute external URL, or null if absent or unresolvable
+    private List<String> allImageUrls;  // All images in recipe as absolute URLs; unresolvable ones omitted
 }

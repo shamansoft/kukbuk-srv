@@ -485,11 +485,18 @@ components:
           type: string
           format: uri
           nullable: true
-          description: Main recipe image URL (external)
+          description: >-
+            Main recipe image URL (external). Always an absolute http(s) URL: a relative path
+            stored in the recipe is resolved against `source`. Null when the recipe has no cover
+            image or its path cannot be resolved (e.g. a relative path on a recipe with no
+            `source`, or a `data:` URI).
           example: "https://example.com/images/cookies.jpg"
         allImageUrls:
           type: array
-          description: All images in recipe (cover + instruction media)
+          description: >-
+            All images in recipe (cover + instruction media). Every entry is an absolute http(s)
+            URL, resolved the same way as `coverImageUrl`; images whose path cannot be resolved
+            are omitted.
           items:
             type: string
             format: uri
