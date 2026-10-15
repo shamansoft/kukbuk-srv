@@ -21,7 +21,6 @@ client). Infrastructure lives in **sar-infra** (OpenTofu/Terraform).
 |---|---|---|
 | `extractor/` | `:cookbook` | Spring Boot REST API — extraction, entitlements, storage, YouTube |
 | `recipe-sdk/` | `:recipe-sdk` | Shared recipe models, YAML parse/serialize, validation |
-| `token-broker/` | (Node.js) | Google Cloud Function for OAuth token handling |
 
 > **Note:** `extractor/` is renamed to `:cookbook` in `settings.gradle`. Use `:cookbook` for Gradle
 > tasks; use `extractor/` for file paths.

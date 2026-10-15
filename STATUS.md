@@ -10,7 +10,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 ## Tech stack
 - **Language/runtime:** Java 25 (toolchain enforced), targeting GraalVM native image for prod
 - **Framework:** Spring Boot 4.0.1 (Spring Framework 7.x), Gradle 9.2.0
-- **Modules:** `extractor/` (Gradle `:cookbook`, the REST API) · `recipe-sdk/` (recipe models, YAML parse/serialize, validation) · `token-broker/` (Node.js Cloud Function for OAuth tokens)
+- **Modules:** `extractor/` (Gradle `:cookbook`, the REST API) · `recipe-sdk/` (recipe models, YAML parse/serialize, validation)
 - **LLM:** Google Gemini `gemini-3.1-flash-lite` via REST, thinking off, with JSON `responseSchema` structured output
 - **Data/identity:** Firestore (recipe cache, profiles, YouTube jobs, quota windows), Google Drive or Dropbox (the user's recipe files), Firebase Auth (JWT, custom claims for tier/admin)
 - **Async:** Google Cloud Tasks for YouTube extraction jobs
@@ -19,7 +19,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - **Quality:** JaCoCo (40% min enforced; currently ~80%), OWASP Dependency Check (fails on CVSS ≥ 7.0)
 
 ## Current status
-- **Overall:** Mature and in production. Version `0.15.12-SNAPSHOT`. Actively maintained.
+- **Overall:** Mature and in production. Version `0.15.13-SNAPSHOT`. Actively maintained.
 - **Implemented / working:**
   - Recipe extraction from HTML (`POST /v1/recipes`) and free-text (`POST /v1/recipes/custom`)
   - Multi-recipe extraction (a page yielding several recipes) + adaptive HTML cleaning chain
