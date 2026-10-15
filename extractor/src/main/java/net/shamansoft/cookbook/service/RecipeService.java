@@ -42,6 +42,7 @@ public class RecipeService {
     private final Transformer transformer;  // AdaptiveCleaningTransformerService (@Primary)
     private final RecipeValidationService validationService;
     private final GeminiRestTransformer geminiRestTransformer;
+    private final RecipePostProcessor postProcessor;
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, Compression compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
@@ -100,10 +101,9 @@ public class RecipeService {
         StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
         String plainDescription = decompressContent(description, compression);
-        var transformerResponse = geminiRestTransformer.transformDescription(plainDescription);
 
         List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
-        for (Recipe recipe : transformerResponse.recipes()) {
+        for (Recipe recipe : structureDescription(plainDescription, url)) {
             String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                     ? recipe.metadata().title() : title;
             String fileName = provider.generateFileName(recipeTitle);
@@ -128,6 +128,17 @@ public class RecipeService {
         }
 
         return responseBuilder.build();
+    }
+
+    /**
+     * Structures a free-text recipe with the model and post-processes it like HTML extraction: ingredient and
+     * time cleanup, server-side date, schema/recipe version and source. Shared by {@code POST /v1/recipes/custom}
+     * and the local debug endpoint.
+     */
+    public List<Recipe> structureDescription(String plainDescription, String sourceUrl) {
+        return geminiRestTransformer.transformDescription(plainDescription).recipes().stream()
+                .map(r -> postProcessor.process(r, sourceUrl))
+                .toList();
     }
 
     private Transformer.Response createOrGetCached(String url, String sourceHtml, Compression compression) throws IOException {

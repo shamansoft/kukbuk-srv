@@ -186,9 +186,9 @@ cookbook:
 
     # Gemini model to use for recipe extraction
     # Used by: GeminiRestTransformer.java:45 (@Value("${cookbook.gemini.model}"))
-    # Default: gemini-2.5-flash
-    # Options: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-pro
-    model: "gemini-2.5-flash-lite"
+    # Chosen 2026-10-14 over gemini-2.5-flash-lite on 39 English sample pages
+    # (see research/extractor-model-comparison.md in the sar umbrella folder)
+    model: "gemini-3.1-flash-lite"
 
     # Temperature parameter for Gemini model (0.0 to 1.0)
     # Used by: RequestBuilder.java:31 (@Value("${cookbook.gemini.temperature}"))
@@ -206,6 +206,16 @@ cookbook:
     # Default: 4096
     # Range: 1 to 8192 (model-dependent)
     max-output-tokens: 8192
+
+    # One retry when Gemini returns no content (finishReason RECITATION, SAFETY, ...) or output cut off
+    # at max-output-tokens. Temperature 0 repeats the same answer, so the retry samples a little and
+    # gets a larger output budget. A second failure returns HTTP 422 (ExtractionFailedException).
+    # Used by: GeminiRestTransformer.java (requestWithRetry)
+    retry:
+      temperature: 0.3
+      max-output-tokens: 16384
+      # No retry if the failed call alone took this long, and none inside validation-feedback calls
+      max-first-call-seconds: 45
 
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
