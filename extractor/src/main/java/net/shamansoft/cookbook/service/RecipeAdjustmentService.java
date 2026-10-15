@@ -97,6 +97,10 @@ public class RecipeAdjustmentService {
             "^((?:\\d+(?:\\.\\d+)?\\s*-\\s*\\d+(?:\\.\\d+)?)|(?:\\d+\\s+)?\\d+/\\d+|\\d*\\s*[½¼¾⅓⅔⅛⅜⅝⅞]|\\d+(?:\\.\\d+)?)\\s*([^\\d\\s].*)$");
     private static final Pattern RANGE = Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*-\\s*(\\d+(?:\\.\\d+)?)$");
 
+    private static final double[] THIRDS_AND_SIXTHS = {1.0 / 6, 1.0 / 3, 2.0 / 3, 5.0 / 6};
+    // Same slack as the app's AmountFormatter uses to show a decimal as a fraction
+    private static final double FRACTION_TOLERANCE = 0.01;
+
     /** Sizes that models put in the unit field for bare counts. */
     private static final Set<String> SIZE_WORDS = Set.of("small", "medium", "large", "extra large", "extra-large", "big");
 
@@ -227,7 +231,7 @@ public class RecipeAdjustmentService {
     }
 
     Ingredient adjustIngredient(Ingredient ingredient) {
-        String amount = normalizeAmount(nullIfPlaceholder(ingredient.amount()));
+        String amount = snapToThirds(normalizeAmount(nullIfPlaceholder(ingredient.amount())));
         String unit = normalizeUnit(nullIfPlaceholder(ingredient.unit()));
         String notes = ingredient.notes();
 
@@ -241,7 +245,7 @@ public class RecipeAdjustmentService {
                     amount = formatDecimal((Double.parseDouble(range.group(1)) + Double.parseDouble(range.group(2))) / 2);
                     notes = appendNote(notes, unit.trim());
                 } else {
-                    amount = normalizeAmount(number);
+                    amount = snapToThirds(normalizeAmount(number));
                 }
                 unit = m.group(2);
             }
@@ -315,6 +319,27 @@ public class RecipeAdjustmentService {
         if (value == null) return null;
         String t = value.trim();
         return t.isEmpty() || NULL_WORDS.contains(t.toLowerCase()) ? null : value;
+    }
+
+    /**
+     * Models truncate thirds and sixths (⅔ → 0.66, 1⅔ → 1.66). Store them with three decimals so that
+     * scaling in the app lands on whole numbers (0.667 × 3 = 2.001, not 1.98).
+     */
+    String snapToThirds(String amount) {
+        if (amount == null) return null;
+        double value;
+        try {
+            value = Double.parseDouble(amount.trim());
+        } catch (NumberFormatException e) {
+            return amount;
+        }
+        double whole = Math.floor(value);
+        for (double fraction : THIRDS_AND_SIXTHS) {
+            if (Math.abs(value - whole - fraction) < FRACTION_TOLERANCE) {
+                return formatDecimal(whole + fraction);
+            }
+        }
+        return amount;
     }
 
     private static boolean isZero(String amount) {

@@ -387,6 +387,19 @@ class RecipeAdjustmentServiceTest {
             assertEquals("sifted", i.notes());
         }
 
+        @ParameterizedTest
+        @CsvSource({"0.33,0.333", "0.34,0.333", "0.66,0.667", "0.67,0.667", "1.66,1.667", "2.33,2.333",
+                "0.17,0.167", "0.83,0.833", "0.333,0.333", "0.667,0.667"})
+        void thirdsAndSixths_snappedToThreeDecimals(String amount, String expected) {
+            assertEquals(expected, adjust(amount, "cup", null).amount());
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"0.5", "0.25", "0.75", "0.125", "0.3", "0.7", "2", "1.5"})
+        void otherAmounts_notSnapped(String amount) {
+            assertEquals(amount, adjust(amount, "cup", null).amount());
+        }
+
         @Test
         void allNullNutrition_becomesNull() {
             assertNull(service.adjustNutrition(new Nutrition("1 serving", null, null, null, null, null, null, null, null)));
