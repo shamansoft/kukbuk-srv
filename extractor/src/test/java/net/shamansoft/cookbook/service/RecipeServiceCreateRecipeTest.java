@@ -6,6 +6,7 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
@@ -188,6 +189,79 @@ class RecipeServiceCreateRecipeTest {
 
         assertThat(response.isRecipe()).isTrue();
         verify(htmlExtractor).extractHtml(URL, null);
+    }
+
+    @Test
+    @DisplayName("createRecipeFromUrl: markdown content goes through transformMarkdown")
+    void createRecipeFromUrl_usesMarkdownTransformForMarkdown() throws Exception {
+        Recipe testRecipe = createTestRecipe();
+        String markdown = "# Recipe\n\n* 1 cup flour";
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(htmlExtractor.fetchWithFallback(URL)).thenReturn(PageContent.markdown(markdown));
+        when(transformer.transformMarkdown(markdown, URL)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
+        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
+        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+
+        RecipeResponse response = recipeService.createRecipeFromUrl(USER_ID, URL, TITLE);
+
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.driveFileId()).isEqualTo(FILE_ID);
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(recipeStoreService).storeValidRecipes(HASH, URL, List.of(testRecipe));
+        verify(htmlExtractor, never()).extractHtml(any(), any());
+    }
+
+    @Test
+    @DisplayName("createRecipeFromUrl: directly fetched HTML goes through the cleaning transform")
+    void createRecipeFromUrl_usesHtmlTransformForHtml() throws Exception {
+        Recipe testRecipe = createTestRecipe();
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(htmlExtractor.fetchWithFallback(URL)).thenReturn(PageContent.html(EXTRACTED_HTML));
+        when(transformer.transform(EXTRACTED_HTML, URL)).thenReturn(Transformer.Response.recipe(testRecipe));
+        when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
+        when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
+        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+
+        RecipeResponse response = recipeService.createRecipeFromUrl(USER_ID, URL, TITLE);
+
+        assertThat(response.isRecipe()).isTrue();
+        verify(transformer, never()).transformMarkdown(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("createRecipeFromUrl: not-a-recipe verdict on markdown content is not cached")
+    void createRecipeFromUrl_doesNotCacheMarkdownNonRecipe() throws Exception {
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(htmlExtractor.fetchWithFallback(URL)).thenReturn(PageContent.markdown("# Just a moment..."));
+        when(transformer.transformMarkdown(anyString(), anyString())).thenReturn(Transformer.Response.notRecipe());
+
+        RecipeResponse response = recipeService.createRecipeFromUrl(USER_ID, URL, TITLE);
+
+        assertThat(response.isRecipe()).isFalse();
+        verify(recipeStoreService, never()).storeInvalidRecipe(any(), any());
+    }
+
+    @Test
+    @DisplayName("createRecipeFromUrl: cache hit skips fetching")
+    void createRecipeFromUrl_cacheHitSkipsFetch() throws Exception {
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH))
+                .thenReturn(Optional.of(new RecipeStoreService.CachedRecipes(false, List.of())));
+
+        RecipeResponse response = recipeService.createRecipeFromUrl(USER_ID, URL, TITLE);
+
+        assertThat(response.isRecipe()).isFalse();
+        verify(htmlExtractor, never()).fetchWithFallback(any());
     }
 
     @Test

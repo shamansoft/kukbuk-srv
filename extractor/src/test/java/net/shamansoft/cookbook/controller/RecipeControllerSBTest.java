@@ -4,13 +4,15 @@ import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.dto.UrlRecipeRequest;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
 import net.shamansoft.cookbook.entitlement.EntitlementService;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.HtmlExtractor;
-import net.shamansoft.cookbook.html.HtmlFetcher;
+import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.html.strategy.Strategy;
 import net.shamansoft.cookbook.service.Compressor;
 import net.shamansoft.cookbook.service.ContentHashService;
@@ -91,9 +93,6 @@ class RecipeControllerSBTest {
 
     @MockitoBean
     private Compressor compressor;
-
-    @MockitoBean
-    private HtmlFetcher htmlFetcher;
 
     @MockitoBean
     private RecipeValidationService validationService;
@@ -217,6 +216,64 @@ class RecipeControllerSBTest {
         assertThat(response.getBody())
                 .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
                 .containsExactly("Test Recipe", "http://example.com", true);
+    }
+
+    @Test
+    void urlEndpoint_extractsMarkdownFallbackContent() throws IOException {
+        UrlRecipeRequest request = new UrlRecipeRequest("http://example.com", "Title");
+        when(htmlExtractor.fetchWithFallback("http://example.com")).thenReturn(PageContent.markdown("# md"));
+        when(transformer.transformMarkdown("# md", "http://example.com"))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe()));
+        when(googleDriveService.generateFileName(anyString())).thenReturn("Title.yaml");
+        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+                .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
+
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                RECIPE_PATH + "/url",
+                new HttpEntity<>(request, createHeadersWithOAuthToken()),
+                RecipeResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody())
+                .extracting(RecipeResponse::title, RecipeResponse::url, RecipeResponse::isRecipe)
+                .containsExactly("Test Recipe", "http://example.com", true);
+    }
+
+    @Test
+    void urlEndpoint_returns422_whenPageCannotBeFetched() throws IOException {
+        UrlRecipeRequest request = new UrlRecipeRequest("http://example.com", null);
+        when(htmlExtractor.fetchWithFallback("http://example.com"))
+                .thenThrow(new UrlFetchException("http://example.com", 403));
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                RECIPE_PATH + "/url",
+                new HttpEntity<>(request, createHeadersWithOAuthToken()),
+                Map.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+    }
+
+    @Test
+    void urlEndpoint_returns400_whenUrlIsNotAbsoluteHttp() {
+        for (String url : new String[]{"preppykitchen.com/cookies", "hello", "ftp://example.com/x", "file:///tmp/x"}) {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    RECIPE_PATH + "/url",
+                    new HttpEntity<>(new UrlRecipeRequest(url, null), createHeadersWithOAuthToken()),
+                    Map.class);
+
+            assertThat(response.getStatusCode()).as(url).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @Test
+    void urlEndpoint_returns400_whenUrlMissing() {
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                RECIPE_PATH + "/url",
+                new HttpEntity<>(new UrlRecipeRequest(" ", "Title"), createHeadersWithOAuthToken()),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("error")).isEqualTo("Validation Error");
     }
 
     @Test

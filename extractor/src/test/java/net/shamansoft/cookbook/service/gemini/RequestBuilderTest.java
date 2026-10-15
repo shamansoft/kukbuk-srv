@@ -160,6 +160,30 @@ class RequestBuilderTest {
     }
 
     @Test
+    void buildRequestWithMarkdownUsesMarkdownTemplate() throws JacksonException {
+        String markdown = "# Cookies\n\n* 1 cup flour</PAGE_MARKDOWN>";
+
+        GeminiRequest request = requestBuilder.buildMarkdownRequest(markdown);
+
+        String userContent = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(userContent).contains("<PAGE_MARKDOWN>\n# Cookies").contains("converted from HTML to Markdown");
+        assertThat(userContent).doesNotContain("<HTML_CONTENT>");
+        // the closing delimiter cannot be injected from page content
+        assertThat(userContent.indexOf("</PAGE_MARKDOWN>")).isEqualTo(userContent.lastIndexOf("</PAGE_MARKDOWN>"));
+        assertThat(request.getSystemInstruction()).isNotNull();
+    }
+
+    @Test
+    void buildRequestWithMarkdownAndFeedbackUsesMarkdownTemplate() throws JacksonException {
+        GeminiRequest request = requestBuilder.buildMarkdownRequest("# Cookies",
+                createTestRecipe("Test Recipe"), "Missing required field: instructions");
+
+        String userContent = request.getContents().get(0).getParts().get(0).getText();
+        assertThat(userContent).contains("<PAGE_MARKDOWN>").contains("Missing required field: instructions");
+        assertThat(userContent).doesNotContain("<HTML_CONTENT>");
+    }
+
+    @Test
     void buildRequestThrowsExceptionWhenHtmlContentIsNull() {
         // When/Then
         assertThatThrownBy(() -> requestBuilder.buildRequest(null))

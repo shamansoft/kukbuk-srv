@@ -178,6 +178,20 @@ class AdaptiveCleaningTransformerServiceTest {
         verify(htmlCleaner, never()).processWithStrategy(any(), any(), any());
     }
 
+    @Test
+    @DisplayName("Markdown skips HTML cleaning and goes straight to the inner transformer")
+    void transformMarkdown_skipsCleaning() {
+        String markdown = "# Pasta\n\n* 1 cup flour";
+        Transformer.Response recipeResponse = Transformer.Response.recipe(createRecipe("Pasta"));
+        when(innerTransformer.transformMarkdown(markdown, SOURCE_URL)).thenReturn(recipeResponse);
+
+        Transformer.Response result = service.transformMarkdown(markdown, SOURCE_URL);
+
+        assertThat(result).isSameAs(recipeResponse);
+        verify(htmlCleaner, never()).process(any(), any());
+        verify(htmlCleaner, never()).processWithStrategy(any(), any(), any());
+    }
+
     // ---- helpers ------------------------------------------------------------
 
     private HtmlCleaner.Results buildCleanerResult(String html, Strategy strategy) {

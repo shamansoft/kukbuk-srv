@@ -11,6 +11,7 @@ import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.UrlRecipeRequest;
 import net.shamansoft.cookbook.entitlement.CheckEntitlement;
 import net.shamansoft.cookbook.entitlement.Operation;
 import net.shamansoft.cookbook.service.RecipeService;
@@ -192,5 +193,32 @@ public class RecipeController {
                 request.description().length(),
                 compression != null ? compression : Compression.NONE);
         return recipeService.createRecipeFromDescription(userId, request.description(), request.title(), request.url(), compression);
+    }
+
+    /**
+     * POST /v1/recipes/url - Create a recipe from a URL only (no client-provided HTML).
+     * The server fetches the page directly; if that is blocked (e.g. bot protection),
+     * it falls back to fetching the page as Markdown via markdown.new.
+     */
+    @PostMapping(
+            path = "/url",
+            consumes = "application/json",
+            produces = "application/json"
+    )
+    @CrossOrigin(originPatterns = "chrome-extension://*",
+            allowedHeaders = "*",
+            exposedHeaders = "*",
+            allowCredentials = "false"
+    )
+    @CheckEntitlement(Operation.RECIPE_EXTRACTION)
+    public RecipeResponse createRecipeFromUrl(@RequestBody @Valid UrlRecipeRequest request,
+                                              @RequestAttribute("userId") String userId,
+                                              @RequestAttribute("userEmail") String userEmail)
+            throws IOException {
+
+        log.info("Creating recipe from URL for user: {} ({})", userEmail, userId);
+        log.info("Processing URL recipe request - URL: {}, Title: {}",
+                request.url(), request.title() != null ? request.title() : "Not Provided");
+        return recipeService.createRecipeFromUrl(userId, request.url(), request.title());
     }
 }

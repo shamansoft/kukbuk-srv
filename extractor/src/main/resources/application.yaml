@@ -307,6 +307,19 @@ cookbook:
     dump-dir: ${COOKBOOK_DEBUG_DUMP_DIR:/tmp/sar-srv/dumps}
 
   # ---------------------------------------------------------------------------
+  # URL FETCHER CONFIGURATION
+  # ---------------------------------------------------------------------------
+  fetcher:
+    # POST /v1/recipes/url fetches the page directly with JSoup (HtmlFetcher.fetchUsable) first. If the
+    # site blocks it — HTTP 401/403/429/503, timeout, or a 200 challenge / near-empty page
+    # (BlockedPageDetector) — HtmlExtractor.fetchWithFallback retries via markdown.new
+    # (MarkdownNewClientImpl), which renders the page in a real browser and returns Markdown.
+    # Markdown skips HTML cleaning and uses its own prompt template.
+    # POST /v1/recipes never uses markdown.new. markdown.new rate limit: 500 req/day per IP.
+    markdown-new:
+      enabled: ${COOKBOOK_FETCHER_MARKDOWN_NEW_ENABLED:true}
+
+  # ---------------------------------------------------------------------------
   # HTML CLEANUP CONFIGURATION
   # ---------------------------------------------------------------------------
   html-cleanup:

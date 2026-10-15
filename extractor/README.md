@@ -113,6 +113,12 @@ cookbook:
     oauth-id: "YOUR_GOOGLE_OAUTH_CLIENT_ID"
   drive:
     folder-name: "_save_a_recipe"
+  fetcher:
+    markdown-new:
+      # POST /v1/recipes/url only: fallback when the direct (JSoup) fetch fails, e.g. HTTP 403 from bot protection.
+      # markdown.new renders the page in a real browser and returns Markdown.
+      # Rate limit: 500 req/day per IP
+      enabled: true
 
 # Recipe validation retry (default: 1)
   RECIPE_LLM_RETRY=1

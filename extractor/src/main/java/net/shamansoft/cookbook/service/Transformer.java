@@ -16,6 +16,18 @@ public interface Transformer {
     Response transform(String htmlContent, String sourceUrl);
 
     /**
+     * Transforms Markdown content (e.g. a page fetched via markdown.new) to Recipe objects.
+     * Markdown is already free of page chrome, so implementations that clean HTML should skip it.
+     *
+     * @param markdown  the Markdown string to transform
+     * @param sourceUrl the source URL of the recipe
+     * @return the transformed result containing Recipe objects or a non-recipe indicator
+     */
+    default Response transformMarkdown(String markdown, String sourceUrl) {
+        return transform(markdown, sourceUrl);
+    }
+
+    /**
      * Represents the response of a transformation.
      * A page may contain zero, one, or multiple recipes.
      *

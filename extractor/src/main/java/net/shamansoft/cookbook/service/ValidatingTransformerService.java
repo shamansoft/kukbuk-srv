@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.service;
 
 import lombok.extern.slf4j.Slf4j;
+import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
@@ -50,7 +51,18 @@ public class ValidatingTransformerService implements Transformer {
      */
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
-        Response initialResponse = geminiTransformer.transform(htmlContent, sourceUrl);
+        return transform(htmlContent, PageContent.Format.HTML, sourceUrl);
+    }
+
+    @Override
+    public Response transformMarkdown(String markdown, String sourceUrl) {
+        return transform(markdown, PageContent.Format.MARKDOWN, sourceUrl);
+    }
+
+    private Response transform(String htmlContent, PageContent.Format format, String sourceUrl) {
+        Response initialResponse = format == PageContent.Format.MARKDOWN
+                ? geminiTransformer.transformMarkdown(htmlContent, sourceUrl)
+                : geminiTransformer.transform(htmlContent, sourceUrl);
 
         if (!initialResponse.isRecipe()) {
             log.warn("Gemini initial response: Content identified as NOT a recipe (confidence={}) - skipping validation",
@@ -66,10 +78,11 @@ public class ValidatingTransformerService implements Transformer {
             return Response.withRawResponse(true, initialResponse.confidence(), processed, initialResponse.rawLlmResponse());
         }
 
-        return validateWithRetry(htmlContent, initialResponse, sourceUrl);
+        return validateWithRetry(htmlContent, format, initialResponse, sourceUrl);
     }
 
-    private Response validateWithRetry(String htmlContent, Response initialResponse, String sourceUrl) {
+    private Response validateWithRetry(String htmlContent, PageContent.Format format,
+                                       Response initialResponse, String sourceUrl) {
         List<Recipe> currentRecipes = initialResponse.recipes();
         double confidence = initialResponse.confidence();
         String rawLlmResponse = initialResponse.rawLlmResponse();
@@ -96,8 +109,9 @@ public class ValidatingTransformerService implements Transformer {
 
             // Use first failing recipe for feedback
             Recipe firstFailing = batch.firstInvalidRecipe(currentRecipes);
-            Response retryResponse = geminiTransformer.transformWithFeedback(
-                    htmlContent, firstFailing, batch.allErrors());
+            Response retryResponse = format == PageContent.Format.MARKDOWN
+                    ? geminiTransformer.transformMarkdownWithFeedback(htmlContent, firstFailing, batch.allErrors())
+                    : geminiTransformer.transformWithFeedback(htmlContent, firstFailing, batch.allErrors());
 
             if (!retryResponse.isRecipe()) {
                 log.warn("Gemini changed decision after validation feedback (attempt {}/{}): Content is NOT a recipe",
