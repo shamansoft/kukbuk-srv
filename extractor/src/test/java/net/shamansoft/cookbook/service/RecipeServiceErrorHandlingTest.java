@@ -111,7 +111,8 @@ class RecipeServiceErrorHandlingTest {
         recipeService = new RecipeService(
                 contentHashService, storageProviderResolver, storageService, recipeStoreService,
                 recipeParser, recipeMapper, htmlExtractor, compressor, transformer,
-                validationService, geminiRestTransformer, new RecipeAdjustmentService()
+                validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService())
         );
     }
 
@@ -262,7 +263,8 @@ class RecipeServiceErrorHandlingTest {
         Recipe recipe = createTestRecipe("Description Recipe");
         when(geminiRestTransformer.transformDescription("test description"))
                 .thenReturn(Transformer.Response.recipe(recipe));
-        when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
+        // post-processing returns a new Recipe instance (server-side date, source), so match any recipe
+        when(validationService.toYaml(any(Recipe.class))).thenReturn("recipe: yaml");
         when(driveService.generateFileName("Description Recipe")).thenReturn("recipe.yaml");
         when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, "recipe.yaml", "recipe: yaml"))
                 .thenThrow(new ClientException("Storage quota exceeded"));

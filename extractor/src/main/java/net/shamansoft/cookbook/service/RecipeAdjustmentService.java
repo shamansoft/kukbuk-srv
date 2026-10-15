@@ -9,6 +9,7 @@ import net.shamansoft.recipe.model.RecipeMetadata;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -72,9 +73,9 @@ public class RecipeAdjustmentService {
             Map.entry("millilitre", "ml"), Map.entry("millilitres", "ml"),
             Map.entry("liter", "l"), Map.entry("liters", "l"), Map.entry("litre", "l"), Map.entry("litres", "l"),
             Map.entry("ounce", "oz"), Map.entry("ounces", "oz"), Map.entry("oz.", "oz"),
-            Map.entry("pounds", "lb"), Map.entry("lbs", "lb"), Map.entry("lb.", "lb"), Map.entry("lbs.", "lb"),
+            Map.entry("pound", "lb"), Map.entry("pounds", "lb"), Map.entry("lbs", "lb"), Map.entry("lb.", "lb"), Map.entry("lbs.", "lb"),
             Map.entry("cloves", "clove"), Map.entry("slices", "slice"), Map.entry("sprigs", "sprig"),
-            Map.entry("pieces", "piece"), Map.entry("pcs", "piece"),
+            Map.entry("pieces", "piece"), Map.entry("pcs", "piece"), Map.entry("sticks", "stick"),
             Map.entry("bottles", "bottle"), Map.entry("jars", "jar"), Map.entry("cans", "can"),
             Map.entry("bars", "bar"), Map.entry("packages", "package"), Map.entry("boxes", "box"),
             Map.entry("bags", "bag"), Map.entry("pints", "pint"), Map.entry("quarts", "quart"),
@@ -105,7 +106,9 @@ public class RecipeAdjustmentService {
     private static final Set<String> SIZE_WORDS = Set.of("small", "medium", "large", "extra large", "extra-large", "big");
 
     /** Splits "cup, frozen" / "cup (80 ml)" into the unit and the trailing text. */
-    private static final Pattern UNIT_WITH_TRAILING_TEXT = Pattern.compile("^([^,(]+?)\\s*[,(]\\s*(.*?)\\)?\\s*$");
+    private static final Pattern UNIT_WITH_TRAILING_TEXT = Pattern.compile("^([^,(]+?)\\s*[,(]\\s*(.*)$");
+    /** "(13 oz) bag": the parenthesised size comes first. */
+    private static final Pattern UNIT_AFTER_PARENTHESES = Pattern.compile("^\\(([^)]*)\\)\\s*(.+)$");
 
     public Recipe adjust(Recipe recipe) {
         if (recipe == null) return null;
@@ -131,11 +134,13 @@ public class RecipeAdjustmentService {
         );
     }
 
-    /** A nutrition object with no values (the model must emit the key) is the same as none. */
+    /** A nutrition object with nothing in it (the model must emit the key) is the same as none. */
     Nutrition adjustNutrition(Nutrition n) {
         if (n == null) return null;
         boolean empty = n.calories() == null && n.protein() == null && n.carbohydrates() == null
-                && n.fat() == null && n.fiber() == null && n.sugar() == null && n.sodium() == null;
+                && n.fat() == null && n.fiber() == null && n.sugar() == null && n.sodium() == null
+                && (n.servingSize() == null || n.servingSize().isBlank())
+                && (n.notes() == null || n.notes().isBlank());
         return empty ? null : n;
     }
 
@@ -235,10 +240,12 @@ public class RecipeAdjustmentService {
         String unit = normalizeUnit(nullIfPlaceholder(ingredient.unit()));
         String notes = ingredient.notes();
 
-        // Number written into the unit ("⅓ cup", "2-3 tbsp"): move it to amount, a range as its midpoint
+        // Number written into the unit ("⅓ cup", "2-3 tbsp", "1 (13 oz) bag"): move it to amount, a range as
+        // its midpoint. Only when the rest is a known unit, so "1/2-inch piece" is not cut into "-inch piece".
         if (amount == null && unit != null) {
             Matcher m = AMOUNT_IN_UNIT.matcher(unit.trim());
-            if (m.matches()) {
+            UnitAndNote rest = m.matches() ? splitUnit(m.group(2)) : null;
+            if (rest != null) {
                 String number = m.group(1).trim();
                 Matcher range = RANGE.matcher(number);
                 if (range.matches()) {
@@ -247,19 +254,29 @@ public class RecipeAdjustmentService {
                 } else {
                     amount = snapToThirds(normalizeAmount(number));
                 }
-                unit = m.group(2);
+                unit = rest.unit();
+                notes = appendNote(notes, rest.note());
             }
         }
 
-        // "cup, frozen, optional" / "clove (minced)" -> unit "cup"/"clove", the rest to notes
-        if (unit != null && !isKnownUnit(unit)) {
-            Matcher m = UNIT_WITH_TRAILING_TEXT.matcher(unit);
-            if (m.matches() && isKnownUnit(canonicalUnit(m.group(1)))) {
-                unit = canonicalUnit(m.group(1));
-                notes = appendNote(notes, m.group(2));
+        // "cup, frozen" / "clove (minced), divided" / "(13 oz) bag" -> the known unit, the rest to notes
+        if (unit != null && !isKnownUnit(canonicalUnit(unit))) {
+            UnitAndNote split = splitUnit(unit);
+            if (split != null) {
+                unit = split.unit();
+                notes = appendNote(notes, split.note());
             }
         }
         unit = canonicalUnit(unit);
+
+        // Size words and count placeholders are never units, whatever the amount ("2 large eggs" -> size to notes)
+        if (unit != null && SIZE_WORDS.contains(unit)) {
+            notes = appendNote(notes, unit);
+            unit = null;
+        }
+        if (unit != null && COUNT_PLACEHOLDERS.contains(unit)) {
+            unit = null;
+        }
 
         // "pinch", "to taste" used as a unit: the source gave no measurable quantity
         if (unit != null && UNQUANTIFIED.contains(unit)) {
@@ -269,19 +286,15 @@ public class RecipeAdjustmentService {
             unit = null;
         }
 
-        // Amount 0 is how some models write "no amount"; a unit without an amount means nothing
+        // Amount 0 is how some models write "no amount". A known unit without an amount was invented, drop it;
+        // any other unit text came from the source, so keep it in notes rather than lose it.
         if (isZero(amount)) {
             amount = null;
         }
-        if (amount == null) {
-            unit = null;
-        }
-        if (unit != null && COUNT_PLACEHOLDERS.contains(unit)) {
-            unit = null;
-        }
-        // "2 large eggs" written as unit "large": a bare count, the size belongs in notes
-        if (unit != null && SIZE_WORDS.contains(unit)) {
-            notes = appendNote(notes, unit);
+        if (amount == null && unit != null) {
+            if (!isKnownUnit(unit)) {
+                notes = appendNote(notes, unit);
+            }
             unit = null;
         }
 
@@ -294,6 +307,41 @@ public class RecipeAdjustmentService {
                 ingredient.substitutions(),
                 normalizeComponent(ingredient.component())
         );
+    }
+
+    private record UnitAndNote(String unit, String note) {
+    }
+
+    /**
+     * Splits unit text into a known unit and the rest: "cup, frozen" -> cup + "frozen",
+     * "clove (minced), divided" -> clove + "minced, divided", "(13 oz) bag" -> bag + "13 oz".
+     * Returns null when no known unit can be found, so the caller leaves the text alone.
+     */
+    private UnitAndNote splitUnit(String raw) {
+        if (raw == null) return null;
+        String text = raw.trim();
+        Matcher leading = UNIT_AFTER_PARENTHESES.matcher(text);
+        if (leading.matches()) {
+            String head = canonicalUnit(leading.group(2));
+            return isKnownUnit(head) ? new UnitAndNote(head, withoutParentheses(leading.group(1))) : null;
+        }
+        Matcher trailing = UNIT_WITH_TRAILING_TEXT.matcher(text);
+        if (trailing.matches()) {
+            String head = canonicalUnit(trailing.group(1));
+            return isKnownUnit(head) ? new UnitAndNote(head, withoutParentheses(trailing.group(2))) : null;
+        }
+        String whole = canonicalUnit(text);
+        return isKnownUnit(whole) ? new UnitAndNote(whole, null) : null;
+    }
+
+    /** "minced), divided" -> "minced, divided": parentheses left over from a split unit. */
+    private static String withoutParentheses(String text) {
+        if (text == null) return null;
+        String cleaned = text.replaceAll("[()]", "")
+                .replaceAll("\\s+,", ",")
+                .replaceAll("\\s{2,}", " ")
+                .replaceAll("^[\\s,]+|[\\s,]+$", "");
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     /** Units the whitelist allows; a unit with trailing text is only split when its head is one of these. */
@@ -412,7 +460,8 @@ public class RecipeAdjustmentService {
             return String.valueOf((int) value);
         }
         // Remove trailing zeros
-        String s = String.format("%.3f", value);
+        // Locale.ROOT: a comma-decimal default locale would store "0,667", which is not a number
+        String s = String.format(Locale.ROOT, "%.3f", value);
         s = s.replaceAll("0+$", "").replaceAll("\\.$", "");
         return s;
     }

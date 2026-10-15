@@ -80,7 +80,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(driveService);
         recipeService = new RecipeService(contentHashService, storageProviderResolver, storageService,
                 recipeStoreService, recipeParser, recipeMapper, htmlExtractor,
-                compressor, transformer, validationService, geminiRestTransformer, new RecipeAdjustmentService());
+                compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
         mockStorageInfo = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
@@ -296,7 +297,7 @@ class RecipeServiceFromDescriptionTest {
                 null, null, null);
         when(geminiRestTransformer.transformDescription(DESCRIPTION)).thenReturn(Transformer.Response.recipe(raw));
 
-        List<Recipe> recipes = recipeService.structureDescription(DESCRIPTION);
+        List<Recipe> recipes = recipeService.structureDescription(DESCRIPTION, URL);
 
         Ingredient salt = recipes.get(0).ingredients().get(0);
         assertThat(salt.amount()).isNull();
@@ -304,6 +305,27 @@ class RecipeServiceFromDescriptionTest {
         Ingredient sugar = recipes.get(0).ingredients().get(1);
         assertThat(sugar.amount()).isEqualTo("0.667");
         assertThat(sugar.unit()).isEqualTo("cup");
+    }
+
+    @Test
+    @DisplayName("structureDescription sets server-side date and source, not the model's")
+    void structureDescriptionSetsServerSideFields() {
+        Recipe raw = new Recipe(true, "0.0.1", "9.9.9",
+                new RecipeMetadata(TITLE, "https://invented.example", null, "en", LocalDate.of(2024, 1, 1),
+                        null, null, 2, null, null, null, null, null),
+                null,
+                List.of(new Ingredient("flour", "200", "g", null, null, null, null)),
+                null,
+                List.of(new Instruction(1, "Mix", null, null, null)),
+                null, null, null);
+        when(geminiRestTransformer.transformDescription(DESCRIPTION)).thenReturn(Transformer.Response.recipe(raw));
+
+        Recipe recipe = recipeService.structureDescription(DESCRIPTION, URL).get(0);
+
+        assertThat(recipe.metadata().source()).isEqualTo(URL);
+        assertThat(recipe.metadata().dateCreated()).isEqualTo(LocalDate.now(java.time.Clock.systemUTC()));
+        assertThat(recipe.schemaVersion()).isEqualTo("1.0.0");
+        assertThat(recipe.recipeVersion()).isEqualTo("1.0.0");
     }
 
     private Recipe createTestRecipe(String title) {

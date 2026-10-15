@@ -401,8 +401,75 @@ class RecipeAdjustmentServiceTest {
         }
 
         @Test
+        void sizeWordWithoutAmount_keptInNotes() {
+            Ingredient i = adjust(null, "large", "for egg wash");
+            assertNull(i.unit());
+            assertEquals("for egg wash, large", i.notes());
+        }
+
+        @Test
+        void unknownUnitWithoutAmount_keptInNotes() {
+            Ingredient i = adjust(null, "bunch", null);
+            assertNull(i.unit());
+            assertEquals("bunch", i.notes());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"pound,lb", "sticks,stick"})
+        void remainingSynonyms_folded(String unit, String expected) {
+            assertEquals(expected, adjust("1", unit, null).unit());
+        }
+
+        @Test
+        void inchMeasureInsideUnit_notSplitIntoBrokenUnit() {
+            Ingredient i = adjust(null, "1/2-inch piece", null);
+            assertNull(i.amount());
+            assertNull(i.unit());
+            assertEquals("1/2-inch piece", i.notes());
+        }
+
+        @Test
+        void amountThenParenthesesThenUnit_split() {
+            Ingredient i = adjust(null, "1 (13 oz) bag", null);
+            assertEquals("1", i.amount());
+            assertEquals("bag", i.unit());
+            assertEquals("13 oz", i.notes());
+        }
+
+        @Test
+        void leadingParentheses_split() {
+            Ingredient i = adjust("2", "(14 oz) cans", null);
+            assertEquals("can", i.unit());
+            assertEquals("14 oz", i.notes());
+        }
+
+        @Test
+        void textAfterClosingParenthesis_noStrayParenthesis() {
+            Ingredient i = adjust("2", "clove (minced), divided", null);
+            assertEquals("clove", i.unit());
+            assertEquals("minced, divided", i.notes());
+        }
+
+        @Test
+        void snapping_ignoresCommaDecimalDefaultLocale() {
+            java.util.Locale previous = java.util.Locale.getDefault();
+            try {
+                java.util.Locale.setDefault(java.util.Locale.GERMANY);
+                assertEquals("0.667", adjust("0.66", "cup", null).amount());
+            } finally {
+                java.util.Locale.setDefault(previous);
+            }
+        }
+
+        @Test
+        void nutritionWithOnlyServingSize_kept() {
+            Nutrition n = new Nutrition("1 slice (80 g)", null, null, null, null, null, null, null, null);
+            assertSame(n, service.adjustNutrition(n));
+        }
+
+        @Test
         void allNullNutrition_becomesNull() {
-            assertNull(service.adjustNutrition(new Nutrition("1 serving", null, null, null, null, null, null, null, null)));
+            assertNull(service.adjustNutrition(new Nutrition(null, null, null, null, null, null, null, null, null)));
         }
 
         @Test

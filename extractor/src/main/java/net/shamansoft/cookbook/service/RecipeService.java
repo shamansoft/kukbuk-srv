@@ -42,7 +42,7 @@ public class RecipeService {
     private final Transformer transformer;  // AdaptiveCleaningTransformerService (@Primary)
     private final RecipeValidationService validationService;
     private final GeminiRestTransformer geminiRestTransformer;
-    private final RecipeAdjustmentService adjustmentService;
+    private final RecipePostProcessor postProcessor;
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, Compression compression, String title) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
@@ -103,7 +103,7 @@ public class RecipeService {
         String plainDescription = decompressContent(description, compression);
 
         List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
-        for (Recipe recipe : structureDescription(plainDescription)) {
+        for (Recipe recipe : structureDescription(plainDescription, url)) {
             String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                     ? recipe.metadata().title() : title;
             String fileName = provider.generateFileName(recipeTitle);
@@ -131,12 +131,13 @@ public class RecipeService {
     }
 
     /**
-     * Structures a free-text recipe with the model and applies the same ingredient/time cleanup as
-     * HTML extraction. Shared by {@code POST /v1/recipes/custom} and the local debug endpoint.
+     * Structures a free-text recipe with the model and post-processes it like HTML extraction: ingredient and
+     * time cleanup, server-side date, schema/recipe version and source. Shared by {@code POST /v1/recipes/custom}
+     * and the local debug endpoint.
      */
-    public List<Recipe> structureDescription(String plainDescription) {
+    public List<Recipe> structureDescription(String plainDescription, String sourceUrl) {
         return geminiRestTransformer.transformDescription(plainDescription).recipes().stream()
-                .map(adjustmentService::adjust)
+                .map(r -> postProcessor.process(r, sourceUrl))
                 .toList();
     }
 

@@ -26,6 +26,10 @@ public class GeminiRestTransformer implements Transformer {
     private float retryTemperature = 0.3f;
     @Value("${cookbook.gemini.retry.max-output-tokens:16384}")
     private int retryMaxOutputTokens = 16384;
+    // Skip the retry when the failed call alone took this long: a second one would push the request past
+    // what callers wait for. Also never retried inside a validation-feedback call, which is a retry already.
+    @Value("${cookbook.gemini.retry.max-first-call-seconds:45}")
+    private long retryMaxFirstCallSeconds = 45;
 
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
@@ -55,7 +59,7 @@ public class GeminiRestTransformer implements Transformer {
             GeminiRequest request = requestBuilder.buildRequestFromDescription(description);
             log.debug("Transforming recipe description, length: {}", description.length());
 
-            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request);
+            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request, true);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
                 GeminiExtractionResult result = geminiResponse.data();
@@ -143,7 +147,8 @@ public class GeminiRestTransformer implements Transformer {
                 log.debug("Initial transformation request.");
             }
 
-            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request);
+            boolean isFeedbackCall = previousRecipe != null && validationError != null;
+            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request, !isFeedbackCall);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
                 GeminiExtractionResult result = geminiResponse.data();
@@ -175,9 +180,16 @@ public class GeminiRestTransformer implements Transformer {
      * temperature and a larger output budget (a deterministic repetition loop or recitation stop
      * would otherwise repeat exactly).
      */
-    private GeminiResponse<GeminiExtractionResult> requestWithRetry(GeminiRequest request) {
+    private GeminiResponse<GeminiExtractionResult> requestWithRetry(GeminiRequest request, boolean allowRetry) {
+        long start = System.nanoTime();
         GeminiResponse<GeminiExtractionResult> response = geminiClient.request(request, GeminiExtractionResult.class);
-        if (!response.code().isRetryable()) {
+        if (!allowRetry || !response.code().isRetryable()) {
+            return response;
+        }
+        long elapsedSeconds = (System.nanoTime() - start) / 1_000_000_000L;
+        if (elapsedSeconds >= retryMaxFirstCallSeconds) {
+            log.warn("Gemini returned {} after {}s, not retrying (limit {}s)",
+                    response.code(), elapsedSeconds, retryMaxFirstCallSeconds);
             return response;
         }
         GeminiRequest.GenerationConfig config = request.getGenerationConfig();
@@ -192,9 +204,10 @@ public class GeminiRestTransformer implements Transformer {
     }
 
     private static ClientException failure(GeminiResponse<?> response) {
-        if (response.code().isRetryable()) {
-            return new ExtractionFailedException(
-                    "The AI model could not extract a recipe from this page: " + response.errorMessage());
+        // Caused by the page (blocked, no content, cut off), not by the server: 422, not 500
+        if (response.code().isRetryable() || response.code() == GeminiResponse.Code.BLOCKED) {
+            return new ExtractionFailedException("The AI model could not extract a recipe from this page ("
+                    + response.code() + "): " + response.errorMessage());
         }
         return new ClientException("Gemini Client returned error code: " + response.code());
     }

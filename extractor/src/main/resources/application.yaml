@@ -214,6 +214,8 @@ cookbook:
     retry:
       temperature: 0.3
       max-output-tokens: 16384
+      # No retry if the failed call alone took this long, and none inside validation-feedback calls
+      max-first-call-seconds: 45
 
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))

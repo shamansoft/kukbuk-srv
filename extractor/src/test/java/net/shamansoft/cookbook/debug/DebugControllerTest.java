@@ -593,7 +593,7 @@ class DebugControllerTest {
     @DisplayName("custom: structures a description through RecipeService")
     void customStructuresDescription() {
         Recipe recipe = mock(Recipe.class);
-        when(recipeService.structureDescription("pancakes: 1 cup flour")).thenReturn(List.of(recipe));
+        when(recipeService.structureDescription("pancakes: 1 cup flour", null)).thenReturn(List.of(recipe));
 
         ResponseEntity<Map<String, Object>> response =
                 controller.structureDescription(Map.of("text", "pancakes: 1 cup flour"));
@@ -608,6 +608,6 @@ class DebugControllerTest {
         ResponseEntity<Map<String, Object>> response = controller.structureDescription(Map.of("text", " "));
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
-        verify(recipeService, never()).structureDescription(anyString());
+        verify(recipeService, never()).structureDescription(anyString(), any());
     }
 }

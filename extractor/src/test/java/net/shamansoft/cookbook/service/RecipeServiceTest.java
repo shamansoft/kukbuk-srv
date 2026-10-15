@@ -64,7 +64,8 @@ class RecipeServiceTest {
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
         RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer, new RecipeAdjustmentService());
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
 
         // Act
         var resp = svc.createRecipe("user1", "http://u", "rawHtml", null, "My Title");
@@ -97,7 +98,8 @@ class RecipeServiceTest {
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
         RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer, new RecipeAdjustmentService());
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
 
         try {
             svc.createRecipe("user1", "http://u", "rawHtml", null, "title");

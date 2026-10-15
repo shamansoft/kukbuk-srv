@@ -138,6 +138,47 @@ class GeminiRestTransformerTest {
     }
 
     @Test
+    void transformMapsBlockedPromptToExtractionFailedWithoutRetry() throws JacksonException {
+        String html = "<html>recipe</html>";
+        GeminiRequest request = requestWithConfig();
+        when(requestBuilder.buildRequest(eq(html))).thenReturn(request);
+        when(geminiClient.request(eq(request), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.BLOCKED, "SAFETY"));
+
+        assertThatThrownBy(() -> transformer.transform(html, "https://example.com"))
+                .isInstanceOf(ExtractionFailedException.class);
+        verify(geminiClient, times(1)).request(eq(request), eq(GeminiExtractionResult.class));
+    }
+
+    @Test
+    void transformWithFeedbackDoesNotRetry() throws JacksonException {
+        String html = "<html>recipe</html>";
+        Recipe previous = createTestRecipe("Prev");
+        GeminiRequest request = requestWithConfig();
+        when(requestBuilder.buildRequest(eq(html), eq(previous), eq("err"))).thenReturn(request);
+        when(geminiClient.request(eq(request), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.TRUNCATED, "cut off"));
+
+        assertThatThrownBy(() -> transformer.transformWithFeedback(html, previous, "err"))
+                .isInstanceOf(ExtractionFailedException.class);
+        verify(geminiClient, times(1)).request(eq(request), eq(GeminiExtractionResult.class));
+    }
+
+    @Test
+    void transformSkipsRetryWhenFirstCallTookTooLong() throws JacksonException {
+        org.springframework.test.util.ReflectionTestUtils.setField(transformer, "retryMaxFirstCallSeconds", 0L);
+        String html = "<html>recipe</html>";
+        GeminiRequest request = requestWithConfig();
+        when(requestBuilder.buildRequest(eq(html))).thenReturn(request);
+        when(geminiClient.request(eq(request), eq(GeminiExtractionResult.class)))
+                .thenReturn(GeminiResponse.failure(GeminiResponse.Code.NO_CONTENT, "RECITATION"));
+
+        assertThatThrownBy(() -> transformer.transform(html, "https://example.com"))
+                .isInstanceOf(ExtractionFailedException.class);
+        verify(geminiClient, times(1)).request(eq(request), eq(GeminiExtractionResult.class));
+    }
+
+    @Test
     void transformDescriptionRetriesOnNoContent() throws JacksonException {
         GeminiRequest request = requestWithConfig();
         when(requestBuilder.buildRequestFromDescription(eq("my recipe"))).thenReturn(request);
@@ -282,8 +323,8 @@ class GeminiRestTransformerTest {
 
         // When/Then
         assertThatThrownBy(() -> transformer.transform(htmlContent, "https://example.com"))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+                .isInstanceOf(ExtractionFailedException.class)
+                .hasMessageContaining("BLOCKED");
 
         verify(requestBuilder).buildRequest(eq(htmlContent));
         verify(geminiClient).request(eq(mockRequest), eq(GeminiExtractionResult.class));
@@ -380,8 +421,8 @@ class GeminiRestTransformerTest {
 
         // When/Then
         assertThatThrownBy(() -> transformer.transformDescription(description))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Gemini Client returned error code: BLOCKED");
+                .isInstanceOf(ExtractionFailedException.class)
+                .hasMessageContaining("BLOCKED");
     }
 
     @Test

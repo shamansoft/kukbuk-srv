@@ -440,7 +440,7 @@ public class DebugController {
 
     /**
      * TEST ENDPOINT - free-text description flow ({@code POST /v1/recipes/custom}) without auth or storage.
-     * Body: {@code {"text": "<description>"}}. Returns the structured recipes after the production cleanup;
+     * Body: {@code {"text": "<description>", "url": "<optional source url>"}}. Returns the structured recipes after the production cleanup;
      * {@code recipeJson} is the first recipe so the extractor tuner can score it like an HTML case.
      */
     @PostMapping(value = "/v1/recipes/custom", consumes = "application/json", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -450,7 +450,8 @@ public class DebugController {
             return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
         }
         long start = System.currentTimeMillis();
-        List<Recipe> recipes = recipeService.structureDescription(description);
+        Object url = body.get("url");
+        List<Recipe> recipes = recipeService.structureDescription(description, url instanceof String u ? u : null);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("recipe", !recipes.isEmpty());
         response.put("recipeJson", recipes.isEmpty() ? null : recipes.get(0));

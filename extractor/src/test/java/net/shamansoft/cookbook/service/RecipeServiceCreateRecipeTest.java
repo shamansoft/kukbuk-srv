@@ -88,7 +88,8 @@ class RecipeServiceCreateRecipeTest {
                 .thenReturn(driveService);
         recipeService = new RecipeService(contentHashService, storageProviderResolver, storageService,
                 recipeStoreService, recipeParser, recipeMapper, htmlExtractor,
-                compressor, transformer, validationService, geminiRestTransformer, new RecipeAdjustmentService());
+                compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
 
         mockStorageInfo = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)

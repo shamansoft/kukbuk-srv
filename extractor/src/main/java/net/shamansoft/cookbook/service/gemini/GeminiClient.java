@@ -121,6 +121,11 @@ public class GeminiClient {
             }
 
             String jsonContent = jsonBuilder.toString();
+            if (jsonContent.isBlank()) {
+                log.error("Gemini returned only empty text - finishReason: {}", finishReason);
+                return GeminiResponse.failure(GeminiResponse.Code.NO_CONTENT,
+                        "Gemini returned empty text (finishReason: " + finishReason + ")");
+            }
             log.debug("Combined JSON from Gemini - Total length: {} chars, First 200 chars: {}",
                     jsonContent.length(),
                     jsonContent.substring(0, Math.min(200, jsonContent.length())));
@@ -132,6 +137,11 @@ public class GeminiClient {
                     log.error("Gemini output cut off at the token limit ({} chars)", jsonContent.length());
                     return GeminiResponse.failure(GeminiResponse.Code.TRUNCATED,
                             "Gemini output hit the token limit and is incomplete (" + jsonContent.length() + " chars)");
+                }
+                if (!finishReason.isEmpty() && !"STOP".equals(finishReason)) {
+                    log.error("Gemini stopped early ({}) with incomplete output ({} chars)", finishReason, jsonContent.length());
+                    return GeminiResponse.failure(GeminiResponse.Code.NO_CONTENT,
+                            "Gemini stopped early (finishReason: " + finishReason + ") and the output is incomplete");
                 }
                 log.error("Invalid JSON structure received from Gemini API", e);
                 return GeminiResponse.failure(GeminiResponse.Code.PARSE_ERROR,

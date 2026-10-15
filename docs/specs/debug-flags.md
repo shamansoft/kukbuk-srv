@@ -81,7 +81,7 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
 ## Free-text descriptions: `POST /debug/v1/recipes/custom`
 
 Runs the `POST /v1/recipes/custom` flow (`RecipeService.structureDescription`: model call, retry,
-ingredient cleanup) without auth or storage. Body: `{"text": "<description>"}`. Response:
+`RecipePostProcessor`) without auth or storage. Body: `{"text": "<description>", "url": "<optional>"}`. Response:
 `recipeJson` (first recipe, so `tools/extractor-tuner` can score it like an HTML case),
 `recipesJson` (all recipes), `metadata.model`. No overrides or dump flags; blank `text` → `400`.
 
