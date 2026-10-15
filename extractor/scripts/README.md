@@ -393,4 +393,4 @@ gcloud container images list-tags gcr.io/kukbuk-tf/cookbook
 
 - [Main README](../../README.md) - CI/CD deployment strategy
 - [CI/CD Workflow Guide](../../docs/CI_CD_WORKFLOW.md) - Automated pipeline details
-- [Deployment Strategy](../../docs/CD.md) - Full deployment process
+- [Deployment Strategy](../../docs/deployment/strategy.md) - Full deployment process

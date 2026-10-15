@@ -1,8 +1,12 @@
 # Entitlement System — As-Built Spec
 
+_Canonical reference for the entitlement/quota system. Verified against code in `net.shamansoft.cookbook.entitlement`._
+
 Per-user quota enforcement for the FREE tier. Backed by Firestore, enforced via AOP, with a credits fallback and fail-open on timeout.
 
-**RFC:** `docs/rfc/entitlement.md` (design rationale and review history)
+**Related:**
+- [RFC: Entitlement Service](../rfc/entitlement.md) — design rationale, alternatives, review history (background only; this spec is authoritative for current behavior).
+- [Creating an Admin User](../create-admin-instructions.md) — how to grant `admin:true` and call `PUT /v1/admin/users/{userId}/tier` to change a user's tier.
 
 ---
 

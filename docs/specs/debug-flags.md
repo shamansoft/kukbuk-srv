@@ -175,4 +175,6 @@ diff <(cat /tmp/sar-srv/dumps/llm-response-*.json | jq -S .) \
      <(cat /tmp/sar-srv/dumps/result-json-*.json | jq -S .)
 ```
 
-See `docs/postman/DUMP_FLAGS_TESTING.md` for full Postman test scenarios.
+**Related:** prompt and model changes are scored with `tools/extractor-tuner` in the SAR umbrella folder,
+which drives this endpoint. The Postman collection at `docs/postman/cookbook-api.postman_collection.json`
+covers the main API.

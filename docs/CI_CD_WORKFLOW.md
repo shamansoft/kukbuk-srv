@@ -248,7 +248,7 @@ To merge to main WITHOUT deploying:
 
 ### Rollback
 
-See [docs/CD.md](CD.md#rollback-procedures) for detailed rollback procedures.
+See [Rollback Procedures](deployment/rollback.md) for detailed rollback procedures.
 
 **Quick rollback** (emergency):
 ```bash
@@ -398,7 +398,7 @@ If you have an existing workflow:
 
 For better security, migrate from service account keys to Workload Identity Federation.
 
-See [docs/CD.md#workload-identity-federation](CD.md#workload-identity-federation) for setup.
+See [Production Readiness — Workload Identity Federation](deployment/production-readiness.md#workload-identity-federation-recommended) for setup.
 
 ### Environment Protection
 
@@ -419,9 +419,11 @@ To enable gradual rollout:
 
 ## Resources
 
-- [CD Strategy](CD.md) - Comprehensive deployment strategy
-- [Build Documentation](../BUILD_PUSH_SEPARATION.md) - Build script details
-- [Infrastructure Repository](https://github.com/shamansoft/sar-infra) - OpenTofu infrastructure docs
+- [Deployment Strategy](deployment/strategy.md) - Comprehensive deployment strategy
+- [Rollback Procedures](deployment/rollback.md) - Rollback methods
+- [Monitoring & Alerts](deployment/monitoring.md) - Logs, metrics, health checks
+- [Build scripts](../extractor/scripts/README.md) - `build.sh` / `push.sh` / `version-updater.sh` details
+- [Infrastructure Repository](https://github.com/shamansoft/sar-infra) - OpenTofu infrastructure & deploy workflow
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 
 ## Support

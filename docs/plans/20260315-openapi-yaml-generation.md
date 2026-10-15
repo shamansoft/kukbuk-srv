@@ -1,5 +1,8 @@
 # OpenAPI YAML Generation via Build Process
 
+> **Note (2026-10-15):** `YouTubeController` and `YouTubeTaskHandler` are not on `main` (they exist only on the
+> unmerged local branch `youtube-prompt`). Skip Task 4 and the `/v1/recipes/youtube` checks until that lands.
+
 ## Overview
 
 Add build-time OpenAPI YAML generation to the `:cookbook` module using the `springdoc-openapi-gradle-plugin`. The plugin starts a Spring Boot context, calls `/v3/api-docs.yaml`, and writes the spec to `build/openapi.yaml` as a build artifact.
@@ -126,7 +129,7 @@ Add build-time OpenAPI YAML generation to the `:cookbook` module using the `spri
 
 ### Task 10: Update documentation
 
-- [ ] Update `CLAUDE.md` — add `generateOpenApiDocs` to Common Development Tasks section
+- [ ] Update `README.md` Quick start (and the local, gitignored `CLAUDE.md`) — add `generateOpenApiDocs`
 - [ ] Update `extractor/README.md` if it exists with instructions for generating the spec
 
 ## Technical Details

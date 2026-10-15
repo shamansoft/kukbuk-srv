@@ -339,6 +339,7 @@ cookbook:
 
 ## See Also
 
-- [HTML Preprocessing Design Document](plans/2026-01-23-html-preprocessing-design.md)
+- [Entitlement spec](specs/entitlement.md) — emits `entitlement.check` counters; same Micrometer → Cloud Monitoring path.
+- [Monitoring & Alerts](deployment/monitoring.md) — production metrics, logs, and health checks.
 - [Spring Boot Actuator Documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html)
 - [Micrometer Documentation](https://micrometer.io/docs)

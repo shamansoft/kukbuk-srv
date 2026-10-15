@@ -1,8 +1,12 @@
 # RFC: Entitlement Service
 
-**Status:** Draft v4 — revised after third review (client UX + extensibility)
+**Status:** Accepted & implemented (design history). For current behavior, see the canonical [Entitlement spec](../specs/entitlement.md).
 **Date:** 2026-03-08
 **Author:** Engineering
+
+> This RFC captures the design rationale, alternatives considered, and the principal-engineer
+> review history. The system is now built and live — where this document and the
+> [as-built spec](../specs/entitlement.md) disagree, the spec wins.
 
 > **v2 Change Summary:** Addressed five principal engineer concerns.
 > Accepted: virtual threads (#2), JWT hybrid tier (#3), CIRCUIT_OPEN outcome (#4).
