@@ -3,7 +3,7 @@ _Last updated: 2026-10-15_
 
 ## What this is
 The Spring Boot backend for the SAR / MyKukBuk recipe product. It extracts structured recipes from
-web pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces per-user
+web pages and free-text descriptions using Google Gemini AI, enforces per-user
 quotas (entitlements), and stores recipes in the user's Google Drive or Dropbox. It serves the
 sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar-infra.
 
@@ -12,8 +12,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - **Framework:** Spring Boot 4.0.1 (Spring Framework 7.x), Gradle 9.2.0
 - **Modules:** `extractor/` (Gradle `:cookbook`, the REST API) · `recipe-sdk/` (recipe models, YAML parse/serialize, validation)
 - **LLM:** Google Gemini `gemini-3.1-flash-lite` via REST, thinking off, with JSON `responseSchema` structured output
-- **Data/identity:** Firestore (recipe cache, profiles, YouTube jobs, quota windows), Google Drive or Dropbox (the user's recipe files), Firebase Auth (JWT, custom claims for tier/admin)
-- **Async:** Google Cloud Tasks for YouTube extraction jobs
+- **Data/identity:** Firestore (recipe cache, profiles, quota windows), Google Drive or Dropbox (the user's recipe files), Firebase Auth (JWT, custom claims for tier/admin)
 - **HTTP client:** Spring `RestClient` (migrated off WebClient) with virtual threads
 - **Deploy:** GitHub Actions → GraalVM native image → GCR → `repository_dispatch` to sar-infra → Cloud Run (`us-west1`, project `kukbuk-tf`)
 - **Quality:** JaCoCo (40% min enforced; currently ~80%), OWASP Dependency Check (fails on CVSS ≥ 7.0)
@@ -23,9 +22,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - **Implemented / working:**
   - Recipe extraction from HTML (`POST /v1/recipes`) and free-text (`POST /v1/recipes/custom`)
   - Multi-recipe extraction (a page yielding several recipes) + adaptive HTML cleaning chain
-  - YouTube recipe extraction (async via Cloud Tasks: `POST /v1/recipes/youtube`, status `GET`)
   - Entitlement/quota system (FREE-tier daily limits, credits fallback, fail-open, 429 + headers)
-  - Admin tier management (`PUT /v1/admin/users/{userId}/tier`, `admin:true` claim + AOP guard)
   - Recipe storage in Google Drive; Dropbox as a second backend (code merged, rollout pending, see below)
   - Recipe caching/dedup, Firestore persistence, Firebase auth
   - Relative recipe image URLs resolved to absolute at read time
@@ -39,6 +36,10 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
   - Dropbox rollout: Dropbox app registration, secrets, deploy and device test — [runbook](docs/runbooks/dropbox-integration.md) (phases 2–6 open)
   - Build-time OpenAPI YAML generation (springdoc) — planned, not yet wired (see active plan)
 - **Planned / backlog:**
+  - YouTube recipe extraction: built in Feb 2026 (Cloud Tasks pipeline, `POST /v1/recipes/youtube`) on the
+    local branch `youtube-prompt`, never pushed or merged. Only the `YOUTUBE_EXTRACTION` quota exists on `main`
+  - Admin tier management (`PUT /v1/admin/users/{userId}/tier`, `admin:true` claim + AOP guard): built in May 2026
+    on the local branch `update-tier`, never pushed or merged
   - Keep ingredient sections when the page has schema.org JSON-LD (lost today on JSON-LD pages; 5 of 11 sample pages with sections come out right)
   - OpenAPI spec artifact for downstream client SDK generation (sar-kmp/sar-ext)
   - Deferred entitlement items (idempotency keys, credits expiry, admin webhook, quota-status endpoint, Redis backend) — see entitlement RFC §9
@@ -65,8 +66,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - Gemini generation-parameter tuning on the local debug endpoint (#90); `gemini-3.5-flash-lite` tried and reverted (#89)
 - Spring Boot 3.5.9 → 4.0.1 migration (Java 21 → 25, Jackson 2 → 3, GraalVM 25)
 - Recipe post-processing (deterministic fields after validation)
-- YouTube recipe extraction (async Cloud Tasks pipeline)
-- Entitlement service + admin update-tier endpoint
+- Entitlement service (per-user daily quotas, credits fallback)
 - Multi-recipe extraction + adaptive HTML cleaning chain (cache redesigned YAML → JSON)
 - Prompt-injection defense (system instruction + delimiters)
 - WebClient → RestClient migration; Gemini structured-output (responseSchema) migration

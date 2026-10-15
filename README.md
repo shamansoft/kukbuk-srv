@@ -5,7 +5,7 @@
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
 
 Spring Boot (Kotlin/Java) backend for the **SAR / MyKukBuk** recipe product. It extracts structured
-recipes from web pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces
+recipes from web pages and free-text descriptions using Google Gemini AI, enforces
 per-user quotas (entitlements), and stores recipes in the user's Google Drive or Dropbox. Deployed
 as a GraalVM native image on Google Cloud Run.
 
@@ -19,7 +19,7 @@ client). Infrastructure lives in **sar-infra** (OpenTofu/Terraform).
 
 | Path | Gradle name | Purpose |
 |---|---|---|
-| `extractor/` | `:cookbook` | Spring Boot REST API — extraction, entitlements, storage, YouTube |
+| `extractor/` | `:cookbook` | Spring Boot REST API — extraction, entitlements, storage |
 | `recipe-sdk/` | `:recipe-sdk` | Shared recipe models, YAML parse/serialize, validation |
 
 > **Note:** `extractor/` is renamed to `:cookbook` in `settings.gradle`. Use `:cookbook` for Gradle

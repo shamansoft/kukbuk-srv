@@ -4,7 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
 The Spring Boot REST API of `sar-srv` (Gradle module `:cookbook`). Extracts recipe data from web
-pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces per-user quotas,
+pages and free-text descriptions using Google Gemini AI, enforces per-user quotas,
 and stores recipes in the user's Google Drive or Dropbox (Firestore holds the cache, profiles and quotas).
 
 > This README covers the `extractor/` module. For repo-wide build/run/test and the documentation

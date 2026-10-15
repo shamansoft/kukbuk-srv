@@ -1,5 +1,8 @@
 # Creating an Admin User
 
+> **Not on `main` yet (2026-10-15):** the `PUT /v1/admin/users/{userId}/tier` endpoint this guide calls exists
+> only on the unmerged local branch `update-tier`. Setting the `admin` claim works, but nothing on `main` uses it.
+
 Admin users authenticate via Firebase Auth with an `"admin": true` custom claim in their JWT.
 They are **not** stored in the Firestore `users/` profile collection.
 
