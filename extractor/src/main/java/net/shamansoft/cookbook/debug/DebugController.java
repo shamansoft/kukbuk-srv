@@ -16,6 +16,7 @@ import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +61,9 @@ public class DebugController {
     private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
     private final GeminiRestTransformer geminiRestTransformer;
+
+    @Value("${cookbook.gemini.model}")
+    private String defaultGeminiModel;
 
     // DumpService is optional - only available in local profile
     @Autowired(required = false)
@@ -236,7 +240,7 @@ public class DebugController {
                 if (request.isVerbose()) {
                     metadataBuilder
                             .transformationTimeMs(transformTime)
-                            .geminiModel(overrides.model() != null ? overrides.model() : "gemini-2.5-flash-lite"); // TODO: Get non-override default from config
+                            .geminiModel(overrides.model() != null ? overrides.model() : defaultGeminiModel);
                 }
 
                 // Dump raw LLM response if flag enabled

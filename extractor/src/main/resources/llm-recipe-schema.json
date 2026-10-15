@@ -30,7 +30,8 @@
           "ingredients",
           "instructions",
           "schema_version",
-          "recipe_version"
+          "recipe_version",
+          "nutrition"
         ],
         "properties": {
           "schema_version": {
@@ -48,8 +49,12 @@
             "required": [
               "title",
               "source",
+              "language",
               "date_created",
-              "servings"
+              "servings",
+              "prep_time",
+              "cook_time",
+              "total_time"
             ],
             "properties": {
               "title": {
@@ -67,7 +72,7 @@
               "language": {
                 "type": "string",
                 "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
-                "description": "Language code 'en' or region format 'en/us'"
+                "description": "ISO 639-1 code of the page's language, e.g. 'en' or 'en/us'"
               },
               "date_created": {
                 "type": "string",
@@ -91,15 +96,21 @@
               },
               "prep_time": {
                 "type": "string",
-                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$",
+                "nullable": true,
+                "description": "Active preparation time (JSON-LD prepTime). null if the page gives none."
               },
               "cook_time": {
                 "type": "string",
-                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$",
+                "nullable": true,
+                "description": "Cooking/baking time (JSON-LD cookTime). null if the page gives none."
               },
               "total_time": {
                 "type": "string",
-                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+                "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$",
+                "nullable": true,
+                "description": "Total time (JSON-LD totalTime). null if the page gives none."
               },
               "difficulty": {
                 "type": "string",
@@ -134,7 +145,9 @@
             "items": {
               "type": "object",
               "required": [
-                "item"
+                "item",
+                "amount",
+                "unit"
               ],
               "properties": {
                 "item": {
@@ -142,10 +155,14 @@
                 },
                 "amount": {
                   "type": "number",
-                  "minimum": 0
+                  "minimum": 0,
+                  "nullable": true,
+                  "description": "Numeric quantity. null when the source gives no number (to taste, as needed, a pinch)."
                 },
                 "unit": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true,
+                  "description": "One whitelisted unit word, or null for bare counts and unquantified items."
                 },
                 "notes": {
                   "type": "string"
@@ -258,37 +275,57 @@
             "type": "object",
             "properties": {
               "serving_size": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "calories": {
                 "type": "integer",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "protein": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "carbohydrates": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "fat": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "fiber": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "sugar": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               },
               "sodium": {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0,
+                "nullable": true
               }
-            }
+            },
+            "nullable": true,
+            "description": "Per-serving nutrition as published on the page (JSON-LD nutrition). null only if the page publishes none.",
+            "required": [
+              "serving_size",
+              "calories",
+              "protein",
+              "carbohydrates",
+              "fat",
+              "fiber",
+              "sugar",
+              "sodium"
+            ]
           },
           "notes": {
             "type": "string",

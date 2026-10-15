@@ -2,6 +2,7 @@ package net.shamansoft.cookbook.service;
 
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Nutrition;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
@@ -262,6 +263,139 @@ class RecipeAdjustmentServiceTest {
         @Test
         void alreadyLowercase_unchanged() {
             assertEquals("cup", service.normalizeUnit("cup"));
+        }
+    }
+
+    // =========================================================================
+    // Ingredient cleanup (model output that breaks the unit/amount contract)
+    // =========================================================================
+
+    @Nested
+    class IngredientCleanup {
+
+        private Ingredient adjust(String amount, String unit, String notes) {
+            return service.adjustIngredient(new Ingredient("salt", amount, unit, notes, null, null, null));
+        }
+
+        @ParameterizedTest
+        @CsvSource({"0,teaspoon", "0.0,each", "0,pinch"})
+        void zeroAmount_becomesNullAmountAndUnit(String amount, String unit) {
+            Ingredient i = adjust(amount, unit, "to taste");
+            assertNull(i.amount());
+            assertNull(i.unit());
+            assertEquals("to taste", i.notes().split(",")[0]);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"null", "NULL", "none", " "})
+        void placeholderUnit_becomesNull(String unit) {
+            Ingredient i = adjust("2", unit, null);
+            assertEquals("2", i.amount());
+            assertNull(i.unit());
+        }
+
+        @Test
+        void textNullAmount_becomesNull() {
+            assertNull(adjust("null", "cup", null).amount());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"tsp,teaspoon", "Tbsp,tablespoon", "cups,cup", "grams,g", "ounces,oz", "lbs,lb", "cloves,clove"})
+        void synonym_foldedToWhitelist(String unit, String expected) {
+            assertEquals(expected, adjust("1", unit, null).unit());
+        }
+
+        @Test
+        void unitWithCommaText_splitIntoUnitAndNotes() {
+            Ingredient i = adjust("1", "cup, frozen, optional", null);
+            assertEquals("cup", i.unit());
+            assertEquals("frozen, optional", i.notes());
+        }
+
+        @Test
+        void unitWithParentheses_splitAndAppendedToExistingNotes() {
+            Ingredient i = adjust("0.33", "cup (80 ml)", "melted");
+            assertEquals("cup", i.unit());
+            assertEquals("melted, 80 ml", i.notes());
+        }
+
+        @Test
+        void eachWithText_becomesBareCount() {
+            Ingredient i = adjust("2", "each, at room temperature", null);
+            assertEquals("2", i.amount());
+            assertNull(i.unit());
+            assertEquals("at room temperature", i.notes());
+        }
+
+        @Test
+        void unknownUnitWithText_leftAlone() {
+            assertEquals("bunch, trimmed", adjust("1", "bunch, trimmed", null).unit());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"1,pinch,pinch", "2,dashes,2 dashes", ",to taste,to taste"})
+        void unquantifiedUnit_movedToNotes(String amount, String unit, String expectedNotes) {
+            Ingredient i = adjust(amount, unit, null);
+            assertNull(i.amount());
+            assertNull(i.unit());
+            assertEquals(expectedNotes, i.notes());
+        }
+
+        @Test
+        void unitWithoutAmount_dropped() {
+            Ingredient i = adjust(null, "teaspoon", "to taste");
+            assertNull(i.unit());
+            assertEquals("to taste", i.notes());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"each", "whole"})
+        void countPlaceholder_becomesNullUnit(String unit) {
+            Ingredient i = adjust("3", unit, null);
+            assertEquals("3", i.amount());
+            assertNull(i.unit());
+        }
+
+        @Test
+        void sizeWord_movedToNotes() {
+            Ingredient i = adjust("2", "large", null);
+            assertNull(i.unit());
+            assertEquals("large", i.notes());
+        }
+
+        @ParameterizedTest
+        @CsvSource({"⅓ cup,0.333,cup", "1 1/2 cups,1.5,cup", "2 tbsp,2,tablespoon"})
+        void amountInsideUnit_moved(String unit, String expectedAmount, String expectedUnit) {
+            Ingredient i = adjust(null, unit, null);
+            assertEquals(expectedAmount, i.amount());
+            assertEquals(expectedUnit, i.unit());
+        }
+
+        @Test
+        void rangeInsideUnit_midpointAndRangeInNotes() {
+            Ingredient i = adjust(null, "2-3 tbsp", null);
+            assertEquals("2.5", i.amount());
+            assertEquals("tablespoon", i.unit());
+            assertEquals("2-3 tbsp", i.notes());
+        }
+
+        @Test
+        void validIngredient_unchanged() {
+            Ingredient i = adjust("1.5", "cup", "sifted");
+            assertEquals("1.5", i.amount());
+            assertEquals("cup", i.unit());
+            assertEquals("sifted", i.notes());
+        }
+
+        @Test
+        void allNullNutrition_becomesNull() {
+            assertNull(service.adjustNutrition(new Nutrition("1 serving", null, null, null, null, null, null, null, null)));
+        }
+
+        @Test
+        void nutritionWithValues_kept() {
+            Nutrition n = new Nutrition(null, 309, 7.0, null, null, null, null, null, null);
+            assertSame(n, service.adjustNutrition(n));
         }
     }
 

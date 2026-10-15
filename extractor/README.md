@@ -101,10 +101,11 @@ cookbook:
   gemini:
     api-key: "YOUR_GEMINI_API_KEY"
     base-url: "https://generativelanguage.googleapis.com/v1beta"
-    model: "gemini-2.5-flash-lite"
-    temperature: 0.1
-    top-p: 0.8
-    max-output-tokens: 4096
+    model: "gemini-3.1-flash-lite"
+    temperature: 0.0
+    top-p: 1.0
+    max-output-tokens: 8192
+    thinking-budget: 0
   google:
     oauth-id: "YOUR_GOOGLE_OAUTH_CLIENT_ID"
   drive:

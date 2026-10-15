@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.service;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.recipe.model.Ingredient;
 import net.shamansoft.recipe.model.Instruction;
+import net.shamansoft.recipe.model.Nutrition;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
 import org.springframework.stereotype.Service;
@@ -54,6 +55,54 @@ public class RecipeAdjustmentService {
     private static final Pattern ASCII_FRACTION = Pattern.compile(
             "^(\\d+)\\s+(\\d+)/(\\d+)$|^(\\d+)/(\\d+)$");
 
+    /** Model output meaning "no value": a JSON null written as text, or an empty placeholder. */
+    private static final Set<String> NULL_WORDS = Set.of("null", "none", "n/a", "na", "-");
+
+    /** Plurals, abbreviations and spellings folded to the prompt's unit whitelist. */
+    private static final Map<String, String> UNIT_SYNONYMS = Map.ofEntries(
+            Map.entry("tsp", "teaspoon"), Map.entry("tsp.", "teaspoon"), Map.entry("tsps", "teaspoon"),
+            Map.entry("teaspoons", "teaspoon"),
+            Map.entry("tbsp", "tablespoon"), Map.entry("tbsp.", "tablespoon"), Map.entry("tbsps", "tablespoon"),
+            Map.entry("tbs", "tablespoon"), Map.entry("tablespoons", "tablespoon"),
+            Map.entry("cups", "cup"), Map.entry("c.", "cup"),
+            Map.entry("gram", "g"), Map.entry("grams", "g"), Map.entry("gr", "g"),
+            Map.entry("kilogram", "kg"), Map.entry("kilograms", "kg"),
+            Map.entry("milligram", "mg"), Map.entry("milligrams", "mg"),
+            Map.entry("milliliter", "ml"), Map.entry("milliliters", "ml"),
+            Map.entry("millilitre", "ml"), Map.entry("millilitres", "ml"),
+            Map.entry("liter", "l"), Map.entry("liters", "l"), Map.entry("litre", "l"), Map.entry("litres", "l"),
+            Map.entry("ounce", "oz"), Map.entry("ounces", "oz"), Map.entry("oz.", "oz"),
+            Map.entry("pounds", "lb"), Map.entry("lbs", "lb"), Map.entry("lb.", "lb"), Map.entry("lbs.", "lb"),
+            Map.entry("cloves", "clove"), Map.entry("slices", "slice"), Map.entry("sprigs", "sprig"),
+            Map.entry("pieces", "piece"), Map.entry("pcs", "piece"),
+            Map.entry("bottles", "bottle"), Map.entry("jars", "jar"), Map.entry("cans", "can"),
+            Map.entry("bars", "bar"), Map.entry("packages", "package"), Map.entry("boxes", "box"),
+            Map.entry("bags", "bag"), Map.entry("pints", "pint"), Map.entry("quarts", "quart"),
+            Map.entry("gallons", "gallon")
+    );
+
+    /** Bare-count placeholders: a count with no unit is stored as unit null. */
+    private static final Set<String> COUNT_PLACEHOLDERS = Set.of("each", "whole", "ea", "unit", "units");
+
+    /**
+     * Words that describe an unmeasured quantity. Used as a unit they become amount null, unit null,
+     * with the word kept in notes.
+     */
+    private static final Set<String> UNQUANTIFIED = Set.of(
+            "pinch", "pinches", "dash", "dashes", "handful", "handfuls", "splash", "drizzle",
+            "to taste", "as needed", "as required", "some");
+
+    /** A unit that starts with a number, fraction or range: "⅓ cup", "1 1/2 cups", "2-3 tbsp". */
+    private static final Pattern AMOUNT_IN_UNIT = Pattern.compile(
+            "^((?:\\d+(?:\\.\\d+)?\\s*-\\s*\\d+(?:\\.\\d+)?)|(?:\\d+\\s+)?\\d+/\\d+|\\d*\\s*[½¼¾⅓⅔⅛⅜⅝⅞]|\\d+(?:\\.\\d+)?)\\s*([^\\d\\s].*)$");
+    private static final Pattern RANGE = Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*-\\s*(\\d+(?:\\.\\d+)?)$");
+
+    /** Sizes that models put in the unit field for bare counts. */
+    private static final Set<String> SIZE_WORDS = Set.of("small", "medium", "large", "extra large", "extra-large", "big");
+
+    /** Splits "cup, frozen" / "cup (80 ml)" into the unit and the trailing text. */
+    private static final Pattern UNIT_WITH_TRAILING_TEXT = Pattern.compile("^([^,(]+?)\\s*[,(]\\s*(.*?)\\)?\\s*$");
+
     public Recipe adjust(Recipe recipe) {
         if (recipe == null) return null;
 
@@ -72,10 +121,18 @@ public class RecipeAdjustmentService {
                 adjustedIngredients,
                 recipe.equipment(),
                 adjustedInstructions,
-                recipe.nutrition(),
+                adjustNutrition(recipe.nutrition()),
                 recipe.notes(),
                 recipe.storage()
         );
+    }
+
+    /** A nutrition object with no values (the model must emit the key) is the same as none. */
+    Nutrition adjustNutrition(Nutrition n) {
+        if (n == null) return null;
+        boolean empty = n.calories() == null && n.protein() == null && n.carbohydrates() == null
+                && n.fat() == null && n.fiber() == null && n.sugar() == null && n.sodium() == null;
+        return empty ? null : n;
     }
 
     // -------------------------------------------------------------------------
@@ -169,19 +226,112 @@ public class RecipeAdjustmentService {
         return ingredients.stream().map(this::adjustIngredient).toList();
     }
 
-    private Ingredient adjustIngredient(Ingredient ingredient) {
-        String amount = normalizeAmount(ingredient.amount());
-        String unit = normalizeUnit(ingredient.unit());
-        String component = normalizeComponent(ingredient.component());
+    Ingredient adjustIngredient(Ingredient ingredient) {
+        String amount = normalizeAmount(nullIfPlaceholder(ingredient.amount()));
+        String unit = normalizeUnit(nullIfPlaceholder(ingredient.unit()));
+        String notes = ingredient.notes();
+
+        // Number written into the unit ("⅓ cup", "2-3 tbsp"): move it to amount, a range as its midpoint
+        if (amount == null && unit != null) {
+            Matcher m = AMOUNT_IN_UNIT.matcher(unit.trim());
+            if (m.matches()) {
+                String number = m.group(1).trim();
+                Matcher range = RANGE.matcher(number);
+                if (range.matches()) {
+                    amount = formatDecimal((Double.parseDouble(range.group(1)) + Double.parseDouble(range.group(2))) / 2);
+                    notes = appendNote(notes, unit.trim());
+                } else {
+                    amount = normalizeAmount(number);
+                }
+                unit = m.group(2);
+            }
+        }
+
+        // "cup, frozen, optional" / "clove (minced)" -> unit "cup"/"clove", the rest to notes
+        if (unit != null && !isKnownUnit(unit)) {
+            Matcher m = UNIT_WITH_TRAILING_TEXT.matcher(unit);
+            if (m.matches() && isKnownUnit(canonicalUnit(m.group(1)))) {
+                unit = canonicalUnit(m.group(1));
+                notes = appendNote(notes, m.group(2));
+            }
+        }
+        unit = canonicalUnit(unit);
+
+        // "pinch", "to taste" used as a unit: the source gave no measurable quantity
+        if (unit != null && UNQUANTIFIED.contains(unit)) {
+            String wording = isZero(amount) || amount == null || "1".equals(amount) ? unit : amount + " " + unit;
+            notes = appendNote(notes, wording);
+            amount = null;
+            unit = null;
+        }
+
+        // Amount 0 is how some models write "no amount"; a unit without an amount means nothing
+        if (isZero(amount)) {
+            amount = null;
+        }
+        if (amount == null) {
+            unit = null;
+        }
+        if (unit != null && COUNT_PLACEHOLDERS.contains(unit)) {
+            unit = null;
+        }
+        // "2 large eggs" written as unit "large": a bare count, the size belongs in notes
+        if (unit != null && SIZE_WORDS.contains(unit)) {
+            notes = appendNote(notes, unit);
+            unit = null;
+        }
+
         return new Ingredient(
                 ingredient.item(),
                 amount,
                 unit,
-                ingredient.notes(),
+                notes,
                 ingredient.optional(),
                 ingredient.substitutions(),
-                component
+                normalizeComponent(ingredient.component())
         );
+    }
+
+    /** Units the whitelist allows; a unit with trailing text is only split when its head is one of these. */
+    private static final Set<String> KNOWN_UNITS = Set.of(
+            "g", "kg", "mg", "oz", "lb", "pound",
+            "ml", "l", "cup", "tablespoon", "teaspoon", "fl oz", "pint", "quart", "gallon",
+            "clove", "slice", "sprig", "piece", "stick",
+            "bottle", "jar", "can", "bar", "package", "box", "bag",
+            "°c", "°f", "dl", "cl");
+
+    private boolean isKnownUnit(String unit) {
+        return unit != null && (KNOWN_UNITS.contains(unit) || COUNT_PLACEHOLDERS.contains(unit)
+                || UNQUANTIFIED.contains(unit) || SIZE_WORDS.contains(unit));
+    }
+
+    private String canonicalUnit(String unit) {
+        if (unit == null) return null;
+        String u = unit.trim().toLowerCase();
+        return UNIT_SYNONYMS.getOrDefault(u, u);
+    }
+
+    private static String nullIfPlaceholder(String value) {
+        if (value == null) return null;
+        String t = value.trim();
+        return t.isEmpty() || NULL_WORDS.contains(t.toLowerCase()) ? null : value;
+    }
+
+    private static boolean isZero(String amount) {
+        if (amount == null) return false;
+        try {
+            return Double.parseDouble(amount.trim()) == 0.0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static String appendNote(String notes, String addition) {
+        if (addition == null || addition.isBlank()) return notes;
+        String add = addition.trim();
+        if (notes == null || notes.isBlank()) return add;
+        if (notes.toLowerCase().contains(add.toLowerCase())) return notes;
+        return notes + ", " + add;
     }
 
     String normalizeAmount(String amount) {
