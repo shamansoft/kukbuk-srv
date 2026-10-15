@@ -289,6 +289,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/recipes/url:
+    post:
+      tags:
+        - recipes
+      summary: Create recipe from URL
+      description: |
+        Creates a recipe from a URL alone (no client-provided HTML). Used by the mobile app's
+        "add from URL" flow.
+
+        ## Process
+        1. Fetch the page directly
+        2. If the site blocks that fetch, fetch the page as Markdown via markdown.new, which
+           renders it in a real browser. "Blocked" means HTTP 401/403/429/503, a timeout, or a
+           200 response that is a bot-protection challenge or has almost no text. Other errors
+           (404, unknown host, ...) are returned without trying markdown.new. A page whose title
+           says "page not found" (a soft 404, or the 404 page markdown.new renders for a missing
+           URL) or a challenge page is rejected before the AI step.
+        3. Transform the content to a structured recipe using AI
+        4. Save recipe as YAML to the user's storage
+        5. Return metadata and file links
+
+        Results are cached by URL, shared with `POST /v1/recipes`. A "not a recipe" verdict on
+        Markdown content is not cached.
+      operationId: createRecipeFromUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UrlRecipeRequest'
+      responses:
+        '200':
+          description: Page processed (check `isRecipe`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeResponse'
+        '400':
+          description: Bad Request - URL missing or not an absolute http(s) URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: |
+            Unprocessable Entity - Page could not be fetched, directly or via markdown.new.
+            `message` says why (not found, unreachable, bot protection, or markdown.new over its
+            daily limit — retry later) and is suitable to show to the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     FirebaseAuth:
@@ -339,6 +410,21 @@ components:
           format: uri
           description: Optional reference URL (not fetched)
           example: "https://example.com/reference"
+
+    UrlRecipeRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Recipe page URL (fetched by the server)
+          example: "https://preppykitchen.com/peanut-butter-cookies-recipe/"
+        title:
+          type: string
+          description: Optional recipe title, used if the AI does not produce one
+          example: "Peanut Butter Cookies"
 
     RecipeResponse:
       type: object

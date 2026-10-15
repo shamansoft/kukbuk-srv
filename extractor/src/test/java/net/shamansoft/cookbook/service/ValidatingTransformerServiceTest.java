@@ -307,6 +307,30 @@ class ValidatingTransformerServiceTest {
         );
     }
 
+    @Test
+    void transformMarkdown_usesMarkdownCallsForInitialRequestAndRetry() throws Exception {
+        String markdown = "# Recipe\n\n* 1 cup flour";
+        String sourceUrl = "https://example.com/recipe";
+        Recipe invalidRecipe = createRecipeWithMissingFields();
+        Recipe validRecipe = createValidRecipe("Fixed Recipe");
+
+        when(geminiTransformer.transformMarkdown(markdown, sourceUrl)).thenReturn(Transformer.Response.recipe(invalidRecipe));
+        when(validationService.validate(invalidRecipe))
+                .thenReturn(RecipeValidationService.ValidationResult.failure("Field 'metadata.title': must not be null"));
+        lenient().when(validationService.toYaml(invalidRecipe)).thenReturn("invalid yaml");
+        when(geminiTransformer.transformMarkdownWithFeedback(eq(markdown), eq(invalidRecipe), anyString()))
+                .thenReturn(Transformer.Response.recipe(validRecipe));
+        when(validationService.validate(validRecipe))
+                .thenReturn(RecipeValidationService.ValidationResult.success(validRecipe));
+        when(postProcessor.process(validRecipe, sourceUrl)).thenReturn(validRecipe);
+
+        Transformer.Response result = validatingTransformer.transformMarkdown(markdown, sourceUrl);
+
+        assertTrue(result.isRecipe());
+        verify(geminiTransformer, never()).transform(anyString(), anyString());
+        verify(geminiTransformer, never()).transformWithFeedback(anyString(), any(Recipe.class), anyString());
+    }
+
     private Recipe createRecipeWithMissingFields() {
         // Recipe with null title (validation constraint violation)
         return new Recipe(

@@ -54,6 +54,7 @@ HTTP Request
 `@CheckEntitlement` is on **controller** methods, not service methods:
 - `RecipeController.createRecipe()` — `POST /v1/recipes`
 - `RecipeController.createCustomRecipe()` — `POST /v1/recipes/custom`
+- `RecipeController.createRecipeFromUrl()` — `POST /v1/recipes/url`
 
 This prevents AOP bypass when the service is called internally (e.g., from tests or future internal callers).
 

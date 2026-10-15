@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
@@ -48,7 +49,8 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_success_returnsMarkdownString() throws IOException {
-        when(responseSpec.body(String.class)).thenReturn("# Recipe Title\nSome markdown content");
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(Map.of("success", true, "content", "# Recipe Title\nSome markdown content"));
 
         String result = client.fetch("https://example.com/recipe");
 
@@ -59,7 +61,7 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_http429_throwsUrlFetchExceptionWithRateLimitMessage() {
-        when(responseSpec.body(String.class))
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
                 .thenThrow(new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS));
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
@@ -70,7 +72,7 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_http429_setsHttpStatus429() {
-        when(responseSpec.body(String.class))
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
                 .thenThrow(new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS));
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
@@ -80,7 +82,7 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_other4xx_throwsUrlFetchExceptionWithStatusCode() {
-        when(responseSpec.body(String.class))
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
                 .thenThrow(new HttpClientErrorException(HttpStatus.FORBIDDEN));
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
@@ -91,7 +93,7 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_5xxError_throwsUrlFetchExceptionWithStatusCode() {
-        when(responseSpec.body(String.class))
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
                 .thenThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR));
 
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
@@ -102,10 +104,31 @@ class MarkdownNewClientImplTest {
 
     @Test
     void fetch_nullResponse_throwsUrlFetchException() {
-        when(responseSpec.body(String.class)).thenReturn(null);
+        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(null);
 
+        assertNoContent();
+    }
+
+    @Test
+    void fetch_unsuccessfulResponse_throwsUrlFetchException() {
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(Map.of("success", false, "content", "error page"));
+
+        assertNoContent();
+    }
+
+    @Test
+    void fetch_blankContent_throwsUrlFetchException() {
+        when(responseSpec.body(any(ParameterizedTypeReference.class)))
+                .thenReturn(Map.of("success", true, "content", "  "));
+
+        assertNoContent();
+    }
+
+    private void assertNoContent() {
         assertThatThrownBy(() -> client.fetch("https://example.com/recipe"))
                 .isInstanceOf(UrlFetchException.class)
-                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(204));
+                .hasMessageContaining("markdown.new returned no content")
+                .satisfies(ex -> assertThat(((UrlFetchException) ex).getHttpStatus()).isEqualTo(502));
     }
 }

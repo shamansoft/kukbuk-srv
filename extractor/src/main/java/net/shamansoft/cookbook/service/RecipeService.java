@@ -11,6 +11,7 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
+import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
@@ -45,6 +46,26 @@ public class RecipeService {
     private final RecipePostProcessor postProcessor;
 
     public RecipeResponse createRecipe(String userId, String url, String sourceHtml, Compression compression, String title) throws IOException {
+        return extractAndStore(userId, url, title, () -> {
+            String decompressed = null;
+            try {
+                decompressed = decompressContent(sourceHtml, compression);
+            } catch (IOException e) {
+                log.warn("Failed to decompress HTML, falling back to URL fetch: {}", e.getMessage());
+            }
+            return PageContent.html(htmlExtractor.extractHtml(url, decompressed));
+        });
+    }
+
+    /**
+     * Creates a recipe from a URL alone. The page is fetched directly, falling back to
+     * markdown.new when the direct fetch is blocked.
+     */
+    public RecipeResponse createRecipeFromUrl(String userId, String url, String title) throws IOException {
+        return extractAndStore(userId, url, title, () -> htmlExtractor.fetchWithFallback(url));
+    }
+
+    private RecipeResponse extractAndStore(String userId, String url, String title, PageLoader pageLoader) throws IOException {
         StorageInfo storage = storageService.getStorageInfo(userId);
 
         if (storage.folderId() == null) {
@@ -54,7 +75,7 @@ public class RecipeService {
 
         StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
-        var transformerResponse = createOrGetCached(url, sourceHtml, compression);
+        var transformerResponse = createOrGetCached(url, pageLoader);
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
                 .title(title)
                 .url(url)
@@ -141,7 +162,7 @@ public class RecipeService {
                 .toList();
     }
 
-    private Transformer.Response createOrGetCached(String url, String sourceHtml, Compression compression) throws IOException {
+    private Transformer.Response createOrGetCached(String url, PageLoader pageLoader) throws IOException {
         String contentHash = contentHashService.generateContentHash(url);
         Optional<RecipeStoreService.CachedRecipes> cached = recipeStoreService.findCachedRecipes(contentHash);
         if (cached.isPresent()) {
@@ -157,21 +178,22 @@ public class RecipeService {
             }
         }
 
-        // Cache miss — decompress then extract
-        String decompressed = null;
-        try {
-            decompressed = decompressContent(sourceHtml, compression);
-        } catch (IOException e) {
-            log.warn("Failed to decompress HTML, falling back to URL fetch: {}", e.getMessage());
-        }
-        String html = htmlExtractor.extractHtml(url, decompressed);
-        log.info("Extracted HTML - URL: {}, HTML length: {} chars, Content hash: {}", url, html.length(), contentHash);
+        // Cache miss — load the page, then extract
+        PageContent page = pageLoader.load();
+        log.info("Extracted {} - URL: {}, length: {} chars, Content hash: {}",
+                page.format(), url, page.content().length(), contentHash);
 
-        var response = transformer.transform(html, url);
+        var response = page.isMarkdown()
+                ? transformer.transformMarkdown(page.content(), url)
+                : transformer.transform(page.content(), url);
 
         if (response.isRecipe()) {
             recipeStoreService.storeValidRecipes(contentHash, url, response.recipes());
             log.debug("Cached {} recipe(s) for hash: {}", response.recipes().size(), contentHash);
+        } else if (page.isMarkdown()) {
+            // markdown.new output can be a challenge or error page we failed to detect; caching the
+            // verdict by URL would also block POST /v1/recipes with the real HTML from the extension.
+            log.warn("Gemini determined markdown content is NOT a recipe - not caching. URL: {}", url);
         } else {
             log.warn("Gemini determined content is NOT a recipe - URL: {}, Hash: {}", url, contentHash);
             recipeStoreService.storeInvalidRecipe(contentHash, url);
@@ -278,6 +300,12 @@ public class RecipeService {
                     recipe.metadata() != null ? recipe.metadata().title() : "N/A", e);
             throw new RuntimeException("Failed to convert recipe to YAML for storage", e);
         }
+    }
+
+    /** Loads page content on a cache miss. */
+    @FunctionalInterface
+    private interface PageLoader {
+        PageContent load() throws IOException;
     }
 
     public record RecipeListResult(List<RecipeDto> recipes, String nextPageToken) {

@@ -8,7 +8,6 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -130,7 +129,6 @@ public class RestClientConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "cookbook.fetcher.type", havingValue = "markdown-new")
     public RestClient markdownNewRestClient(ClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
                 .requestFactory(requestFactory)
