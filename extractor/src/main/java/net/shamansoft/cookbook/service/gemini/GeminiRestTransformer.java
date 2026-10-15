@@ -3,8 +3,10 @@ package net.shamansoft.cookbook.service.gemini;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
+import net.shamansoft.cookbook.exception.ExtractionFailedException;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Recipe;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 
@@ -17,6 +19,13 @@ public class GeminiRestTransformer implements Transformer {
 
     private final GeminiClient geminiClient;
     private final RequestBuilder requestBuilder;
+
+    // One retry when Gemini returns no content or cut-off output. At the configured temperature (0) the
+    // same request gives the same answer, so the retry samples a little and allows more output.
+    @Value("${cookbook.gemini.retry.temperature:0.3}")
+    private float retryTemperature = 0.3f;
+    @Value("${cookbook.gemini.retry.max-output-tokens:16384}")
+    private int retryMaxOutputTokens = 16384;
 
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
@@ -46,8 +55,7 @@ public class GeminiRestTransformer implements Transformer {
             GeminiRequest request = requestBuilder.buildRequestFromDescription(description);
             log.debug("Transforming recipe description, length: {}", description.length());
 
-            GeminiResponse<GeminiExtractionResult> geminiResponse =
-                    geminiClient.request(request, GeminiExtractionResult.class);
+            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
                 GeminiExtractionResult result = geminiResponse.data();
@@ -56,7 +64,7 @@ public class GeminiRestTransformer implements Transformer {
                 return Transformer.Response.withRawResponse(true, 1.0, recipes, geminiResponse.rawResponse());
             } else {
                 log.error("Gemini Client returned error code: {} for description input", geminiResponse.code());
-                throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
+                throw failure(geminiResponse);
             }
         } catch (JacksonException e) {
             log.error("Failed to prepare request for Gemini API. Description length: {}, Error: {}",
@@ -135,8 +143,7 @@ public class GeminiRestTransformer implements Transformer {
                 log.debug("Initial transformation request.");
             }
 
-            GeminiResponse<GeminiExtractionResult> geminiResponse =
-                    geminiClient.request(request, GeminiExtractionResult.class);
+            GeminiResponse<GeminiExtractionResult> geminiResponse = requestWithRetry(request);
 
             if (geminiResponse.code() == GeminiResponse.Code.SUCCESS) {
                 GeminiExtractionResult result = geminiResponse.data();
@@ -154,13 +161,42 @@ public class GeminiRestTransformer implements Transformer {
             } else {
                 log.error("Gemini Client returned error code: {}, input html length: {}",
                         geminiResponse.code(), htmlContent.length());
-                throw new ClientException("Gemini Client returned error code: " + geminiResponse.code());
+                throw failure(geminiResponse);
             }
         } catch (JacksonException e) {
             log.error("Failed to prepare request for Gemini API. HTML length: {}, Error: {}",
                     htmlContent.length(), e.getMessage(), e);
             throw new ClientException("Failed to transform content via Gemini API", e);
         }
+    }
+
+    /**
+     * Sends the request; on an empty or cut-off answer sends it once more with a little sampling
+     * temperature and a larger output budget (a deterministic repetition loop or recitation stop
+     * would otherwise repeat exactly).
+     */
+    private GeminiResponse<GeminiExtractionResult> requestWithRetry(GeminiRequest request) {
+        GeminiResponse<GeminiExtractionResult> response = geminiClient.request(request, GeminiExtractionResult.class);
+        if (!response.code().isRetryable()) {
+            return response;
+        }
+        GeminiRequest.GenerationConfig config = request.getGenerationConfig();
+        if (config != null) {
+            config.setTemperature(Math.max(config.getTemperature(), retryTemperature));
+            config.setMaxOutputTokens(Math.max(config.getMaxOutputTokens(), retryMaxOutputTokens));
+        }
+        log.warn("Gemini returned {} ({}), retrying once with temperature={} maxOutputTokens={}",
+                response.code(), response.errorMessage(),
+                config != null ? config.getTemperature() : null, config != null ? config.getMaxOutputTokens() : null);
+        return geminiClient.request(request, GeminiExtractionResult.class);
+    }
+
+    private static ClientException failure(GeminiResponse<?> response) {
+        if (response.code().isRetryable()) {
+            return new ExtractionFailedException(
+                    "The AI model could not extract a recipe from this page: " + response.errorMessage());
+        }
+        return new ClientException("Gemini Client returned error code: " + response.code());
     }
 
     /**

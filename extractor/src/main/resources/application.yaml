@@ -207,6 +207,14 @@ cookbook:
     # Range: 1 to 8192 (model-dependent)
     max-output-tokens: 8192
 
+    # One retry when Gemini returns no content (finishReason RECITATION, SAFETY, ...) or output cut off
+    # at max-output-tokens. Temperature 0 repeats the same answer, so the retry samples a little and
+    # gets a larger output budget. A second failure returns HTTP 422 (ExtractionFailedException).
+    # Used by: GeminiRestTransformer.java (requestWithRetry)
+    retry:
+      temperature: 0.3
+      max-output-tokens: 16384
+
     # Safety filter threshold for harmful content categories
     # Used by: RequestBuilder.java (@Value("${cookbook.gemini.safety-threshold}"))
     # Options: BLOCK_NONE, BLOCK_ONLY_HIGH, BLOCK_MEDIUM_AND_ABOVE, BLOCK_LOW_AND_ABOVE

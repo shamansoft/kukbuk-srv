@@ -10,6 +10,7 @@ import net.shamansoft.cookbook.entitlement.EntitlementException;
 import net.shamansoft.cookbook.entitlement.EntitlementResult;
 import net.shamansoft.cookbook.entitlement.dto.QuotaErrorResponse;
 import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
+import net.shamansoft.cookbook.exception.ExtractionFailedException;
 import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
@@ -47,6 +48,20 @@ public class CookbookExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "URL Not Accessible",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    @ExceptionHandler(ExtractionFailedException.class)
+    public ResponseEntity<Object> handleExtractionFailedException(ExtractionFailedException e,
+                                                                  HttpServletRequest request) {
+        log.warn("Recipe extraction failed for request {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                "Recipe Extraction Failed",
                 e.getMessage(),
                 request.getRequestURI()
         );

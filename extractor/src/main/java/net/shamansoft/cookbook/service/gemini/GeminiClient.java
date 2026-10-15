@@ -76,16 +76,23 @@ public class GeminiClient {
             log.debug("Full Gemini response: {}", response.toPrettyString());
         }
 
+        // A blocked prompt comes back with promptFeedback and usually no candidates
+        if (response != null && response.has("promptFeedback")) {
+            JsonNode feedback = response.get("promptFeedback");
+            log.warn("Gemini promptFeedback: {}", feedback.toPrettyString());
+            if (feedback.has("blockReason")) {
+                log.error("Gemini response BLOCKED - Reason: {}", feedback.get("blockReason").asText());
+                return GeminiResponse.failure(GeminiResponse.Code.BLOCKED, feedback.get("blockReason").asText());
+            }
+        }
+
         if (response != null && response.has("candidates") && !response.get("candidates").isEmpty()) {
             JsonNode candidate = response.get("candidates").get(0);
 
-            // Log finish reason to detect truncation
-            if (candidate.has("finishReason")) {
-                String finishReason = candidate.get("finishReason").asText();
-                log.debug("Gemini finishReason: {}", finishReason);
-                if (!"STOP".equals(finishReason)) {
-                    log.warn("Gemini response may be truncated - finishReason: {}", finishReason);
-                }
+            String finishReason = candidate.path("finishReason").asText("");
+            log.debug("Gemini finishReason: {}", finishReason);
+            if (!finishReason.isEmpty() && !"STOP".equals(finishReason)) {
+                log.warn("Gemini response may be incomplete - finishReason: {}", finishReason);
             }
 
             // Log safety ratings if present
@@ -93,18 +100,13 @@ public class GeminiClient {
                 log.debug("Gemini safetyRatings: {}", candidate.get("safetyRatings").toPrettyString());
             }
 
-            // Check if response was blocked
-            if (response.has("promptFeedback")) {
-                JsonNode feedback = response.get("promptFeedback");
-                log.warn("Gemini promptFeedback: {}", feedback.toPrettyString());
-                if (feedback.has("blockReason")) {
-                    log.error("Gemini response BLOCKED - Reason: {}", feedback.get("blockReason").asText());
-                    return GeminiResponse.failure(GeminiResponse.Code.BLOCKED, feedback.get("blockReason").asText());
-                }
+            // RECITATION, SAFETY and some OTHER stops return a candidate without content
+            JsonNode parts = candidate.path("content").path("parts");
+            if (!parts.isArray() || parts.isEmpty()) {
+                log.error("Gemini returned no content - finishReason: {}", finishReason);
+                return GeminiResponse.failure(GeminiResponse.Code.NO_CONTENT,
+                        "Gemini returned no content (finishReason: " + finishReason + ")");
             }
-
-            // Check how many parts are in the response
-            JsonNode parts = candidate.get("content").get("parts");
             int partCount = parts.size();
             log.debug("Gemini response has {} part(s)", partCount);
 
@@ -126,6 +128,11 @@ public class GeminiClient {
             try {
                 return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz), jsonContent);
             } catch (JacksonException e) {
+                if ("MAX_TOKENS".equals(finishReason)) {
+                    log.error("Gemini output cut off at the token limit ({} chars)", jsonContent.length());
+                    return GeminiResponse.failure(GeminiResponse.Code.TRUNCATED,
+                            "Gemini output hit the token limit and is incomplete (" + jsonContent.length() + " chars)");
+                }
                 log.error("Invalid JSON structure received from Gemini API", e);
                 return GeminiResponse.failure(GeminiResponse.Code.PARSE_ERROR,
                         "Invalid JSON structure received from Gemini API: " + e.getMessage());
