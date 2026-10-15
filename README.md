@@ -85,7 +85,7 @@ Status: [STATUS.md](STATUS.md). Superseded docs: [docs/archive/](docs/archive/RE
 **Plans**
 - Active: [OpenAPI YAML generation](docs/plans/20260315-openapi-yaml-generation.md)
 - Completed: [docs/plans/completed/](docs/plans/completed/) (extractor on gemini-3.1-flash-lite,
-  relative image URLs, prompt-injection defense, coverage to 80%, adaptive cleaning + multi-recipe)
+  `/v1/recipes/url` + markdown.new, relative image URLs, prompt-injection defense, coverage to 80%, adaptive cleaning + multi-recipe)
 
 **Runbooks**
 - [Dropbox integration rollout](docs/runbooks/dropbox-integration.md)

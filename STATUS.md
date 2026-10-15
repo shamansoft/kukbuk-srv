@@ -20,7 +20,8 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 ## Current status
 - **Overall:** Mature and in production. Version `0.15.13-SNAPSHOT`. Actively maintained.
 - **Implemented / working:**
-  - Recipe extraction from HTML (`POST /v1/recipes`) and free-text (`POST /v1/recipes/custom`)
+  - Recipe extraction from HTML (`POST /v1/recipes`), from a URL the server fetches (`POST /v1/recipes/url`,
+    falls back to markdown.new when the page blocks bots) and from free text (`POST /v1/recipes/custom`)
   - Multi-recipe extraction (a page yielding several recipes) + adaptive HTML cleaning chain
   - Entitlement/quota system (FREE-tier daily limits, credits fallback, fail-open, 429 + headers)
   - Recipe storage in Google Drive; Dropbox as a second backend (code merged, rollout pending, see below)
@@ -49,6 +50,8 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
   - JWT tier custom-claim staleness window (up to ~1h) is accepted behavior
   - Ingredient groups on JSON-LD pages change with any prompt edit; prompt changes must be measured, not eyeballed
   - gotovim-doma.ru sample returns "not a recipe" (HTML cleaning drops the recipe)
+  - Pages the server fetches itself (`POST /v1/recipes/url`, or `POST /v1/recipes` without HTML) lose their
+    schema.org JSON-LD: `HtmlFetcher` strips every `<script>`, so the most reliable cleaning strategy never runs
 
 ## Active work
 | Item | Status | Doc |
@@ -60,6 +63,7 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
 - Extractor on `gemini-3.1-flash-lite` with required+nullable LLM schema fields, rewritten HTML and
   free-text prompts (keep the page's language), post-LLM cleanup, retry/422 for empty answers (#94)
   — [plan](docs/plans/completed/20261014-extractor-3.1-prompt.md)
+- `POST /v1/recipes/url` with markdown.new fallback for bot-protected pages (#95) — [plan](docs/plans/completed/20260318-markdown-new-client.md)
 - Relative recipe image URLs resolved to absolute (#93) — [plan](docs/plans/completed/20261009-resolve-relative-image-urls.md)
 - Dropbox as a second recipe-storage backend (#88)
 - Fixed UTF-8 encoding loss on new-recipe uploads to Google Drive (#91)
