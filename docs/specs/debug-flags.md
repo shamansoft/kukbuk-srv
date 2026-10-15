@@ -175,6 +175,6 @@ diff <(cat /tmp/sar-srv/dumps/llm-response-*.json | jq -S .) \
      <(cat /tmp/sar-srv/dumps/result-json-*.json | jq -S .)
 ```
 
-**Related:** [Runbook: Prompt Evaluation Loop](../runbooks/prompt-evaluation.md) uses these dump flags
-to score extraction quality. The Postman collection at `extractor/cookbook-api.postman_collection.json`
-includes the debug endpoint.
+**Related:** prompt and model changes are scored with `tools/extractor-tuner` in the SAR umbrella folder,
+which drives this endpoint. The Postman collection at `docs/postman/cookbook-api.postman_collection.json`
+covers the main API.

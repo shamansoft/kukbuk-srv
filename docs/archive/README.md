@@ -1,9 +1,9 @@
 # Documentation Archive
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-10-15_
 
 Superseded, completed, or historical documents kept for reference. Nothing here is current
-guidance — see [STATUS.md](../../STATUS.md) and [CLAUDE.md](../../CLAUDE.md) for the live picture.
+guidance — see [STATUS.md](../STATUS.md) and the [documentation index](../README.md#documentation) for the live picture.
 
 ## Superseded / outdated docs
 
@@ -13,6 +13,8 @@ guidance — see [STATUS.md](../../STATUS.md) and [CLAUDE.md](../../CLAUDE.md) f
 | `TESTING_WORKFLOW.md` | Guide to testing the CI/CD pipeline on feature branches | Describes the pre-split workflow (Phase 3 = direct Cloud Run deploy, `skip_deploy`/`skip_finalize` inputs). Deploy now dispatches to sar-infra. Superseded by `docs/CI_CD_WORKFLOW.md`. |
 | `deployment-historical/prod-ready-workflow-migration.md` | One-time plan (2025-11-08) to lock down `deploy.yml` for production | The described changes were applied long ago; the current `deploy.yml` already dispatches to sar-infra. Historical. |
 | `stackdriver-metrics-plan.md` | Plan to add `micrometer-registry-stackdriver` Cloud Monitoring export | Metrics export to Cloud Monitoring is already in place (see entitlement RFC §4.11, docs/metrics.md). Plan complete. Was at `.opencode/plans/metrics.md`. |
+| `prompt-improvement-log.md` | Feb 2026 log of prompt iterations scored 0–10 by an LLM judge | Points to six iteration prompt files that no longer exist. Prompt work is now measured with `tools/extractor-tuner` against hand-written expected recipes (umbrella folder). |
+| `prompt-evaluation-runbook.md` | Runbook for the 0–10 prompt evaluation loop (was `docs/runbooks/prompt-evaluation.md`) | Superseded by `tools/extractor-tuner` (umbrella folder), which scores against expected recipes and is repeatable. |
 | `20260327-prompt-injection-defense.active-duplicate.md` | Duplicate copy of the prompt-injection-defense plan that lingered in `docs/plans/` | Identical to `docs/plans/completed/20260327-prompt-injection-defense.md` (canonical). Feature is implemented. |
 
 ## `.aki-plan/` scratch analysis

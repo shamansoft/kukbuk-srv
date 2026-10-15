@@ -89,7 +89,8 @@ Status: [STATUS.md](STATUS.md). Superseded docs: [docs/archive/](docs/archive/RE
 
 **Runbooks**
 - [Dropbox integration rollout](docs/runbooks/dropbox-integration.md)
-- [Prompt evaluation loop](docs/runbooks/prompt-evaluation.md) · [prompt improvement log](docs/prompt-improvement-log.md)
+- Prompt changes are measured with `tools/extractor-tuner` in the SAR umbrella folder (scores extraction against
+  hand-written expected recipes; not in this repo). The older 0–10 evaluation loop is archived
 
 **Deployment / CI**
 - [CI/CD workflow](docs/CI_CD_WORKFLOW.md) · [deployment strategy](docs/deployment/strategy.md) ·
