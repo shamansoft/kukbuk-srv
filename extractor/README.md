@@ -109,6 +109,11 @@ cookbook:
     oauth-id: "YOUR_GOOGLE_OAUTH_CLIENT_ID"
   drive:
     folder-name: "_save_a_recipe"
+  fetcher:
+    # URL fetching strategy: "jsoup" (default) or "markdown-new"
+    # markdown-new returns pre-processed markdown (~80% token reduction)
+    # Rate limit: 500 req/day per IP for markdown-new
+    type: jsoup
 
 # Recipe validation retry (default: 1)
   RECIPE_LLM_RETRY=1

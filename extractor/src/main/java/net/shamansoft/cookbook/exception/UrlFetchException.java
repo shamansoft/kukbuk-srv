@@ -15,6 +15,11 @@ public class UrlFetchException extends RuntimeException {
         this.httpStatus = httpStatus;
     }
 
+    public UrlFetchException(int httpStatus, String message) {
+        super(message);
+        this.httpStatus = httpStatus;
+    }
+
     public int getHttpStatus() {
         return httpStatus;
     }
