@@ -13,9 +13,11 @@ import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
+import net.shamansoft.cookbook.service.RecipeService;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 import net.shamansoft.cookbook.security.CorrelationFilter;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -60,6 +64,10 @@ public class DebugController {
     private final RecipeStoreService recipeStoreService;
     private final RecipeParser recipeParser;
     private final GeminiRestTransformer geminiRestTransformer;
+    private final RecipeService recipeService;
+
+    @Value("${cookbook.gemini.model}")
+    private String defaultGeminiModel;
 
     // DumpService is optional - only available in local profile
     @Autowired(required = false)
@@ -236,7 +244,7 @@ public class DebugController {
                 if (request.isVerbose()) {
                     metadataBuilder
                             .transformationTimeMs(transformTime)
-                            .geminiModel(overrides.model() != null ? overrides.model() : "gemini-2.5-flash-lite"); // TODO: Get non-override default from config
+                            .geminiModel(overrides.model() != null ? overrides.model() : defaultGeminiModel);
                 }
 
                 // Dump raw LLM response if flag enabled
@@ -428,5 +436,30 @@ public class DebugController {
             // case "content": return runSingleStrategy(html, url,
             // ContentFilterStrategy.class);
         }
+    }
+
+    /**
+     * TEST ENDPOINT - free-text description flow ({@code POST /v1/recipes/custom}) without auth or storage.
+     * Body: {@code {"text": "<description>", "url": "<optional source url>"}}. Returns the structured recipes after the production cleanup;
+     * {@code recipeJson} is the first recipe so the extractor tuner can score it like an HTML case.
+     */
+    @PostMapping(value = "/v1/recipes/custom", consumes = "application/json", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> structureDescription(@RequestBody Map<String, Object> body) {
+        Object text = body.get("text");
+        if (!(text instanceof String description) || description.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+        long start = System.currentTimeMillis();
+        Object url = body.get("url");
+        List<Recipe> recipes = recipeService.structureDescription(description, url instanceof String u ? u : null);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("recipe", !recipes.isEmpty());
+        response.put("recipeJson", recipes.isEmpty() ? null : recipes.get(0));
+        response.put("recipesJson", recipes);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("model", defaultGeminiModel);
+        metadata.put("totalProcessingTimeMs", System.currentTimeMillis() - start);
+        response.put("metadata", metadata);
+        return ResponseEntity.ok(response);
     }
 }

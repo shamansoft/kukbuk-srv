@@ -1,5 +1,11 @@
 # Prompt Improvement Activity Log
 
+> **2026-10-14 — gemini-3.1-flash-lite switch.** Prompt and LLM-schema iterations v0–v6 were measured with
+> `tools/extractor-tuner` against 39 hand-written expected recipes (not with the 0–10 scores below):
+> 75% → 91% of ingredients fully right. Most of the gain came from making `amount`, `unit`, the three
+> times and `nutrition` required and nullable in `llm-recipe-schema.json`. Details:
+> `research/extractor-model-comparison.md` section 7 (sar umbrella folder).
+
 ## Summary
 
 - **Total iterations**: 6

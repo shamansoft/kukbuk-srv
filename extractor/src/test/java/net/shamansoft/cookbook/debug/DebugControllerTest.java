@@ -9,6 +9,7 @@ import net.shamansoft.cookbook.service.RecipeParser;
 import net.shamansoft.cookbook.service.RecipeStoreService;
 import net.shamansoft.cookbook.service.RecipeValidationService;
 import net.shamansoft.cookbook.service.Transformer;
+import net.shamansoft.cookbook.service.RecipeService;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.cookbook.service.gemini.GenerationOverrides;
 import net.shamansoft.recipe.model.Ingredient;
@@ -26,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +52,7 @@ class DebugControllerTest {
     @Mock private RecipeStoreService recipeStoreService;
     @Mock private RecipeParser recipeParser;
     @Mock private GeminiRestTransformer geminiRestTransformer;
+    @Mock private RecipeService recipeService;
 
     private DebugController controller;
 
@@ -62,7 +66,8 @@ class DebugControllerTest {
                 contentHashService,
                 recipeStoreService,
                 recipeParser,
-                geminiRestTransformer
+                geminiRestTransformer,
+                recipeService
         );
 
         lenient().when(contentHashService.generateContentHash(anyString())).thenReturn("hash-abc123");
@@ -582,5 +587,27 @@ class DebugControllerTest {
 
         verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
         verify(recipeStoreService, never()).storeInvalidRecipe(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("custom: structures a description through RecipeService")
+    void customStructuresDescription() {
+        Recipe recipe = mock(Recipe.class);
+        when(recipeService.structureDescription("pancakes: 1 cup flour", null)).thenReturn(List.of(recipe));
+
+        ResponseEntity<Map<String, Object>> response =
+                controller.structureDescription(Map.of("text", "pancakes: 1 cup flour"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).containsEntry("recipe", true).containsEntry("recipeJson", recipe);
+    }
+
+    @Test
+    @DisplayName("custom: blank text is a 400 and never reaches the model")
+    void customRejectsBlankText() {
+        ResponseEntity<Map<String, Object>> response = controller.structureDescription(Map.of("text", " "));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        verify(recipeService, never()).structureDescription(anyString(), any());
     }
 }

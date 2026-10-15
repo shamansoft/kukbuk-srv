@@ -159,6 +159,90 @@ class GeminiClientTest {
     }
 
     @Test
+    void requestReturnsNoContentWhenCandidateHasNoContent() throws JacksonException {
+        // RECITATION stops come back with a candidate but no content (used to throw NullPointerException)
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"finishReason": "RECITATION", "index": 0}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.NO_CONTENT);
+        assertThat(response.errorMessage()).contains("RECITATION");
+    }
+
+    @Test
+    void requestReturnsNoContentWhenPartsAreEmpty() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"content": {"parts": []}, "finishReason": "OTHER"}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.NO_CONTENT);
+    }
+
+    @Test
+    void requestReturnsTruncatedWhenMaxTokensCutsTheJson() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"content": {"parts": [{"text": "{\\"title\\": \\"Test"}]},
+                                 "finishReason": "MAX_TOKENS"}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.TRUNCATED);
+        assertThat(response.code().isRetryable()).isTrue();
+    }
+
+    @Test
+    void requestReturnsNoContentWhenEarlyStopLeavesPartialJson() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"content": {"parts": [{"text": "{\\"title\\": \\"Te"}]},
+                                 "finishReason": "RECITATION"}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.NO_CONTENT);
+        assertThat(response.errorMessage()).contains("RECITATION");
+    }
+
+    @Test
+    void requestReturnsNoContentWhenTextIsBlank() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"content": {"parts": [{"text": ""}]}, "finishReason": "STOP"}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.NO_CONTENT);
+    }
+
+    @Test
+    void requestKeepsParseErrorForBrokenJsonAfterNormalStop() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"candidates": [{"content": {"parts": [{"text": "not json"}]}, "finishReason": "STOP"}]}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.PARSE_ERROR);
+    }
+
+    @Test
+    void requestReturnsBlockedWhenPromptIsBlockedWithoutCandidates() throws JacksonException {
+        setupSuccessfulRestClientMock("""
+                {"promptFeedback": {"blockReason": "PROHIBITED_CONTENT"}}
+                """);
+
+        GeminiResponse<TestRecipe> response = geminiClient.request(createSampleRequest(), TestRecipe.class);
+
+        assertThat(response.code()).isEqualTo(GeminiResponse.Code.BLOCKED);
+        assertThat(response.code().isRetryable()).isFalse();
+    }
+
+    @Test
     void requestHandlesNoCandidatesInResponse() throws JacksonException {
         // Given
         GeminiRequest request = createSampleRequest();

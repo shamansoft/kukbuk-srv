@@ -44,7 +44,8 @@ class RecipeServiceListGetTest {
     private static final String YAML = "is_recipe: true\ntitle: Test\n";
 
     @Mock private ContentHashService contentHashService;
-    @Mock private DriveService driveService;
+    @Mock private StorageProvider driveService;
+    @Mock private StorageProviderResolver storageProviderResolver;
     @Mock private StorageService storageService;
     @Mock private RecipeStoreService recipeStoreService;
     @Mock private RecipeParser recipeParser;
@@ -60,6 +61,9 @@ class RecipeServiceListGetTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient()
+                .when(storageProviderResolver.resolve(any(StorageType.class)))
+                .thenReturn(driveService);
         connectedStorage = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
@@ -152,19 +156,6 @@ class RecipeServiceListGetTest {
         verify(driveService, never()).listRecipeFiles(any(), any(), any(int.class), any());
     }
 
-    @Test
-    @DisplayName("listRecipes: throws IllegalStateException for non-Drive storage")
-    void listRecipes_throwsForWrongStorageType() {
-        StorageInfo dropbox = StorageInfo.builder()
-                .type(StorageType.DROPBOX).connected(true)
-                .accessToken(ACCESS_TOKEN).folderId(FOLDER_ID).build();
-        when(storageService.getStorageInfo(USER_ID)).thenReturn(dropbox);
-
-        assertThatThrownBy(() -> recipeService.listRecipes(USER_ID, 20, null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("DROPBOX");
-    }
-
     // ---- getRecipe ----------------------------------------------------------
 
     @Test
@@ -222,18 +213,6 @@ class RecipeServiceListGetTest {
         assertThatThrownBy(() -> recipeService.getRecipe(USER_ID, FILE_ID))
                 .isInstanceOf(StorageNotConnectedException.class);
         verify(driveService, never()).getFileMetadata(anyString(), anyString());
-    }
-
-    @Test
-    @DisplayName("getRecipe: throws IllegalStateException for non-Drive storage")
-    void getRecipe_throwsForWrongStorageType() {
-        StorageInfo dropbox = StorageInfo.builder()
-                .type(StorageType.DROPBOX).connected(true)
-                .accessToken(ACCESS_TOKEN).folderId(FOLDER_ID).build();
-        when(storageService.getStorageInfo(USER_ID)).thenReturn(dropbox);
-
-        assertThatThrownBy(() -> recipeService.getRecipe(USER_ID, FILE_ID))
-                .isInstanceOf(IllegalStateException.class);
     }
 
     private Recipe createTestRecipe(String title) {

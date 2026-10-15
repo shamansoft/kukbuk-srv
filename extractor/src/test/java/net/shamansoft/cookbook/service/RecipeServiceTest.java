@@ -21,7 +21,9 @@ class RecipeServiceTest {
     void createRecipe_storesYaml_whenRecipeDetected() throws Exception {
         // Arrange: minimal happy path with many dependencies mocked
         ContentHashService contentHashService = mock(ContentHashService.class);
-        DriveService driveService = mock(DriveService.class);
+        StorageProvider driveService = mock(StorageProvider.class);
+        StorageProviderResolver storageProviderResolver = mock(StorageProviderResolver.class);
+        when(storageProviderResolver.resolve(any(net.shamansoft.cookbook.dto.StorageType.class))).thenReturn(driveService);
         StorageService storageService = mock(StorageService.class);
         RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
         RecipeParser recipeParser = mock(RecipeParser.class);
@@ -61,8 +63,9 @@ class RecipeServiceTest {
         // Build service (AdaptiveCleaningTransformerService now owns cleaning; no HtmlCleaner in RecipeService)
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
-        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
+        RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
 
         // Act
         var resp = svc.createRecipe("user1", "http://u", "rawHtml", null, "My Title");
@@ -76,7 +79,9 @@ class RecipeServiceTest {
     @Test
     void createRecipe_throwsWhenNoFolder() throws IOException {
         ContentHashService contentHashService = mock(ContentHashService.class);
-        DriveService driveService = mock(DriveService.class);
+        StorageProvider driveService = mock(StorageProvider.class);
+        StorageProviderResolver storageProviderResolver = mock(StorageProviderResolver.class);
+        when(storageProviderResolver.resolve(any(net.shamansoft.cookbook.dto.StorageType.class))).thenReturn(driveService);
         StorageService storageService = mock(StorageService.class);
         RecipeStoreService recipeStoreService = mock(RecipeStoreService.class);
         RecipeParser recipeParser = mock(RecipeParser.class);
@@ -92,8 +97,9 @@ class RecipeServiceTest {
 
         Compressor compressor = mock(Compressor.class);
         GeminiRestTransformer geminiRestTransformer = mock(GeminiRestTransformer.class);
-        RecipeService svc = new RecipeService(contentHashService, driveService, storageService, recipeStoreService,
-                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer);
+        RecipeService svc = new RecipeService(contentHashService, storageProviderResolver, storageService, recipeStoreService,
+                recipeParser, recipeMapper, htmlExtractor, compressor, transformer, validationService, geminiRestTransformer,
+                new RecipePostProcessor("1.0.0", java.time.Clock.systemUTC(), new RecipeAdjustmentService()));
 
         try {
             svc.createRecipe("user1", "http://u", "rawHtml", null, "title");

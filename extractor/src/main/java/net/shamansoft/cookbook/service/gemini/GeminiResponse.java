@@ -14,6 +14,18 @@ public record GeminiResponse<T>(Code code, T data, String errorMessage, String r
         SUCCESS,
         BLOCKED,
         PARSE_ERROR,
-        OTHER
+        /**
+         * No usable content: the candidate has no text, or it stopped early (finishReason RECITATION, SAFETY,
+         * OTHER, ...) and the partial text is not valid JSON.
+         */
+        NO_CONTENT,
+        /** Output hit maxOutputTokens and the JSON is cut off. */
+        TRUNCATED,
+        OTHER;
+
+        /** Failures where the same input can succeed with different sampling or a larger output budget. */
+        public boolean isRetryable() {
+            return this == NO_CONTENT || this == TRUNCATED;
+        }
     }
 }
