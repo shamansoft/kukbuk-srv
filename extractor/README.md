@@ -5,10 +5,10 @@
 
 The Spring Boot REST API of `sar-srv` (Gradle module `:cookbook`). Extracts recipe data from web
 pages, free-text descriptions, and YouTube videos using Google Gemini AI, enforces per-user quotas,
-and stores recipes in Firestore + Google Drive.
+and stores recipes in the user's Google Drive or Dropbox (Firestore holds the cache, profiles and quotas).
 
-> This README covers the `extractor/` module. For repo-wide build/run/test, the documentation index,
-> and architecture, see the root [CLAUDE.md](../CLAUDE.md) and [STATUS.md](../STATUS.md).
+> This README covers the `extractor/` module. For repo-wide build/run/test and the documentation
+> index see the root [README.md](../README.md) and [STATUS.md](../STATUS.md).
 
 ## Features
 
@@ -225,7 +225,7 @@ For detailed CI/CD documentation, see:
 - `../docs/CI_CD_WORKFLOW.md` - Complete CI/CD workflow guide
 - `../docs/deployment/` - Deployment strategy, rollback, and monitoring
 - `../docs/github-setup/` - GitHub Actions and branch protection setup
-- `../CLAUDE.md` - Documentation index (links every doc)
+- `../README.md` - Documentation index (links every doc)
 
 ## Security
 

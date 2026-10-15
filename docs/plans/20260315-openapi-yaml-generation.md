@@ -126,7 +126,7 @@ Add build-time OpenAPI YAML generation to the `:cookbook` module using the `spri
 
 ### Task 10: Update documentation
 
-- [ ] Update `CLAUDE.md` — add `generateOpenApiDocs` to Common Development Tasks section
+- [ ] Update `README.md` Quick start (and the local, gitignored `CLAUDE.md`) — add `generateOpenApiDocs`
 - [ ] Update `extractor/README.md` if it exists with instructions for generating the spec
 
 ## Technical Details
