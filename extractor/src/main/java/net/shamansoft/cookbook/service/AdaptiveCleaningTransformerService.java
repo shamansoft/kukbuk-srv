@@ -107,4 +107,14 @@ public class AdaptiveCleaningTransformerService implements Transformer {
         log.info("All {} cleaning strategies exhausted for URL: {}", Strategy.ADAPTIVE_ORDER.size(), sourceUrl);
         return result;
     }
+
+    /**
+     * Markdown has no HTML to clean (and the JSoup-based strategies would mangle it),
+     * so it goes straight to the validating transformer.
+     */
+    @Override
+    public Response transformMarkdown(String markdown, String sourceUrl) {
+        log.info("Skipping HTML cleaning for Markdown content - URL: {}, {} chars", sourceUrl, markdown.length());
+        return innerTransformer.transformMarkdown(markdown, sourceUrl);
+    }
 }

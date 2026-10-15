@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.exception.ExtractionFailedException;
+import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.service.Transformer;
 import net.shamansoft.recipe.model.Recipe;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,7 +34,12 @@ public class GeminiRestTransformer implements Transformer {
 
     @Override
     public Response transform(String htmlContent, String sourceUrl) {
-        return transformInternal(htmlContent, null, null);
+        return transformInternal(htmlContent, PageContent.Format.HTML, null, null);
+    }
+
+    @Override
+    public Response transformMarkdown(String markdown, String sourceUrl) {
+        return transformInternal(markdown, PageContent.Format.MARKDOWN, null, null);
     }
 
     /**
@@ -45,7 +51,14 @@ public class GeminiRestTransformer implements Transformer {
      * @return the transformed result
      */
     public Response transformWithFeedback(String htmlContent, Recipe previousRecipe, String validationError) {
-        return transformInternal(htmlContent, previousRecipe, validationError);
+        return transformInternal(htmlContent, PageContent.Format.HTML, previousRecipe, validationError);
+    }
+
+    /**
+     * Markdown counterpart of {@link #transformWithFeedback(String, Recipe, String)}.
+     */
+    public Response transformMarkdownWithFeedback(String markdown, Recipe previousRecipe, String validationError) {
+        return transformInternal(markdown, PageContent.Format.MARKDOWN, previousRecipe, validationError);
     }
 
     /**
@@ -136,14 +149,19 @@ public class GeminiRestTransformer implements Transformer {
         }
     }
 
-    private Response transformInternal(String htmlContent, Recipe previousRecipe, String validationError) {
+    private Response transformInternal(String htmlContent, PageContent.Format format,
+                                       Recipe previousRecipe, String validationError) {
         try {
             GeminiRequest request;
             if (previousRecipe != null && validationError != null) {
-                request = requestBuilder.buildRequest(htmlContent, previousRecipe, validationError);
+                request = format == PageContent.Format.MARKDOWN
+                        ? requestBuilder.buildMarkdownRequest(htmlContent, previousRecipe, validationError)
+                        : requestBuilder.buildRequest(htmlContent, previousRecipe, validationError);
                 log.debug("Retrying transformation with validation feedback");
             } else {
-                request = requestBuilder.buildRequest(htmlContent);
+                request = format == PageContent.Format.MARKDOWN
+                        ? requestBuilder.buildMarkdownRequest(htmlContent)
+                        : requestBuilder.buildRequest(htmlContent);
                 log.debug("Initial transformation request.");
             }
 

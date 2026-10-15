@@ -7,6 +7,7 @@ import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
+import net.shamansoft.cookbook.dto.UrlRecipeRequest;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.service.RecipeService;
@@ -166,6 +167,20 @@ class RecipeControllerTest {
         assertThatThrownBy(() -> controller.createCustomRecipe(request, null, USER_ID, USER_EMAIL))
                 .isInstanceOf(StorageNotConnectedException.class)
                 .hasMessageContaining("Storage not connected");
+    }
+
+    // --- createRecipeFromUrl ---
+
+    @Test
+    @DisplayName("Should delegate URL-only recipe to RecipeService.createRecipeFromUrl")
+    void shouldDelegateUrlRecipe() throws IOException {
+        UrlRecipeRequest request = new UrlRecipeRequest("http://example.com", "Title");
+        RecipeResponse expected = RecipeResponse.builder().title("Title").isRecipe(true).build();
+        when(recipeService.createRecipeFromUrl(USER_ID, "http://example.com", "Title")).thenReturn(expected);
+
+        RecipeResponse response = controller.createRecipeFromUrl(request, USER_ID, USER_EMAIL);
+
+        assertThat(response).isEqualTo(expected);
     }
 
     // ---- listRecipes --------------------------------------------------------
