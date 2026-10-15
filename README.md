@@ -1,5 +1,6 @@
 # sar-srv — Cookbook Service
 
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen)
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
