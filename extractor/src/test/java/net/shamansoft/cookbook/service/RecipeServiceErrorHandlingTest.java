@@ -111,7 +111,7 @@ class RecipeServiceErrorHandlingTest {
         recipeService = new RecipeService(
                 contentHashService, storageProviderResolver, storageService, recipeStoreService,
                 recipeParser, recipeMapper, htmlExtractor, compressor, transformer,
-                validationService, geminiRestTransformer
+                validationService, geminiRestTransformer, new RecipeAdjustmentService()
         );
     }
 

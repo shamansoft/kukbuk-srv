@@ -80,7 +80,7 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(driveService);
         recipeService = new RecipeService(contentHashService, storageProviderResolver, storageService,
                 recipeStoreService, recipeParser, recipeMapper, htmlExtractor,
-                compressor, transformer, validationService, geminiRestTransformer);
+                compressor, transformer, validationService, geminiRestTransformer, new RecipeAdjustmentService());
         mockStorageInfo = StorageInfo.builder()
                 .type(StorageType.GOOGLE_DRIVE)
                 .connected(true)
@@ -280,6 +280,30 @@ class RecipeServiceFromDescriptionTest {
 
         verify(compressor, never()).decompress(any());
         verify(geminiRestTransformer).transformDescription(rawDescription);
+    }
+
+    @Test
+    @DisplayName("structureDescription applies the same ingredient cleanup as HTML extraction")
+    void structureDescriptionAppliesIngredientCleanup() {
+        Recipe raw = new Recipe(true, "1.0.0", "1.0.0",
+                new RecipeMetadata(TITLE, null, null, "en", LocalDate.now(), null, null, 2,
+                        null, null, null, null, null),
+                null,
+                List.of(new Ingredient("salt", "0", "null", "to taste", null, null, null),
+                        new Ingredient("sugar", "0.66", "cups", null, null, null, null)),
+                null,
+                List.of(new Instruction(1, "Mix", null, null, null)),
+                null, null, null);
+        when(geminiRestTransformer.transformDescription(DESCRIPTION)).thenReturn(Transformer.Response.recipe(raw));
+
+        List<Recipe> recipes = recipeService.structureDescription(DESCRIPTION);
+
+        Ingredient salt = recipes.get(0).ingredients().get(0);
+        assertThat(salt.amount()).isNull();
+        assertThat(salt.unit()).isNull();
+        Ingredient sugar = recipes.get(0).ingredients().get(1);
+        assertThat(sugar.amount()).isEqualTo("0.667");
+        assertThat(sugar.unit()).isEqualTo("cup");
     }
 
     private Recipe createTestRecipe(String title) {
