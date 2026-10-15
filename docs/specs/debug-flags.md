@@ -7,7 +7,7 @@ Opt-in flags on the `POST /debug/v1/recipes` endpoint for inspecting intermediat
 ## Safety Constraints
 
 - `DumpService` is `@Profile("local")` — unavailable in GCP/prod
-- `DebugController` is `@Profile("!prod & !gcp")` — double protection
+- `DebugController` is `@Profile("local")` — double protection
 - All flags default to `false` — opt-in only
 - Dump failures are caught and logged; the request continues normally
 
@@ -39,7 +39,7 @@ parameters per request, without restarting the app to change `application-local.
 | `topP` | double | 0.0 – 1.0 |
 | `maxOutputTokens` | int | 1 – 65536 |
 | `thinkingBudget` | int | -1 (unlimited) or ≥ 0 |
-| `model` | string | one of: `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-pro` |
+| `model` | string | one of: `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.6-flash` (`GenerationOverrides.ALLOWED_MODELS`; per-model quirks in [gemini-tuning.md](gemini-tuning.md)) |
 
 Any field you omit falls back to the value configured in `application*.yaml`. An invalid value
 (out of range, or a `model` not in the allow-list) returns `400` before any Gemini call is made.
@@ -68,11 +68,28 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
   `AdaptiveCleaningTransformerService`/`ValidatingTransformerService` (the retry-chain wrapper
   used by production traffic). This isolates the tuning signal to one raw Gemini call per
   request/parameter combination, and means none of those two classes were touched to add this
-  feature — zero behavior change for production requests.
+  feature — zero behavior change for production requests. The same applies to the one-shot retry
+  on empty/truncated Gemini answers (`cookbook.gemini.retry.*`): production paths retry, the
+  override path makes exactly one call.
 - Every change is an additive overload (`buildRequest(html, overrides)`,
   `request(req, class, modelOverride)`, etc.) — the existing no-overrides methods used by
   production code paths (`RecipeService`, `POST /v1/recipes`, `POST /v1/recipes/custom`) are
   unchanged and still call into the same code as before.
+
+---
+
+## Free-text descriptions: `POST /debug/v1/recipes/custom`
+
+Runs the `POST /v1/recipes/custom` flow (`RecipeService.structureDescription`: model call, retry,
+ingredient cleanup) without auth or storage. Body: `{"text": "<description>"}`. Response:
+`recipeJson` (first recipe, so `tools/extractor-tuner` can score it like an HTML case),
+`recipesJson` (all recipes), `metadata.model`. No overrides or dump flags; blank `text` → `400`.
+
+```bash
+curl -X POST http://localhost:8080/debug/v1/recipes/custom \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Pancakes for 4: 1 1/2 cups flour, 2 eggs, a pinch of salt. Whisk and fry 2-3 min per side."}'
+```
 
 ---
 
