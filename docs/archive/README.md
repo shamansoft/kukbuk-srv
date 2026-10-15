@@ -3,7 +3,7 @@
 _Last updated: 2026-10-15_
 
 Superseded, completed, or historical documents kept for reference. Nothing here is current
-guidance — see [STATUS.md](../STATUS.md) and the [documentation index](../README.md#documentation) for the live picture.
+guidance — see [STATUS.md](../../STATUS.md) and the [documentation index](../../README.md#documentation) for the live picture.
 
 ## Superseded / outdated docs
 
