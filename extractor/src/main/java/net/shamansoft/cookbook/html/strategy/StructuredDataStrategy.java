@@ -8,8 +8,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.json.JsonReadFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectReader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +27,13 @@ public class StructuredDataStrategy implements CleanupStrategy {
 
     private final HtmlCleanupConfig config;
     private final ObjectMapper objectMapper;
+    // Some pages put raw CR/LF inside JSON-LD strings; accept them without touching the shared mapper
+    private final ObjectReader jsonLdReader;
 
     public StructuredDataStrategy(HtmlCleanupConfig config, ObjectMapper objectMapper) {
         this.config = config;
         this.objectMapper = objectMapper;
+        this.jsonLdReader = objectMapper.reader().with(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS);
     }
 
     @Override
@@ -40,7 +45,7 @@ public class StructuredDataStrategy implements CleanupStrategy {
 
             for (Element script : scripts) {
                 try {
-                    JsonNode json = objectMapper.readTree(script.html());
+                    JsonNode json = jsonLdReader.readTree(script.html());
                     List<JsonNode> candidates = findRecipeNodes(json);
 
                     for (JsonNode node : candidates) {
@@ -70,12 +75,26 @@ public class StructuredDataStrategy implements CleanupStrategy {
 
     private List<JsonNode> findRecipeNodes(JsonNode json) {
         List<JsonNode> candidates = new ArrayList<>();
-        if (json.has("@graph") && json.get("@graph").isArray()) {
-            json.get("@graph").forEach(candidates::add);
-        } else {
-            candidates.add(json);
+        Iterable<JsonNode> roots = json.isArray() ? json : List.of(json);
+        for (JsonNode root : roots) {
+            JsonNode graph = root.path("@graph");
+            if (graph.isArray()) {
+                graph.forEach(node -> addWithMainEntity(node, candidates));
+            } else {
+                addWithMainEntity(root, candidates);
+            }
         }
         return candidates;
+    }
+
+    private void addWithMainEntity(JsonNode node, List<JsonNode> candidates) {
+        candidates.add(node);
+        JsonNode mainEntity = node.path("mainEntity");
+        if (mainEntity.isArray()) {
+            mainEntity.forEach(candidates::add);
+        } else if (mainEntity.isObject()) {
+            candidates.add(mainEntity);
+        }
     }
 
     private boolean isRecipeType(JsonNode node) {
