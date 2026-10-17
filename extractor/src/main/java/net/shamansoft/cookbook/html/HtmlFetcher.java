@@ -21,6 +21,7 @@ public class HtmlFetcher implements UrlContentFetcher {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private static final int TIMEOUT_MS = 10_000;
+    private static final String JSON_LD = "application/ld+json";
 
     public String fetch(String url) throws IOException {
         return bodyHtml(url, load(url));
@@ -57,12 +58,22 @@ public class HtmlFetcher implements UrlContentFetcher {
     }
 
     private String bodyHtml(String url, Document doc) {
-        Elements scripts = doc.getElementsByTag("script");
-        for (Element script : scripts) {
-            script.remove();
-        }
-        String html = doc.body().html();
+        String html = toBodyHtml(doc);
         log.debug("Successfully fetched HTML from URL: {}, length: {} chars", url, html.length());
         return html;
+    }
+
+    /**
+     * Serialises the page body without executable scripts. schema.org JSON-LD blocks are kept, and
+     * those in {@code <head>} are moved to the end of the body, so {@code StructuredDataStrategy}
+     * can still find the page's {@code Recipe} data.
+     */
+    static String toBodyHtml(Document doc) {
+        doc.select("script:not([type=" + JSON_LD + "])").remove();
+        Elements headJsonLd = doc.head().select("script[type=" + JSON_LD + "]");
+        for (Element script : headJsonLd) {
+            doc.body().appendChild(script);
+        }
+        return doc.body().html();
     }
 }
