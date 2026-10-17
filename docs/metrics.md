@@ -159,6 +159,16 @@ curl http://localhost:8080/actuator/metrics/html.preprocessing.errors | jq
 curl "http://localhost:8080/actuator/metrics/html.preprocessing.errors?tag=error_type:IOException" | jq
 ```
 
+#### 6. Ingredient Card Counter
+
+On the `STRUCTURED_DATA` path, whether the recipe card's ingredient block (with its section headers) was found and
+sent after the JSON-LD. Tag `found`: `true` or `false`. Not emitted when
+`cookbook.html-cleanup.structured-data.include-ingredient-card` is off.
+
+```bash
+curl "http://localhost:8080/actuator/metrics/html.preprocessing.ingredient_card?tag=found:false" | jq
+```
+
 ## Viewing Logs
 
 Preprocessing results are also logged for each request.

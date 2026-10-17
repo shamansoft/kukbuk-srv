@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.html.strategy;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import org.jsoup.Jsoup;
@@ -18,7 +19,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Extracts JSON-LD schema.org Recipe structured data from HTML.
+ * Extracts JSON-LD schema.org Recipe structured data from HTML, followed by the recipe card's ingredient block
+ * (see {@link RecipeCardCutter}) so the model can see the section headers JSON-LD lacks.
  */
 @Component
 @Slf4j
@@ -29,11 +31,13 @@ public class StructuredDataStrategy implements CleanupStrategy {
     private final ObjectMapper objectMapper;
     // Some pages put raw CR/LF inside JSON-LD strings; accept them without touching the shared mapper
     private final ObjectReader jsonLdReader;
+    private final MeterRegistry meterRegistry;
 
-    public StructuredDataStrategy(HtmlCleanupConfig config, ObjectMapper objectMapper) {
+    public StructuredDataStrategy(HtmlCleanupConfig config, ObjectMapper objectMapper, MeterRegistry meterRegistry) {
         this.config = config;
         this.objectMapper = objectMapper;
         this.jsonLdReader = objectMapper.reader().with(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS);
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -54,7 +58,7 @@ public class StructuredDataStrategy implements CleanupStrategy {
                             if (completeness >= config.getStructuredData().getMinCompleteness()) {
                                 log.debug("Found structured recipe data, completeness: {}%", completeness);
                                 String jsonString = objectMapper.writeValueAsString(node);
-                                return Optional.of(jsonString);
+                                return Optional.of(withIngredientCard(doc, node, jsonString));
                             }
                         }
                     }
@@ -71,6 +75,43 @@ public class StructuredDataStrategy implements CleanupStrategy {
     @Override
     public Strategy getStrategy() {
         return Strategy.STRUCTURED_DATA;
+    }
+
+    private String withIngredientCard(Document doc, JsonNode recipe, String jsonString) {
+        if (!config.getStructuredData().isIncludeIngredientCard()) return jsonString;
+        Optional<String> card;
+        try {
+            card = RecipeCardCutter.cut(doc, ingredientLines(recipe));
+        } catch (Exception e) {
+            // the card is an extra; never lose the JSON-LD over it
+            log.debug("Ingredient card cut failed, sending JSON-LD alone", e);
+            card = Optional.empty();
+        }
+        meterRegistry.counter("html.preprocessing.ingredient_card", "found", String.valueOf(card.isPresent()))
+                .increment();
+        return card
+                .map(block -> jsonString + "\n\n<" + RecipeCardCutter.TAG + ">\n" + block
+                        + "\n</" + RecipeCardCutter.TAG + ">")
+                .orElse(jsonString);
+    }
+
+    // recipeIngredient is usually strings; some pages wrap each line in a PropertyValue object
+    private List<String> ingredientLines(JsonNode recipe) {
+        List<String> lines = new ArrayList<>();
+        for (JsonNode item : recipe.path("recipeIngredient")) {
+            if (item.isTextual()) {
+                lines.add(item.asText());
+            } else if (item.isObject()) {
+                StringBuilder line = new StringBuilder();
+                for (var field : item.properties()) {
+                    if (!field.getKey().startsWith("@") && field.getValue().isTextual()) {
+                        line.append(field.getValue().asText()).append(' ');
+                    }
+                }
+                lines.add(line.toString().trim());
+            }
+        }
+        return lines;
     }
 
     private List<JsonNode> findRecipeNodes(JsonNode json) {

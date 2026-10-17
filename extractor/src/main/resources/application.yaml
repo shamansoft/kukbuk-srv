@@ -335,6 +335,9 @@ cookbook:
       # Minimum completeness score (0-100) to use structured data directly
       # Default: 70
       min-completeness: 70
+      # Append the recipe card's ingredient block (with its section headers) after the JSON-LD
+      # Default: true
+      include-ingredient-card: true
 
     section-based:
       # Enable/disable section-based extraction using keyword scoring

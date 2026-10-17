@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.html.strategy;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class StructuredDataStrategyTest {
         config.getFallback().setMinSafeSize(10);
 
         objectMapper = new ObjectMapper();
-        strategy = new StructuredDataStrategy(config, objectMapper);
+        strategy = new StructuredDataStrategy(config, objectMapper, new SimpleMeterRegistry());
     }
 
     @Test
@@ -109,5 +110,45 @@ class StructuredDataStrategyTest {
                 "[{\"@type\":\"WebSite\",\"name\":\"Site\"},{\"@type\":\"BreadcrumbList\",\"itemListElement\":[]}]"));
 
         assertThat(out).isEmpty();
+    }
+
+    @Test
+    void shouldAppendIngredientCardWithSectionHeaders() {
+        String html = "<html><head><script type=\"application/ld+json\">"
+                + "{\"@type\":\"Recipe\",\"name\":\"Pie\",\"recipeIngredient\":[\"500 g flour\",\"300 g onions\"],"
+                + "\"recipeInstructions\":\"do\"}</script></head><body>"
+                + "<div id=\"ingredients\"><h3 class=\"title\">Dough</h3><ul><li>500 g flour</li></ul>"
+                + "<h3>Filling</h3><ul><li>300 g onions</li></ul></div></body></html>";
+
+        Optional<String> out = strategy.clean(html);
+
+        assertThat(out).isPresent();
+        String json = out.get().substring(0, out.get().indexOf("\n\n<RECIPE_CARD_INGREDIENTS>"));
+        assertThat(objectMapper.readTree(json).get("name").asText()).isEqualTo("Pie");
+        assertThat(out.get()).endsWith("</RECIPE_CARD_INGREDIENTS>")
+                .contains("<h3>Dough</h3>", "<h3>Filling</h3>");
+    }
+
+    @Test
+    void shouldMatchIngredientCardByPropertyValueIngredients() {
+        String html = "<html><head><script type=\"application/ld+json\">"
+                + "{\"@type\":\"Recipe\",\"name\":\"Pie\",\"recipeInstructions\":\"do\",\"recipeIngredient\":["
+                + "{\"@type\":\"PropertyValue\",\"name\":\"flour\",\"value\":\"500 g\"},"
+                + "{\"@type\":\"PropertyValue\",\"name\":\"onions\",\"value\":\"300 g\"}]}"
+                + "</script></head><body><ul class=\"ingredients\"><li>flour 500 g</li><li>onions 300 g</li></ul>"
+                + "</body></html>";
+
+        assertThat(strategy.clean(html)).hasValueSatisfying(out ->
+                assertThat(out).contains("<RECIPE_CARD_INGREDIENTS>"));
+    }
+
+    @Test
+    void shouldReturnJsonOnlyWhenIngredientCardDisabled() {
+        config.getStructuredData().setIncludeIngredientCard(false);
+        String html = "<html><head><script type=\"application/ld+json\">" + RECIPE + "</script></head>"
+                + "<body><ul class=\"ingredients\"><li>a</li></ul></body></html>";
+
+        assertThat(strategy.clean(html)).hasValueSatisfying(out ->
+                assertThat(objectMapper.readTree(out).get("name").asText()).isEqualTo("Cake"));
     }
 }
