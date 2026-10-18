@@ -40,6 +40,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
 
     private final ValidatingTransformerService innerTransformer;
     private final HtmlCleaner htmlCleaner;
+    private final JsonLdFieldOverwriter jsonLdFields;
 
     @Value("${recipe.adaptive-cleaning.enabled:true}")
     private boolean enabled;
@@ -62,7 +63,8 @@ public class AdaptiveCleaningTransformerService implements Transformer {
         HtmlCleaner.Results initial = htmlCleaner.process(rawHtml, sourceUrl);
         log.info("Initial HTML cleaning - URL: {}, {}", sourceUrl, initial.metricsMessage());
 
-        Response result = innerTransformer.transform(initial.cleanedHtml(), sourceUrl);
+        Response result = jsonLdFields.apply(innerTransformer.transform(initial.cleanedHtml(), sourceUrl), initial,
+                sourceUrl);
 
         if (!enabled) {
             return result;
@@ -90,7 +92,8 @@ public class AdaptiveCleaningTransformerService implements Transformer {
                     result.confidence(), confidenceThreshold, nextStrategy, sourceUrl);
 
             HtmlCleaner.Results retryClean = htmlCleaner.processWithStrategy(rawHtml, sourceUrl, nextStrategy);
-            result = innerTransformer.transform(retryClean.cleanedHtml(), sourceUrl);
+            result = jsonLdFields.apply(innerTransformer.transform(retryClean.cleanedHtml(), sourceUrl), retryClean,
+                    sourceUrl);
 
             if (result.isRecipe()) {
                 log.info("Recipe found after {} strategy for URL: {}", nextStrategy, sourceUrl);

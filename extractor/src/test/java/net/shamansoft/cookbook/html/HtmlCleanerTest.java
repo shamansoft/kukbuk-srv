@@ -82,7 +82,7 @@ class HtmlCleanerTest {
 
         // Build strategy chain in preferred order
         var strategies = java.util.List.of(
-                new net.shamansoft.cookbook.html.strategy.StructuredDataStrategy(config, objectMapper),
+                new net.shamansoft.cookbook.html.strategy.StructuredDataStrategy(config, objectMapper, meterRegistry),
                 new net.shamansoft.cookbook.html.strategy.SectionBasedStrategy(config),
                 new net.shamansoft.cookbook.html.strategy.ContentFilterStrategy(config)
         );

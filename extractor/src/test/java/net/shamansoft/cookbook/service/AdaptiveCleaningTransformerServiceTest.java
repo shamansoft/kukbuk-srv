@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,13 +38,16 @@ class AdaptiveCleaningTransformerServiceTest {
 
     private AdaptiveCleaningTransformerService service;
 
+    private JsonLdFieldOverwriter jsonLdFields;
+
     private static final String RAW_HTML = "<html><body>Recipe content</body></html>";
     private static final String CLEANED_HTML = "<div>Recipe content</div>";
     private static final String SOURCE_URL = "https://example.com/recipe";
 
     @BeforeEach
     void setUp() {
-        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner);
+        jsonLdFields = new JsonLdFieldOverwriter(new ObjectMapper());
+        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields);
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.5);
     }
@@ -193,6 +197,22 @@ class AdaptiveCleaningTransformerServiceTest {
     }
 
     // ---- helpers ------------------------------------------------------------
+
+    @Test
+    @DisplayName("Applies the page's JSON-LD fields to a recipe found on the JSON-LD path")
+    void transform_appliesJsonLdFields() {
+        ReflectionTestUtils.setField(jsonLdFields, "enabled", true);
+        String jsonLd = "{\"@type\":\"Recipe\",\"name\":\"Pasta alla Norma\",\"recipeYield\":\"2\"}";
+        HtmlCleaner.Results cleanedResult = buildCleanerResult(jsonLd, Strategy.STRUCTURED_DATA);
+
+        when(htmlCleaner.process(RAW_HTML, SOURCE_URL)).thenReturn(cleanedResult);
+        when(innerTransformer.transform(jsonLd, SOURCE_URL)).thenReturn(Transformer.Response.recipe(createRecipe("Pasta")));
+
+        Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
+
+        assertThat(result.recipe().metadata().title()).isEqualTo("Pasta alla Norma");
+        assertThat(result.recipe().metadata().servings()).isEqualTo(2);
+    }
 
     private HtmlCleaner.Results buildCleanerResult(String html, Strategy strategy) {
         int size = html.length();

@@ -15,8 +15,14 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
   more ingredients, these are TWO components
 - Assign EVERY ingredient to its component group
 - Only use `"component": "main"` if the recipe has NO section headers at all
-- Sections come ONLY from headers in the source. A flat list (for example a JSON-LD `recipeIngredient` array with no
-  headers) means every ingredient is `"main"`. Do NOT invent groups from the instructions or from ingredient order.
+- When the content has a `<RECIPE_CARD_INGREDIENTS>` block after the JSON-LD, it is the page's own ingredient list with
+  its section headers: the same ingredients as `recipeIngredient`. Group by walking that block from top to bottom: every
+  ingredient takes the nearest section header above it in the block. Only ingredients above the first section header,
+  or in a block with no section headers, are `"main"`. Use only header names that appear in the block. List each
+  ingredient once even though it appears in both.
+- Sections come ONLY from headers in the source. A flat list with no headers anywhere (for example a JSON-LD
+  `recipeIngredient` array and no `<RECIPE_CARD_INGREDIENTS>` block) means every ingredient is `"main"`. Do NOT invent
+  groups from the instructions or from ingredient order.
 
 **CRITICAL COMPRESSION RULES (Apply to ALL text fields):**
 

@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.html;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
 import net.shamansoft.cookbook.html.strategy.StructuredDataStrategy;
 import org.jsoup.Jsoup;
@@ -61,7 +62,7 @@ class HtmlFetcherTest {
         config.setEnabled(true);
         config.getStructuredData().setEnabled(true);
         config.getStructuredData().setMinCompleteness(50);
-        StructuredDataStrategy strategy = new StructuredDataStrategy(config, new ObjectMapper());
+        StructuredDataStrategy strategy = new StructuredDataStrategy(config, new ObjectMapper(), new SimpleMeterRegistry());
         String html = "<html><head><script type=\"application/ld+json\">" + RECIPE_JSON_LD + "</script></head>"
                 + "<body><p>hello</p></body></html>";
 

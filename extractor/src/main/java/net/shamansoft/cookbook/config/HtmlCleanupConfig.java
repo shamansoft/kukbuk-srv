@@ -21,6 +21,7 @@ public class HtmlCleanupConfig {
     public static class StructuredData {
         private boolean enabled;
         private int minCompleteness;
+        private boolean includeIngredientCard = true;
     }
 
     @Data
