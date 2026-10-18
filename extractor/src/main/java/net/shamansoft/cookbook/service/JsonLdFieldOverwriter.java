@@ -16,7 +16,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * On the JSON-LD path, replaces the model's title, servings, times, cover image and nutrition with the values the
@@ -43,12 +45,16 @@ public class JsonLdFieldOverwriter {
     }
 
     /**
-     * @param response the model's answer for {@code cleaned}
-     * @param cleaned  the content the model was given
-     * @return the response with JSON-LD fields applied, or unchanged when the content was not JSON-LD or the page
-     * gave more than one recipe
+     * Runs after validation and post-processing, so every value it sets is already in its stored form.
+     *
+     * @param response  the model's answer for {@code cleaned}
+     * @param cleaned   the content the model was given
+     * @param sourceUrl the page URL, to resolve a relative JSON-LD image
+     * @return the response with JSON-LD fields applied, or unchanged when the content was not JSON-LD, the answer
+     * has more than one recipe, or its one recipe is not the JSON-LD's (another recipe of the page survived
+     * validation alone)
      */
-    public Transformer.Response apply(Transformer.Response response, HtmlCleaner.Results cleaned) {
+    public Transformer.Response apply(Transformer.Response response, HtmlCleaner.Results cleaned, String sourceUrl) {
         if (!enabled || !response.isRecipe() || response.recipes().size() != 1
                 || cleaned.strategyUsed() != Strategy.STRUCTURED_DATA) {
             return response;
@@ -60,15 +66,32 @@ public class JsonLdFieldOverwriter {
             log.debug("Could not read JSON-LD fields, keeping the model's", e);
             return response;
         }
+        if (!describes(fields, response.recipe())) {
+            log.debug("Recipe does not match the JSON-LD ingredients, keeping the model's fields");
+            return response;
+        }
         return Transformer.Response.withRawResponse(true, response.confidence(),
-                List.of(overwrite(response.recipe(), fields)), response.rawLlmResponse());
+                List.of(overwrite(response.recipe(), fields, sourceUrl)), response.rawLlmResponse());
     }
 
-    Recipe overwrite(Recipe recipe, JsonLdRecipe fields) {
+    // At least half of the JSON-LD ingredient lines show up among the recipe's ingredients
+    private static boolean describes(JsonLdRecipe fields, Recipe recipe) {
+        List<String> keys = JsonLdRecipeReader.keyWords(fields.ingredients());
+        if (keys.isEmpty() || recipe.ingredients() == null) return keys.isEmpty();
+        String items = recipe.ingredients().stream()
+                .map(i -> i.item() + " " + Objects.toString(i.notes(), ""))
+                .collect(Collectors.joining(" "))
+                .toLowerCase(Locale.ROOT);
+        return keys.stream().filter(items::contains).count() * 2 >= keys.size();
+    }
+
+    Recipe overwrite(Recipe recipe, JsonLdRecipe fields, String sourceUrl) {
         RecipeMetadata m = recipe.metadata();
         if (m == null) return recipe;
-        CoverImage cover = fields.image() == null ? m.coverImage()
-                : new CoverImage(fields.image(), m.coverImage() != null ? m.coverImage().alt() : null);
+        // resolved as RecipePostProcessor resolves the model's; an unresolvable path keeps the model's cover
+        String image = ImageUrlResolver.resolve(fields.image(), sourceUrl).orElse(null);
+        CoverImage cover = image == null ? m.coverImage()
+                : new CoverImage(image, m.coverImage() != null ? m.coverImage().alt() : null);
         RecipeMetadata metadata = new RecipeMetadata(
                 title(fields.title(), m.title()),
                 m.source(),
@@ -101,10 +124,9 @@ public class JsonLdFieldOverwriter {
     private static String title(String page, String model) {
         if (page == null) return model;
         if (model == null || model.isBlank()) return page;
-        String pageLower = page.toLowerCase(Locale.ROOT);
-        String modelLower = model.trim().toLowerCase(Locale.ROOT);
-        boolean trimmedSuffix = pageLower.startsWith(modelLower)
-                && SITE_SUFFIX.matcher(page.substring(modelLower.length())).lookingAt();
+        String trimmed = model.trim();
+        boolean trimmedSuffix = page.regionMatches(true, 0, trimmed, 0, trimmed.length())
+                && SITE_SUFFIX.matcher(page.substring(trimmed.length())).lookingAt();
         return trimmedSuffix ? model : page;
     }
 

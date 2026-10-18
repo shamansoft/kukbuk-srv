@@ -1,8 +1,8 @@
 package net.shamansoft.cookbook.html.strategy;
 
+import net.shamansoft.cookbook.html.jsonld.JsonLdRecipeReader;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
@@ -10,7 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -28,13 +27,11 @@ public final class RecipeCardCutter {
     private static final String NOISE_SELECTOR =
             "script, style, noscript, template, img, picture, source, svg, video, audio, iframe, "
                     + "button, input, select, textarea";
-    private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
     private static final Pattern OWN_TAG = Pattern.compile("</?" + TAG + "\\b[^>]*>", Pattern.CASE_INSENSITIVE);
 
     static final int MAX_CANDIDATE_TEXT = 8_000;
     static final int MAX_BLOCK_CHARS = 12_000;
     private static final double MIN_COVERAGE = 0.5;
-    private static final double NEAR_BEST = 0.9;
 
     private RecipeCardCutter() {
     }
@@ -45,7 +42,7 @@ public final class RecipeCardCutter {
      * @return the block's compact HTML, or empty when no element covers the JSON-LD ingredients
      */
     public static Optional<String> cut(Document doc, List<String> ingredientLines) {
-        List<String> keys = keyWords(ingredientLines);
+        List<String> keys = JsonLdRecipeReader.keyWords(ingredientLines);
         if (keys.isEmpty()) return Optional.empty();
         return best(doc.select(PLUGIN_SELECTOR), keys)
                 .or(() -> best(doc.select(GENERIC_SELECTOR), keys))
@@ -53,21 +50,7 @@ public final class RecipeCardCutter {
                 .filter(block -> !block.isBlank() && block.length() <= MAX_BLOCK_CHARS);
     }
 
-    /** One word per ingredient line (its longest), lower-cased, to look for in candidate blocks. */
-    private static List<String> keyWords(List<String> lines) {
-        List<String> keys = new ArrayList<>();
-        for (String line : lines) {
-            Matcher m = WORD.matcher(Parser.unescapeEntities(line, false).toLowerCase(Locale.ROOT));
-            String longest = null;
-            while (m.find()) {
-                if (longest == null || m.group().length() > longest.length()) longest = m.group();
-            }
-            if (longest != null) keys.add(longest);
-        }
-        return keys;
-    }
-
-    /** The smallest candidate whose coverage of the key words is close to the best one's. */
+    /** The smallest candidate with the best coverage of the key words, so no group is cut off. */
     private static Optional<Element> best(Elements candidates, List<String> keys) {
         record Scored(Element element, int textLength, int coverage) {
         }
@@ -81,7 +64,7 @@ public final class RecipeCardCutter {
         int bestCoverage = scored.stream().mapToInt(Scored::coverage).max().orElse(0);
         if (bestCoverage < keys.size() * MIN_COVERAGE) return Optional.empty();
         return scored.stream()
-                .filter(s -> s.coverage() >= bestCoverage * NEAR_BEST)
+                .filter(s -> s.coverage() == bestCoverage)
                 .min(Comparator.comparingInt(Scored::textLength))
                 .map(Scored::element);
     }

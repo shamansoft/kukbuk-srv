@@ -24,6 +24,8 @@ class JsonLdFieldOverwriterTest {
             + "\"prepTime\":\"PT20M\",\"totalTime\":\"PT1H5M\",\"image\":[\"https://x.test/cake.jpg\"],"
             + "\"nutrition\":{\"calories\":\"320 kcal\",\"fatContent\":\"14 g\"}}";
 
+    private static final String SOURCE = "https://example.com/recipes/carrot-cake";
+
     private JsonLdFieldOverwriter overwriter;
 
     @BeforeEach
@@ -75,6 +77,51 @@ class JsonLdFieldOverwriterTest {
     }
 
     @Test
+    void resolvesRelativeImageAgainstThePage() {
+        Recipe recipe = apply(modelRecipe(), "{\"@type\":\"Recipe\",\"image\":\"/img/cake.jpg\"}",
+                Strategy.STRUCTURED_DATA).recipe();
+
+        assertThat(recipe.metadata().coverImage().path()).isEqualTo("https://example.com/img/cake.jpg");
+    }
+
+    @Test
+    void keepsModelCoverWhenJsonLdImageCannotBeResolved() {
+        Recipe recipe = apply(modelRecipe(), "{\"@type\":\"Recipe\",\"image\":\"data:image/png;base64,AAAA\"}",
+                Strategy.STRUCTURED_DATA).recipe();
+
+        assertThat(recipe.metadata().coverImage().path()).isEqualTo("https://x.test/model.jpg");
+    }
+
+    @Test
+    void comparesTitlesWhoseLowerCaseChangesLength() {
+        Recipe model = withTitle(modelRecipe(), "İzmir Köfte");
+
+        Recipe recipe = apply(model, "{\"@type\":\"Recipe\",\"name\":\"İzmir Köfte\"}",
+                Strategy.STRUCTURED_DATA).recipe();
+
+        assertThat(recipe.metadata().title()).isEqualTo("İzmir Köfte");
+    }
+
+    @Test
+    void unchangedWhenTheRecipeIsNotTheJsonLdOne() {
+        // e.g. the page's side sauce survived validation, the main dish did not
+        Transformer.Response response = Transformer.Response.recipe(modelRecipe());
+        String jsonLd = "{\"@type\":\"Recipe\",\"name\":\"Lasagne\","
+                + "\"recipeIngredient\":[\"12 lasagne sheets\",\"500 g minced beef\",\"400 g tomatoes\"]}";
+
+        assertThat(overwriter.apply(response, cleaned(jsonLd, Strategy.STRUCTURED_DATA), SOURCE)).isSameAs(response);
+    }
+
+    @Test
+    void appliesWhenMostJsonLdIngredientsAreInTheRecipe() {
+        String jsonLd = "{\"@type\":\"Recipe\",\"name\":\"Carrot Cake\","
+                + "\"recipeIngredient\":[\"3 large carrots, grated\",\"1 tsp cinnamon\"]}";
+
+        assertThat(apply(modelRecipe(), jsonLd, Strategy.STRUCTURED_DATA).recipe().metadata().title())
+                .isEqualTo("Carrot Cake");
+    }
+
+    @Test
     void keepsModelCoverWhenJsonLdHasNoImage() {
         Recipe recipe = apply(modelRecipe(), "{\"@type\":\"Recipe\",\"name\":\"Carrot Cake\"}",
                 Strategy.STRUCTURED_DATA).recipe();
@@ -87,7 +134,7 @@ class JsonLdFieldOverwriterTest {
     void unchangedForOtherStrategies() {
         Transformer.Response response = Transformer.Response.recipe(modelRecipe());
 
-        assertThat(overwriter.apply(response, cleaned(JSON_LD, Strategy.CONTENT_FILTER))).isSameAs(response);
+        assertThat(overwriter.apply(response, cleaned(JSON_LD, Strategy.CONTENT_FILTER), SOURCE)).isSameAs(response);
     }
 
     @Test
@@ -95,25 +142,35 @@ class JsonLdFieldOverwriterTest {
         Transformer.Response notRecipe = Transformer.Response.notRecipe(0.9);
         Transformer.Response two = Transformer.Response.recipes(List.of(modelRecipe(), modelRecipe()));
 
-        assertThat(overwriter.apply(notRecipe, cleaned(JSON_LD, Strategy.STRUCTURED_DATA))).isSameAs(notRecipe);
-        assertThat(overwriter.apply(two, cleaned(JSON_LD, Strategy.STRUCTURED_DATA))).isSameAs(two);
+        assertThat(overwriter.apply(notRecipe, cleaned(JSON_LD, Strategy.STRUCTURED_DATA), SOURCE)).isSameAs(notRecipe);
+        assertThat(overwriter.apply(two, cleaned(JSON_LD, Strategy.STRUCTURED_DATA), SOURCE)).isSameAs(two);
     }
 
     @Test
     void unchangedWhenDisabledOrJsonUnreadable() {
         Transformer.Response response = Transformer.Response.recipe(modelRecipe());
 
-        assertThat(overwriter.apply(response, cleaned("not json", Strategy.STRUCTURED_DATA))).isSameAs(response);
+        assertThat(overwriter.apply(response, cleaned("not json", Strategy.STRUCTURED_DATA), SOURCE)).isSameAs(response);
         ReflectionTestUtils.setField(overwriter, "enabled", false);
-        assertThat(overwriter.apply(response, cleaned(JSON_LD, Strategy.STRUCTURED_DATA))).isSameAs(response);
+        assertThat(overwriter.apply(response, cleaned(JSON_LD, Strategy.STRUCTURED_DATA), SOURCE)).isSameAs(response);
     }
 
     private Transformer.Response apply(Recipe recipe, String cleanedHtml, Strategy strategy) {
-        return overwriter.apply(Transformer.Response.recipe(recipe), cleaned(cleanedHtml, strategy));
+        return overwriter.apply(Transformer.Response.recipe(recipe), cleaned(cleanedHtml, strategy), SOURCE);
     }
 
     private static HtmlCleaner.Results cleaned(String html, Strategy strategy) {
         return new HtmlCleaner.Results(html, html.length(), html.length(), 0.0, strategy, "test");
+    }
+
+    private static Recipe withTitle(Recipe recipe, String title) {
+        RecipeMetadata m = recipe.metadata();
+        return new Recipe(recipe.isRecipe(), recipe.schemaVersion(), recipe.recipeVersion(),
+                new RecipeMetadata(title, m.source(), m.author(), m.language(), m.dateCreated(), m.category(),
+                        m.tags(), m.servings(), m.prepTime(), m.cookTime(), m.totalTime(), m.difficulty(),
+                        m.coverImage()),
+                recipe.description(), recipe.ingredients(), recipe.equipment(), recipe.instructions(),
+                recipe.nutrition(), recipe.notes(), recipe.storage());
     }
 
     private static Recipe modelRecipe() {

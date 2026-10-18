@@ -41,7 +41,7 @@ class JsonLdRecipeReaderTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"'\"a big pot\"'", "0", "'\"0\"'", "'{}'", "null"})
+    @CsvSource({"'\"a big pot\"'", "0", "'\"0\"'", "'{}'", "null", "'\"12345678901\"'"})
     void noServingsWithoutAPositiveNumber(String yield) {
         assertThat(read("{\"recipeYield\":" + yield + "}").servings()).isNull();
     }
@@ -99,6 +99,17 @@ class JsonLdRecipeReaderTest {
         assertThat(nutrition.sugar()).isEqualTo(5.0);
         assertThat(nutrition.sodium()).isEqualTo(300.0);
         assertThat(nutrition.notes()).isNull();
+    }
+
+    @Test
+    void readsThousandsSeparatorsButKeepsDecimalCommas() {
+        var nutrition = read("{\"nutrition\":{\"calories\":\"1,050 kcal\",\"sodiumContent\":\"1,200 mg\","
+                + "\"proteinContent\":\"12,5 g\",\"fatContent\":\"1,234.5 g\"}}").nutrition();
+
+        assertThat(nutrition.calories()).isEqualTo(1050);
+        assertThat(nutrition.sodium()).isEqualTo(1200.0);
+        assertThat(nutrition.protein()).isEqualTo(12.5);
+        assertThat(nutrition.fat()).isEqualTo(1234.5);
     }
 
     @Test

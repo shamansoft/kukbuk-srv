@@ -2,12 +2,14 @@ package net.shamansoft.cookbook.html.jsonld;
 
 import net.shamansoft.recipe.model.Nutrition;
 import org.jsoup.Jsoup;
+import org.jsoup.parser.Parser;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +27,10 @@ public final class JsonLdRecipeReader {
             "(\\d+)(?:" + RANGE_SEPARATOR + "(\\d+))?\\s*(?:serv|portion|people|person|pers|porç|porci|porzi|porc|порц)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final Pattern INTEGER = Pattern.compile("\\d+");
-    private static final Pattern NUMBER = Pattern.compile("\\d+(?:[.,]\\d+)?");
+    // "1,200 mg" groups thousands; "12,5 g" is a decimal comma
+    private static final Pattern NUMBER = Pattern.compile("(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?)|(\\d+(?:[.,]\\d+)?)");
+    private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
+    private static final int MAX_SERVINGS_DIGITS = 4;
 
     private JsonLdRecipeReader() {
     }
@@ -82,6 +87,7 @@ public final class JsonLdRecipeReader {
 
     // a range gives its midpoint, rounded up
     private static Integer servings(String low, String high) {
+        if (low.length() > MAX_SERVINGS_DIGITS || (high != null && high.length() > MAX_SERVINGS_DIGITS)) return null;
         int from = Integer.parseInt(low);
         int to = high == null ? from : Integer.parseInt(high);
         if (from <= 0 || to < from) return null;
@@ -142,7 +148,10 @@ public final class JsonLdRecipeReader {
         if (node.isNumber()) return node.asDouble() >= 0 ? node.asDouble() : null;
         if (!node.isTextual()) return null;
         Matcher m = NUMBER.matcher(node.asText());
-        return m.find() ? Double.parseDouble(m.group().replace(',', '.')) : null;
+        if (!m.find()) return null;
+        return m.group(1) != null
+                ? Double.parseDouble(m.group(1).replace(",", ""))
+                : Double.parseDouble(m.group(2).replace(',', '.'));
     }
 
     private static Double sodiumMilligrams(JsonNode node) {
@@ -150,6 +159,20 @@ public final class JsonLdRecipeReader {
         if (value == null || !node.isTextual()) return value;
         String unit = node.asText().toLowerCase().replaceAll("[^a-zµ]", "");
         return unit.equals("g") || unit.equals("grams") ? value * 1000 : value;
+    }
+
+    /** One word per ingredient line (its longest), lower-cased: what to look for elsewhere to recognise the list. */
+    public static List<String> keyWords(List<String> lines) {
+        List<String> keys = new ArrayList<>();
+        for (String line : lines) {
+            Matcher m = WORD.matcher(Parser.unescapeEntities(line, false).toLowerCase(Locale.ROOT));
+            String longest = null;
+            while (m.find()) {
+                if (longest == null || m.group().length() > longest.length()) longest = m.group();
+            }
+            if (longest != null) keys.add(longest);
+        }
+        return keys;
     }
 
     /** The {@code recipeIngredient} lines; some pages wrap each line in a {@code PropertyValue} object. */

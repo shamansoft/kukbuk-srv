@@ -49,6 +49,19 @@ class RecipeCardCutterTest {
     }
 
     @Test
+    void keepsSmallGroupsThatAnInnerListLeavesOut() {
+        List<String> lines = List.of("200 g flour", "100 g sugar", "2 eggs", "50 g butter", "1 tsp vanilla",
+                "1 tsp baking powder", "100 ml milk", "1 pinch salt", "1 lemon zest", "100 g icing sugar");
+        Document doc = Jsoup.parse("<div class=\"ingredients\"><h3>Cake</h3><ul class=\"ingredient-list\">"
+                + "<li>200 g flour</li><li>100 g sugar</li><li>2 eggs</li><li>50 g butter</li><li>1 tsp vanilla</li>"
+                + "<li>1 tsp baking powder</li><li>100 ml milk</li><li>1 pinch salt</li><li>1 lemon zest</li></ul>"
+                + "<h3>Glaze</h3><ul class=\"ingredient-list\"><li>100 g icing sugar</li></ul></div>");
+
+        assertThat(RecipeCardCutter.cut(doc, lines)).hasValueSatisfying(block ->
+                assertThat(block).contains("<h3>Cake</h3>", "<h3>Glaze</h3>", "icing sugar"));
+    }
+
+    @Test
     void prefersPluginBlockOverGenericMatch() {
         Document doc = Jsoup.parse("<div id=\"ingredients-teaser\"><ul><li>500 g flour</li><li>1 tsp salt</li>"
                 + "<li>250 ml milk</li><li>300 g onions</li><li>200 g bacon</li></ul></div>"
