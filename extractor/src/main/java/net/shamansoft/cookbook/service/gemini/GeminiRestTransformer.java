@@ -213,8 +213,12 @@ public class GeminiRestTransformer implements Transformer {
      * would otherwise repeat exactly).
      */
     private GeminiResponse<GeminiExtractionResult> requestWithRetry(GeminiRequest request, boolean allowRetry) {
+        return requestWithRetry(request, GeminiExtractionResult.class, allowRetry);
+    }
+
+    private <T> GeminiResponse<T> requestWithRetry(GeminiRequest request, Class<T> type, boolean allowRetry) {
         long start = System.nanoTime();
-        GeminiResponse<GeminiExtractionResult> response = geminiClient.request(request, GeminiExtractionResult.class);
+        GeminiResponse<T> response = geminiClient.request(request, type);
         if (!allowRetry || !response.code().isRetryable()) {
             return response;
         }
@@ -232,7 +236,17 @@ public class GeminiRestTransformer implements Transformer {
         log.warn("Gemini returned {} ({}), retrying once with temperature={} maxOutputTokens={}",
                 response.code(), response.errorMessage(),
                 config != null ? config.getTemperature() : null, config != null ? config.getMaxOutputTokens() : null);
-        return geminiClient.request(request, GeminiExtractionResult.class);
+        return geminiClient.request(request, type);
+    }
+
+    /**
+     * Sends a JSON-LD enrichment request ({@link JsonLdRequestBuilder}); an empty or cut-off first answer is retried
+     * once as for every other request, unless this is already the feedback attempt.
+     *
+     * @return the answer, or the failure for the caller to fall back on
+     */
+    public GeminiResponse<JsonLdEnrichment> enrich(GeminiRequest request, boolean feedbackAttempt) {
+        return requestWithRetry(request, JsonLdEnrichment.class, !feedbackAttempt);
     }
 
     private static ClientException failure(GeminiResponse<?> response) {
