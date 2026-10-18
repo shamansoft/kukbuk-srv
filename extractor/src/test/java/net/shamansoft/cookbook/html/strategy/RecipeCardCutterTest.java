@@ -116,6 +116,61 @@ class RecipeCardCutterTest {
     }
 
     @Test
+    void turnsWprmDivGroupNamesIntoHeadings() {
+        Document doc = Jsoup.parse("<div class=\"wprm-recipe-ingredients-container\">"
+                + "<div class=\"wprm-recipe-ingredient-group\"><div class=\"wprm-recipe-group-name\">Dough</div>"
+                + "<ul><li>500 g flour</li><li>1 tsp salt</li><li>250 ml milk</li></ul></div>"
+                + "<div class=\"wprm-recipe-ingredient-group\"><div class=\"wprm-recipe-group-name\">Topping</div>"
+                + "<ul><li>300 g onions</li><li>200 g bacon</li></ul></div></div>");
+
+        assertThat(RecipeCardCutter.cut(doc, LINES)).hasValueSatisfying(block ->
+                assertThat(block).contains("<h4>Dough</h4>", "<h4>Topping</h4>"));
+    }
+
+    @Test
+    void rowsCarryTheGroupHeadingAboveThem() {
+        String block = "<div><h3>Ingredients</h3><ul><li>3 cups rice</li><li>2 cups chicken</li></ul>"
+                + "<h4>For the Teriyaki Sauce:</h4><ul><li>1/2 cup soy sauce</li><li>\n</li></ul></div>";
+
+        assertThat(RecipeCardCutter.rows(block)).containsExactly(
+                new RecipeCardCutter.Row(null, "3 cups rice"),
+                new RecipeCardCutter.Row(null, "2 cups chicken"),
+                new RecipeCardCutter.Row("Teriyaki Sauce", "1/2 cup soy sauce"));
+    }
+
+    @Test
+    void rowsTakeBoldParagraphsAsHeadings() {
+        String block = "<div><p><strong>Peanut Chicken</strong></p><ul><li>1 lb <strong>chicken</strong></li></ul>"
+                + "<p><b>Ginger Slaw</b></p><ul><li>1 cabbage</li></ul><p>Note: <b>fresh</b> ginger</p>"
+                + "<ul><li>1 inch ginger</li></ul></div>";
+
+        assertThat(RecipeCardCutter.rows(block)).containsExactly(
+                new RecipeCardCutter.Row("Peanut Chicken", "1 lb chicken"),
+                new RecipeCardCutter.Row("Ginger Slaw", "1 cabbage"),
+                new RecipeCardCutter.Row("Ginger Slaw", "1 inch ginger"));
+    }
+
+    @Test
+    void rowsSkipListsThatHoldLists() {
+        String block = "<ul><li>Base<ul><li>1 egg</li><li>2 cups flour</li></ul></li></ul>";
+
+        assertThat(RecipeCardCutter.rows(block)).extracting(RecipeCardCutter.Row::text)
+                .containsExactly("1 egg", "2 cups flour");
+    }
+
+    @Test
+    void groupNamesAreNormalisedAsThePromptAsks() {
+        assertThat(RecipeCardCutter.groupName("For the Gyro Meat:")).isEqualTo("Gyro Meat");
+        assertThat(RecipeCardCutter.groupName("for the crust")).isEqualTo("Crust");
+        assertThat(RecipeCardCutter.groupName("CHICKEN")).isEqualTo("Chicken");
+        assertThat(RecipeCardCutter.groupName("Für den Teig")).isEqualTo("Teig");
+        assertThat(RecipeCardCutter.groupName("To saute & blend")).isEqualTo("To saute & blend");
+        assertThat(RecipeCardCutter.groupName("Ingredients")).isNull();
+        assertThat(RecipeCardCutter.groupName("Zutaten:")).isNull();
+        assertThat(RecipeCardCutter.groupName(" : ")).isNull();
+    }
+
+    @Test
     void doesNotModifyThePage() {
         Document doc = Jsoup.parse("<ul class=\"ingredients\"><li class=\"x\">500 g flour <img src=\"i.png\"></li>"
                 + "<li>1 tsp salt</li><li>250 ml milk</li><li>300 g onions</li><li>200 g bacon</li></ul>");
