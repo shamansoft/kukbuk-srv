@@ -169,6 +169,23 @@ sent after the JSON-LD. Tag `found`: `true` or `false`. Not emitted when
 curl "http://localhost:8080/actuator/metrics/html.preprocessing.ingredient_card?tag=found:false" | jq
 ```
 
+#### 7. Card Sections Counter
+
+`recipe.jsonld.sections`: on the `STRUCTURED_DATA` path, for each single-recipe answer, whether the ingredients'
+`component` was taken from the card's group headings (`CardSectionAssigner`). Tag `outcome`:
+- `applied`: the card has one line per JSON-LD ingredient line and at least one group heading
+- `no_card`: no card block was sent
+- `lines_differ`: the card's line count differs from the JSON-LD's (the model's components stay)
+- `no_groups`: the card has no group heading (the model's components stay)
+
+Each save also logs one `Card sections - URL: …, outcome: …` line, so the share can be read from Cloud Logging
+while the Stackdriver export is off. On the 50 samples (2026-10-18): applied 11, no_groups 25, no_card 7,
+lines_differ 4. Flag: `recipe.jsonld-sections.enabled` (`RECIPE_JSONLD_SECTIONS_ENABLED`, default true).
+
+```bash
+curl "http://localhost:8080/actuator/metrics/recipe.jsonld.sections?tag=outcome:applied" | jq
+```
+
 ## Viewing Logs
 
 Preprocessing results are also logged for each request.
