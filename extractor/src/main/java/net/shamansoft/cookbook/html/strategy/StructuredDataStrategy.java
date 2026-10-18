@@ -3,6 +3,7 @@ package net.shamansoft.cookbook.html.strategy;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
+import net.shamansoft.cookbook.html.jsonld.JsonLdRecipeReader;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -26,6 +27,8 @@ import java.util.Optional;
 @Slf4j
 @Order(1)
 public class StructuredDataStrategy implements CleanupStrategy {
+
+    private static final String CARD_START = "\n\n<" + RecipeCardCutter.TAG + ">\n";
 
     private final HtmlCleanupConfig config;
     private final ObjectMapper objectMapper;
@@ -77,11 +80,17 @@ public class StructuredDataStrategy implements CleanupStrategy {
         return Strategy.STRUCTURED_DATA;
     }
 
+    /** The JSON-LD part of this strategy's output, without the ingredient card. */
+    public static String jsonLd(String cleaned) {
+        int card = cleaned.indexOf(CARD_START);
+        return card < 0 ? cleaned : cleaned.substring(0, card);
+    }
+
     private String withIngredientCard(Document doc, JsonNode recipe, String jsonString) {
         if (!config.getStructuredData().isIncludeIngredientCard()) return jsonString;
         Optional<String> card;
         try {
-            card = RecipeCardCutter.cut(doc, ingredientLines(recipe));
+            card = RecipeCardCutter.cut(doc, JsonLdRecipeReader.ingredients(recipe));
         } catch (Exception e) {
             // the card is an extra; never lose the JSON-LD over it
             log.debug("Ingredient card cut failed, sending JSON-LD alone", e);
@@ -90,28 +99,8 @@ public class StructuredDataStrategy implements CleanupStrategy {
         meterRegistry.counter("html.preprocessing.ingredient_card", "found", String.valueOf(card.isPresent()))
                 .increment();
         return card
-                .map(block -> jsonString + "\n\n<" + RecipeCardCutter.TAG + ">\n" + block
-                        + "\n</" + RecipeCardCutter.TAG + ">")
+                .map(block -> jsonString + CARD_START + block + "\n</" + RecipeCardCutter.TAG + ">")
                 .orElse(jsonString);
-    }
-
-    // recipeIngredient is usually strings; some pages wrap each line in a PropertyValue object
-    private List<String> ingredientLines(JsonNode recipe) {
-        List<String> lines = new ArrayList<>();
-        for (JsonNode item : recipe.path("recipeIngredient")) {
-            if (item.isTextual()) {
-                lines.add(item.asText());
-            } else if (item.isObject()) {
-                StringBuilder line = new StringBuilder();
-                for (var field : item.properties()) {
-                    if (!field.getKey().startsWith("@") && field.getValue().isTextual()) {
-                        line.append(field.getValue().asText()).append(' ');
-                    }
-                }
-                lines.add(line.toString().trim());
-            }
-        }
-        return lines;
     }
 
     private List<JsonNode> findRecipeNodes(JsonNode json) {

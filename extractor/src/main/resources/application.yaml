@@ -113,6 +113,11 @@ recipe:
     # Default: 1
     retry: ${RECIPE_LLM_RETRY:1}
 
+  jsonld-fields:
+    # On the JSON-LD path, replace the model's title, servings, times, cover image and nutrition
+    # with the values the page publishes in its schema.org Recipe (where it has them)
+    enabled: ${RECIPE_JSONLD_FIELDS_ENABLED:true}
+
   adaptive-cleaning:
     # Enable/disable adaptive HTML cleaning with confidence feedback loop.
     # When true: if LLM returns is_recipe=false with confidence >= threshold,
