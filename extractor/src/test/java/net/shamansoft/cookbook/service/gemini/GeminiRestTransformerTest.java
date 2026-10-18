@@ -602,6 +602,23 @@ class GeminiRestTransformerTest {
     }
 
     @Test
+    void transformMarkdownWithOverridesUsesMarkdownOverridesRequestBuilder() throws JacksonException {
+        String markdown = "# Cookies\n\n- 1 cup flour";
+        GenerationOverrides overrides = new GenerationOverrides(0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null);
+        GeminiRequest mockRequest = mock(GeminiRequest.class);
+
+        when(requestBuilder.buildMarkdownRequest(eq(markdown), eq(overrides))).thenReturn(mockRequest);
+        when(geminiClient.request(eq(mockRequest), eq(GeminiExtractionResult.class), eq("gemini-2.5-pro")))
+                .thenReturn(GeminiResponse.success(recipeResult("Cookies"), "{\"is_recipe\": true}"));
+
+        Transformer.Response response = transformer.transformMarkdownWithOverrides(markdown, overrides);
+
+        assertThat(response.isRecipe()).isTrue();
+        assertThat(response.recipe().metadata().title()).isEqualTo("Cookies");
+        verify(requestBuilder, never()).buildRequest(anyString(), any(GenerationOverrides.class));
+    }
+
+    @Test
     void transformWithOverridesPassesNullModelWhenOverridesHasNoModel() throws JacksonException {
         // Given
         String htmlContent = "<html><body>Recipe content</body></html>";

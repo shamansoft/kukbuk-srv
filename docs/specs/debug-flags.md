@@ -78,6 +78,22 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
 
 ---
 
+## Markdown pages: `contentFormat`
+
+`"contentFormat": "markdown"` sends `text` the way `POST /v1/recipes/url` sends a page it fetched through
+markdown.new: no HTML cleaning, `Transformer.transformMarkdown`, the Markdown prompt (`prompt-markdown.md`) and the
+Markdown response schema (`component` required on every ingredient). With overrides it goes to
+`GeminiRestTransformer.transformMarkdownWithOverrides`. Default `"html"`. `markdown` without `text` → `400` (the
+endpoint never calls markdown.new); any other value → `400`.
+
+```bash
+curl -X POST http://localhost:8080/debug/v1/recipes \
+  -H "Content-Type: application/json" \
+  -d '{"text": "# Pancakes\n\n### Ingredients\n\n- 1 1/2 cups flour\n- 2 eggs", "contentFormat": "markdown", "returnFormat": "json"}'
+```
+
+---
+
 ## Free-text descriptions: `POST /debug/v1/recipes/custom`
 
 Runs the `POST /v1/recipes/custom` flow (`RecipeService.structureDescription`: model call, retry,

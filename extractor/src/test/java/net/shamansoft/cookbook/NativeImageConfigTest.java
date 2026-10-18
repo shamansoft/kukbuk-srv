@@ -63,6 +63,16 @@ class NativeImageConfigTest {
     }
 
     @Test
+    void resourceAutodetection_promptMarkdownMd_shouldBeAvailable() throws IOException {
+        // Verify prompt-markdown.md is available
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream("prompt-markdown.md")) {
+            assertThat(stream)
+                    .as("prompt-markdown.md should be available via resource autodetection")
+                    .isNotNull();
+        }
+    }
+
+    @Test
     void resourceAutodetection_recipeSchema_shouldBeAvailable() throws IOException {
         // Verify recipe schema is available
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream("llm-recipe-schema.json")) {

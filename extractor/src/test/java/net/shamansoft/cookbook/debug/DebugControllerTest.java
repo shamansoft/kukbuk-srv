@@ -613,6 +613,66 @@ class DebugControllerTest {
         verify(recipeStoreService, never()).storeInvalidRecipe(anyString(), anyString());
     }
 
+    private static RecipeRequest markdownRequest(String url, String text, Float temperature, String contentFormat) {
+        return new RecipeRequest(
+                url, text, null, "json", "auto",
+                true, null, null, null, null, null, null, null,
+                temperature, null, null, null, null, null, null, null, null, null, contentFormat
+        );
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown skips HTML cleaning and uses transformMarkdown")
+    void testTransformMarkdownRoutesToTransformMarkdown() throws IOException, Exception {
+        String markdown = "# Cookies\n\n- 1 cup flour";
+        Recipe recipe = createTestRecipe("Cookies");
+        when(transformer.transformMarkdown(markdown, "text-input")).thenReturn(Transformer.Response.recipe(recipe));
+
+        ResponseEntity<?> response = controller.testTransform(markdownRequest(null, markdown, null, "Markdown"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+        verify(transformer).transformMarkdown(markdown, "text-input");
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(htmlPreprocessor, never()).process(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown and overrides uses transformMarkdownWithOverrides")
+    void testTransformMarkdownWithOverridesRoutesToGeminiRestTransformer() throws IOException, Exception {
+        String markdown = "# Cookies\n\n- 1 cup flour";
+        Recipe recipe = createTestRecipe("Cookies");
+        when(geminiRestTransformer.transformMarkdownWithOverrides(eq(markdown), any(GenerationOverrides.class)))
+                .thenReturn(Transformer.Response.recipe(recipe));
+
+        controller.testTransform(markdownRequest(null, markdown, 0.2f, "markdown"));
+
+        verify(geminiRestTransformer).transformMarkdownWithOverrides(eq(markdown), any(GenerationOverrides.class));
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+        verify(transformer, never()).transformMarkdown(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown and no text is a bad request")
+    void testTransformMarkdownWithoutTextReturnsBadRequest() throws IOException, Exception {
+        ResponseEntity<?> response = controller.testTransform(
+                markdownRequest("https://example.com/recipe", null, null, "markdown"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("text");
+        verify(htmlExtractor, never()).extractHtml(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("testTransform with an unknown contentFormat is a bad request")
+    void testTransformUnknownContentFormatReturnsBadRequest() throws IOException, Exception {
+        ResponseEntity<?> response = controller.testTransform(markdownRequest(null, "text", null, "pdf"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("contentFormat");
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(transformer, never()).transformMarkdown(anyString(), anyString());
+    }
+
     @Test
     @DisplayName("custom: structures a description through RecipeService")
     void customStructuresDescription() {
