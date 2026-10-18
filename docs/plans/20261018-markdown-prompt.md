@@ -5,8 +5,9 @@ _Started 2026-10-18. Branch `worktree-markdown-prompt`._
 `POST /v1/recipes/url` falls back to markdown.new when the direct fetch is blocked
 (`HtmlExtractor.fetchWithFallback`). The Markdown goes through `transformMarkdown` (no HTML cleaning) to
 `RequestBuilder.buildMarkdownRequest`, which sends `prompt.md`'s system part plus a user preamble saying "where the
-instructions refer to HTML, apply them to the equivalent Markdown". No JSON-LD reaches this path, and none of the 50
-samples take it, so there is no score for it today.
+instructions refer to HTML, apply them to the equivalent Markdown". None of the 50 samples take
+this path, so there is no score for it today. (This plan first assumed no JSON-LD reaches it; real markdown.new
+output keeps the JSON-LD as text, see section 8.)
 
 ## 📋 Table of Contents
 
@@ -37,7 +38,14 @@ samples take it, so there is no score for it today.
 - [x] 7. Docs
   - [x] 7.1 Results write-up with per-page changes (this plan's "Results" section)
   - [x] 7.2 Tuner README rows (`.md` cases, `markdown*.json`, `results/markdown-*`); `debug-flags.md` / `gemini-tuning.md` for `contentFormat`
-  - [x] 7.3 BACKLOG 12.1 status; repo `CLAUDE.md` resource list; `samples/README.md` note on `markdown/` and the converter
+  - [x] 7.3 BACKLOG 12.1 status; `samples/README.md` note on `markdown/` and the converter
+  - [ ] 7.4 `CLAUDE.md` resource list: the file is git-ignored and lives only in the main checkout, which this worktree
+    session cannot edit; left to the user
+- [x] 8. (added 2026-10-18, at the user's request) Re-score on real markdown.new output of all 50 samples
+  - [x] 8.1 Fetch the 50 sample URLs through markdown.new into `samples/markdown/mdnew/` (local only)
+  - [x] 8.2 Baseline and v9 on all 50 (`results/markdown-new-baseline`, `results/markdown-new-v9`); re-run the
+    pages that dropped (`markdown-new-v9-run2`): identical
+  - [x] 8.3 Per-page changes explained (Results → "Real markdown.new output")
 
 ---
 
@@ -119,7 +127,8 @@ table captions; ingredients as `-`/`*`/`1.` list items or table rows; recipe-car
 renders it ("Prep Time 10 mins", nutrition lines); images as `![alt](url)`, links; page chrome (nav, comments, related
 recipes, "Jump to recipe") to ignore; a page that shows both a summary list and the card lists ingredients once.
 
-**Drop:** the `<RECIPE_CARD_INGREDIENTS>` bullet and JSON-LD references (none reach this path).
+**Drop:** the `<RECIPE_CARD_INGREDIENTS>` bullet and JSON-LD references (none reach this path). _Wrong for real
+markdown.new output, which keeps the JSON-LD as text: see "Real markdown.new output"._
 
 **Injection defence:** system/user split at sentinel `**Markdown Content to Process:**`; user part wraps the page in
 `<PAGE_MARKDOWN>…</PAGE_MARKDOWN>` with the closing tag stripped from the content, as today.
@@ -211,9 +220,71 @@ No page has fewer ingredients fully right than the baseline. Field-level drops, 
 Out of reach on this path (not in the Markdown): pinchofyum.com and kingarthurbaking.com nutrition and kingarthurbaking.com
 servings (JSON-LD only), matprat.no prep/cook split.
 
+### Real markdown.new output (all 50 samples)
+
+Fetched 2026-10-18 by POSTing each sample's URL to markdown.new, as `MarkdownNewClientImpl` does. These are the live
+pages, not the saved HTML of 2026-10-07; the expected files were written from the saved HTML. Every sample's URL
+returned 200. thekitchn.com came back as a PerimeterX "verify you are a human" page (624 chars); on the other 49, every
+expected ingredient is in the Markdown. Two things differ from the local conversions:
+
+- **The JSON-LD is in the Markdown** as raw text (44 of 50 pages carry `recipeIngredient`). The prompt doesn't
+  mention it.
+- **Some cards render oddly:** olivemagazine.com's ingredient list sits under "## Nutrition"; bonappetit.com puts each
+  amount on its own line, before its unit and item.
+
+Python's default User-Agent gets Cloudflare error 1010 (403); the server's Apache client's User-Agent gets 200.
+
+| measure | baseline | v9 |
+|---|---|---|
+| Ingredients fully right | 544/615 (88%) | 569/615 (93%) |
+| Quantity right, of those found | 588/603 | 587/603 |
+| Group right, of those found | 558/603 | 584/603 |
+| Pages with sections fully right | 12/17 | 17/17 |
+| Wrong unit | 15 | 14 |
+| Extra ingredients | 9 | 7 |
+| Servings | 47/50 | 46/50 |
+| Prep / cook / total time | 122/125 | 121/125 |
+| Oven temperatures | 16/19 | 18/19 |
+| Nutrition values | 206/216 | 206/216 |
+| Title | 47/50 | 48/50 |
+| Language | 49/50 | 47/50 |
+
+thekitchn.com: both return "not a recipe" and invent nothing.
+
+Per page (ingredients fully right), only changes:
+
+| page | baseline | v9 | why |
+|---|---|---|---|
+| indianhealthyrecipes.com | 12/21 | 20/21 | second section kept to the end |
+| spendwithpennies.com | 5/12 | 12/12 | "Teriyaki Sauce" section kept |
+| thefullhelping.com | 4/10 | 10/10 | both optional sections kept |
+| inspiredtaste.net | 13/17 | 17/17 | second section kept |
+| simplyquinoa.com | 11/15 | 15/15 | "Crust" section kept; no extra section |
+| recipetineats.com | 16/18 | 18/18 | groups from the card, not the blog post's numbered list |
+| eda.ru, koket.se, pinchofyum.com | | +1 each | piece / `dl` / amount |
+| **olivemagazine.com** | 13/13 | **7/13** | v9 invents a "Coconut sambol" section from a method step ("For the coconut sambol, put…"); the list has no header |
+| **bonappetit.com** | 5/6 | **4/6** | "1 tsp Diamond Crystal or ½ tsp Morton kosher salt" → 0.75 (averaged the two brands as a range) |
+| **lazycatkitchen.com** | 14/14 | **13/14** | "approx. 50 g / 2.5 tbsp curry paste" → 50 *tablespoon* (first amount, second unit) |
+| **theguardian.com** | 10/10 | **9/10** | "**2 garlic cloves**" → unit `null`, not `clove` |
+
+The drops are real, not noise: the re-run (`markdown-new-v9-run2`) gives the same output on all 7 pages that dropped.
+Field-level drops:
+
+- **Language** (2 lost): v9 returns `en/us` and `en/au` on bonappetit.com and womensweeklyfood.com.au. The shared
+  schema allows that ("e.g. 'en' or 'en/us'"); only the scorer wants `en`.
+- **gotovim-doma.ru servings:** 4 against an expected 2 (the page gives none; both are estimates).
+- **tudogostoso.com.br times:** "Modo de preparo: 40min" goes to cook, not prep, although the prompt maps that label to
+  prep (the JSON-LD says `cookTime`).
+- **womensweeklyfood.com.au title:** v9 takes the page title ("Make our classic rum balls this festive season"); the
+  JSON-LD and expected file say "Rum balls recipe".
+
+Candidate v10 fixes, not made here: sections only from headers, never from step text; "X or Y" alternatives aren't a
+range; with two unit systems, the amount and unit both come from the first; `garlic cloves` → `clove` whatever the
+word order; tell the model the JSON-LD may appear and how to use it.
+
 ### Caveats
 
-- The pages are local conversions (turndown), not markdown.new output: lazy images stay `data:` placeholders,
+- The tuning pages (v1–v9) are local conversions (turndown), not markdown.new output: lazy images stay `data:` placeholders,
   `<button>` text is dropped, header-less tables stay HTML (eda.ru). Real markdown.new output may differ.
 - Several prompt examples come from tuning pages (e.g. "1 dl vetemjöl", "12 to 14 ounces", "Fertig in 1 Stunde 15
   Minuten"), so the tuning score is optimistic. The hold-out set was clean through v8 (98/106); v9's two examples come
