@@ -20,6 +20,11 @@ falls back to the value configured in `application*.yaml`. When **any** override
   `AdaptiveCleaningTransformerService`/`ValidatingTransformerService` (the retry-chain wrapper
   production traffic goes through). This isolates the tuning signal to one raw Gemini call per
   request, uncomplicated by retry logic.
+
+Without overrides, the endpoint hands the raw page to the production transformer, which cleans it
+itself, exactly as for `/v1/recipes`. The endpoint's own cleaning pass only fills the `verbose`
+metadata (`htmlCleanupStrategy`, sizes) and the `dumpCleanedHtml` file. Before `00cffb4`
+(2026-10-17) it passed its cleaned output instead, so such runs cleaned every page twice.
 - Invalid values (out of range, or a `model` not on the allow-list) return `400` before any
   Gemini API call is made.
 
