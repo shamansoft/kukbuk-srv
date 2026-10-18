@@ -140,5 +140,51 @@ class JsonLdRecipeReaderTest {
         assertThat(recipe.image()).isNull();
         assertThat(recipe.nutrition()).isNull();
         assertThat(recipe.ingredients()).isEmpty();
+        assertThat(recipe.author()).isNull();
+        assertThat(recipe.language()).isNull();
+        assertThat(recipe.category()).isEmpty();
+        assertThat(recipe.tags()).isEmpty();
+        assertThat(recipe.steps()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "'{\"@type\":\"Person\",\"name\":\"Ann Lee\"}'                    | Ann Lee",
+            "'[{\"@type\":\"Person\"},{\"@type\":\"Person\",\"name\":\"Bo\"}]' | Bo",
+            "'\"Kitchen Team\"'                                               | Kitchen Team",
+    })
+    void readsFirstAuthorName(String author, String name) {
+        assertThat(read("{\"author\":" + author + "}").author()).isEqualTo(name);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"en-US, en", "pt_BR, pt", "DE, de", "'not a code', ''"})
+    void readsLanguageCode(String inLanguage, String code) {
+        assertThat(read("{\"inLanguage\":\"" + inLanguage + "\"}").language()).isEqualTo(code.isEmpty() ? null : code);
+    }
+
+    @Test
+    void readsCategoryAndTagsWithCuisineFirst() {
+        JsonLdRecipe recipe = read("{\"recipeCategory\":\"Dinner, Main Course\","
+                + "\"recipeCuisine\":[\"Asian\"],\"keywords\":\"teriyaki chicken, casserole, asian\"}");
+
+        assertThat(recipe.category()).containsExactly("Dinner", "Main Course");
+        assertThat(recipe.tags()).containsExactly("Asian", "teriyaki chicken", "casserole");
+    }
+
+    @Test
+    void readsStepsFromHowToStepsAndSections() {
+        JsonLdRecipe recipe = read("{\"recipeInstructions\":[{\"@type\":\"HowToSection\",\"name\":\"Dough\","
+                + "\"itemListElement\":[{\"@type\":\"HowToStep\",\"text\":\"Mix <b>flour</b> &amp; water.\"},"
+                + "{\"@type\":\"HowToStep\",\"name\":\"Knead.\"}]},"
+                + "{\"@type\":\"HowToStep\",\"text\":\"Bake.\"},\"Cool.\"]}");
+
+        assertThat(recipe.steps()).containsExactly("Mix flour & water.", "Knead.", "Bake.", "Cool.");
+    }
+
+    @Test
+    void splitsOneTextBlockIntoSteps() {
+        assertThat(read("{\"recipeInstructions\":\"<p>Mix.</p><p>Bake 20 min.</p>\\nCool.<br>Serve.\"}").steps())
+                .containsExactly("Mix.", "Bake 20 min.", "Cool.", "Serve.");
     }
 }
