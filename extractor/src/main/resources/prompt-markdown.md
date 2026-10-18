@@ -15,6 +15,17 @@ The page was rendered in a browser and converted to Markdown. It is the whole pa
   are formatting: `▢ 2 cups [almond flour](https://...)` is "2 cups almond flour".
 - Images are `![alt](url)`. Ignore `data:` URLs (placeholders for images that had not loaded).
 - Card labels may be split over lines or repeated by the conversion: "Prep Time 15 minutes minutes" means 15 minutes.
+- **JSON-LD:** many pages also carry the publisher's schema.org data as raw JSON text, often near the end:
+  `{"@context":"https://schema.org", ... "@type":"Recipe", "name": ..., "recipeIngredient": [...], ...}` (sometimes
+  inside an `"@graph"` array, with escaped slashes `\/` and HTML entities such as `&amp;deg;`). It describes the same
+  recipe as the card. Use the `"@type":"Recipe"` object as follows:
+  - `name` → `metadata.title`; `recipeYield` → servings; `prepTime` / `cookTime` / `totalTime` → times (ISO 8601:
+    `PT40M` → "40m", `PT1H15M` → "1h 15m"); `nutrition` → nutrition; `author` → author.
+  - Ingredients and sections still come from the card's ingredient list, which has the section headers.
+    `recipeIngredient` is a flat copy without them: it never creates, removes or names a section, and an ingredient in
+    both is listed once. Use `recipeIngredient` and `recipeInstructions` only when the page has no ingredient list or
+    steps of its own.
+  - JSON-LD that describes something else (`Article`, `WebPage`, `BreadcrumbList`, `Person`) is not a recipe.
 
 **CRITICAL: MAINTAIN ORIGINAL LANGUAGE**
 
@@ -144,6 +155,8 @@ ingredient list and walk it from top to bottom:
      convert units yourself.
       - "2 ½ cups (300g) flour" → `"amount": 2.5`, `"unit": "cup"`, `"notes": "300g"`
       - "500g / 1 lb sausage" → `"amount": 500`, `"unit": "g"`, `"notes": "1 lb"`
+      - `amount` and `unit` come from the SAME quantity. "approx. 750 ml / 3 cups milk" → `"amount": 750`,
+        `"unit": "ml"`, `"notes": "approx., 3 cups"` (NOT 750 cup, NOT 3 ml)
       - "1 head garlic" → `"amount": 1`, `"unit": null`, `"item": "head of garlic"` (NOT 10 cloves)
       - A count followed by its size or weight: the count is the quantity, the size goes in `notes`.
         "1 blomkål [à ca 600 g]" → `"amount": 1`, `"unit": null`, `"notes": "à ca 600 g"`;
@@ -283,11 +296,11 @@ Always set this field (0.0–1.0) to reflect certainty that the page contains a 
 - `schema_version`: "1.0.0"
 - `recipe_version`: "1.0.0"
 - `metadata.title`: the recipe card's own name (the heading the card starts with), with its original capitalization.
-  When the page heading or the front-matter `title:` differs ("Chicken Carbonara Recipe" vs the card's "Creamy Chicken
-  Bacon Carbonara"), use the card's name.
+  When the page has JSON-LD, its Recipe `name` is that name. When the page heading or the front-matter `title:`
+  differs ("Chicken Carbonara Recipe" vs the card's "Creamy Chicken Bacon Carbonara"), use the card's name.
 - `metadata.description`: 1-sentence objective summary (no fluff, no emotions)
 - `metadata.date_created`: Use current date if not on the page
-- `metadata.servings`: the card's servings or yield number ("Servings 6", "Yields: 6 servings", "Porções 8", "4
+- `metadata.servings`: the JSON-LD `recipeYield` or the card's servings or yield number ("Servings 6", "Yields: 6 servings", "Porções 8", "4
   portioner"). A yield that is one dish or a weight ("one 13" x 18" pizza", "1 loaf", "about 2 kg of soup") is not a
   number of servings: estimate the servings from the ingredient quantities instead, as when the page gives none.
 - `ingredients`: At least one ingredient
@@ -307,7 +320,8 @@ If the page does not contain a cooking recipe (e.g., blog post, article, product
 
 **TIMES (`metadata.prep_time`, `metadata.cook_time`, `metadata.total_time`):**
 
-Fill all three keys. Copy each from the recipe card; set it to `null` only when the page gives no value for it.
+Fill all three keys. Copy each from the JSON-LD Recipe (`prepTime`, `cookTime`, `totalTime`) when the page has one,
+otherwise from the recipe card; set it to `null` only when neither gives a value for it.
 
 - Labels: "Prep Time", "Cook Time" / "Bake Time" / "Cook", "Total Time" / "Total" / "Ready in". Read them in the
   page's language too: "Zubereitung", "Fertig in" (total), "Tilberedningstid" (total), "Modo de preparo" /
@@ -327,8 +341,10 @@ Fill all three keys. Copy each from the recipe card; set it to `null` only when 
 
 **NUTRITION (`nutrition`):**
 
-Fill `nutrition` whenever the page shows nutrition facts (a "Nutrition" section, a label, or a line such as
-"Calories: 306 | Carbohydrates: 41g | Protein: 23g"). Set `nutrition: null` only when the page has none. Values are
+Fill `nutrition` whenever the page shows nutrition facts (a "Nutrition" section, a label, a line such as
+"Calories: 306 | Carbohydrates: 41g | Protein: 23g", or a JSON-LD `nutrition` object: `calories`, `proteinContent`,
+`carbohydrateContent`, `fatContent`, `fiberContent`, `sugarContent`, `sodiumContent`, `servingSize`). Set
+`nutrition: null` only when the page has none. Values are
 per serving, as plain numbers without units:
 
 | Page label | Field | Example |
@@ -345,7 +361,7 @@ per serving, as plain numbers without units:
 A value the page does not give is `null`. Ignore other nutrients (saturated fat, cholesterol, ...). Values given per
 100 g instead of per serving are still per-100 g values: copy them and set `serving_size` to "100 g".
 
-**NEVER estimate or calculate nutrition.** Every number must appear on the page next to its label. A link such as
+**NEVER estimate or calculate nutrition.** Every number must appear on the page next to its label or in the JSON-LD. A link such as
 `[Nutrition Information](/nutritional-info/62776)` is not nutrition facts: the numbers are on another page, so
 `nutrition` is `null`.
 

@@ -46,6 +46,11 @@ output keeps the JSON-LD as text, see section 8.)
   - [x] 8.2 Baseline and v9 on all 50 (`results/markdown-new-baseline`, `results/markdown-new-v9`); re-run the
     pages that dropped (`markdown-new-v9-run2`): identical
   - [x] 8.3 Per-page changes explained (Results → "Real markdown.new output")
+- [x] 9. (added 2026-10-18, at the user's request) Tell the prompt about the JSON-LD in markdown.new output
+  - [x] 9.1 Check blocked sites through markdown.new (seriouseats, allrecipes, budgetbytes)
+  - [x] 9.2 v10–v12 on the 16 tuning pages, then the 34 hold-out pages and the local sets; re-run the pages that changed
+  - [x] 9.3 Ship v12: 569 → 575/615 on markdown.new, better title / language / servings / times, no wrong quantity from
+    mixed unit systems (Results → "v10–v12")
 
 ---
 
@@ -170,7 +175,9 @@ temperature 0), server on port 8082. Tuning set: 16 pages, 209 ingredients (`mat
 | v6 | piece example moved off the aniagotuje.pl line | 206 | 11/11 | King Arthur takes grams over the first unit system on 9 lines |
 | v7 | unit word leaves the item ("garlic cloves" → garlic + clove); each time under its own label | 203 | 11/11 | **invented King Arthur nutrition** (page only links to it) |
 | v8 | never estimate nutrition; a link is not nutrition facts | 203 | 11/11 | hold-out 98/106 vs 94 |
-| **v9** | size words are notes ("1 inch", "large") | **203** | **11/11** | hold-out **100/106**; shipped |
+| v9 | size words are notes ("1 inch", "large") | 203 | 11/11 | hold-out 100/106; first PR version |
+| v10–v11 | JSON-LD in the page: title, servings, times, nutrition from it; ingredients from the card | 207, 206 | 11/11 | see "v10–v12" |
+| **v12** | v11 + amount and unit from the same quantity | **207** | **11/11** | hold-out 100/106; markdown.new 575/615; shipped |
 
 The swings in v2–v3 and the aniagotuje.pl flips match the story's lesson: grouping that depends on prompt wording moves
 with every edit. Requiring `component` in the schema (v4) fixed grouping for good: the model wrote it on the first items
@@ -278,9 +285,61 @@ Field-level drops:
 - **womensweeklyfood.com.au title:** v9 takes the page title ("Make our classic rum balls this festive season"); the
   JSON-LD and expected file say "Rum balls recipe".
 
-Candidate v10 fixes, not made here: sections only from headers, never from step text; "X or Y" alternatives aren't a
-range; with two unit systems, the amount and unit both come from the first; `garlic cloves` → `clove` whatever the
-word order; tell the model the JSON-LD may appear and how to use it.
+Candidate fixes, not made: sections only from headers, never from step text; "X or Y" alternatives aren't a range;
+with two unit systems, the amount and unit both come from the first; `garlic cloves` → `clove` whatever the word order.
+
+### v10–v12: JSON-LD guidance (v12 shipped)
+
+Blocked sites: seriouseats.com and allrecipes.com (both People Inc) block markdown.new too; it returns
+`success: true` with a 444-char "access issue" page. budgetbytes.com, which refuses our direct fetch, comes through
+whole, JSON-LD included. So on the real fallback path the JSON-LD arrives whenever markdown.new gets the page.
+
+Tuned on the markdown.new versions of the 16 tuning pages; the other 34 are the hold-out. Each version also re-ran
+the local-conversion sets (no JSON-LD) to check it doesn't hurt pages without it.
+
+| version | change |
+|---|---|
+| v10 | The page may carry schema.org JSON-LD: take title, servings, times, nutrition, author from the `"@type":"Recipe"` object; ingredients and sections stay with the card (`recipeIngredient` has no headers, never makes sections) |
+| v11 | v10's title rule reworded: the card's name, which the JSON-LD `name` gives (v10 took carlsbadcravings.com's page heading on a page without JSON-LD); dropped "the rules below are for the card" from times (v10 summed tudogostoso.com.br's local times to 80m) |
+| **v12** | v11 + "`amount` and `unit` come from the SAME quantity", example "approx. 750 ml / 3 cups milk" (not from any test page) |
+
+| measure | v9 | v10 | v11 | **v12** |
+|---|---|---|---|---|
+| markdown.new, tune 16: fully right | 203/209 | 202/209 | 202/209 | 202/209 |
+| markdown.new, hold-out 34: fully right | 366/406 | 367/406 | 381/406 | 373/406 |
+| markdown.new, all 50: fully right | 569/615 | 569/615 | 583/615 | **575/615** |
+| all 50: pages with sections fully right | 17/17 | 17/17 | 17/17 | 17/17 |
+| all 50: servings | 46/50 | 47/50 | 48/50 | 47/50 |
+| all 50: prep / cook / total time | 121/125 | 122/125 | 122/125 | 122/125 |
+| all 50: title | 48/50 | 49/50 | 49/50 | 49/50 |
+| all 50: language | 47/50 | 49/50 | 49/50 | 48/50 |
+| all 50: wrong amount / wrong unit | 3 / 14 | 3 / 16 | 1 / 17 | 2 / 17 |
+| local tuning 16: fully right / times | 203 / 32 | 207 / 30 | 206 / 31 | **207 / 33** |
+| local hold-out 8: fully right | 100/106 | 101/106 | 100/106 | 100/106 |
+
+Why v12 over v11, which scores 8 more on markdown.new: the 8 are all archanaskitchen.com. Its list has one header
+above all 16 ingredients ("For the ghee roast masala"), so by the prompt's rule all 16 belong to it. v9, v10 and v12
+split them 8 "main" / 8 masala; v11 puts all 16 in "main", which the scorer counts as right (it accepts any single
+group when the page has one). Neither is what the rule asks, and the page flips with unrelated wording changes.
+Without it v11 and v12 tie (365/390 on the hold-out). v12 fixes a real quantity error v11 has: lazycatkitchen.com
+"approx. 50 g / 2.5 tbsp curry paste" → 50 *tablespoon* and "1.25 l / 5 cups stock" → 1.25 *cup* (v9 has the first).
+
+v12 against v9, all 50, per page:
+
+- **Better:** olivemagazine.com 7→13/13 (no invented "Coconut sambol" section), bonappetit.com 4→6/6 (salt 1 tsp, not
+  0.75; language), lazycatkitchen.com 13→14/14 (curry paste 50 g), tudogostoso.com.br times (JSON-LD `prepTime`),
+  womensweeklyfood.com.au title ("Rum balls recipe").
+- **Worse:** eda.ru 5→4/5 ("2 штуки" → no unit; flipped between versions before), recipetineats.com 18→17 and
+  indianhealthyrecipes.com 20→19/21 ("garlic cloves" → no `clove`, though the prompt has that example), and
+  indianhealthyrecipes.com "2 inch Ceylon cinnamon piece" → 2, no unit (the prompt's own "1 inch ginger" rule; the
+  expected file says 1 piece). Every amount in these is right; only the unit label is missing.
+- Re-runs (`markdown-new-v10-run2`, `markdown-new-v12-run2`) gave identical output on every page re-sent.
+- No invented nutrition (checked every returned value against the page text; the one miss is ptitchef.com's 0.7 g
+  sodium given as 700 mg).
+
+Still open: the "garlic cloves" → `clove` slip and archanaskitchen.com's single-header page. The bigger step would be
+sending the JSON-LD the way the HTML path does (extracted by the server, story 9) rather than leaving it in the page
+text.
 
 ### Caveats
 
