@@ -235,10 +235,11 @@ public class DebugController {
                     }
                 }
 
-                // 2c. Transform to Recipe using Gemini
+                // 2c. Transform to Recipe using Gemini. The production transformer cleans the HTML itself,
+                // so it gets the raw page, exactly as RecipeService passes it; cleaning it twice changes the input
                 transformResponse = hasOverrides
                         ? geminiRestTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
-                        : transformer.transform(preprocessed.cleanedHtml(), url);
+                        : transformer.transform(htmlContent, url);
 
                 long transformTime = System.currentTimeMillis() - transformStart;
                 if (request.isVerbose()) {

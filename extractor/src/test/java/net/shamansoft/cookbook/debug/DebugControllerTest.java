@@ -149,6 +149,30 @@ class DebugControllerTest {
     }
 
     @Test
+    @DisplayName("testTransform passes the raw page to the production transformer, not the pre-cleaned one")
+    void testTransformPassesRawHtmlToProductionTransformer() throws IOException, Exception {
+        String htmlText = "<html><head><script type=\"application/ld+json\">{}</script></head><body>Recipe</body></html>";
+        RecipeRequest request = new RecipeRequest(
+                null, htmlText, null, "yaml", "auto",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null
+        );
+        Recipe recipe = createTestRecipe("Test Recipe");
+        HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
+                "{}", htmlText.length(), 2, 0.9, Strategy.STRUCTURED_DATA, "test"
+        );
+
+        when(htmlPreprocessor.process(htmlText, "text-input")).thenReturn(cleanResults);
+        when(transformer.transform(htmlText, "text-input")).thenReturn(Transformer.Response.recipe(recipe));
+        when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
+
+        controller.testTransform(request);
+
+        verify(transformer).transform(htmlText, "text-input");
+        verify(transformer, never()).transform(eq("{}"), anyString());
+    }
+
+    @Test
     @DisplayName("testTransform without URL or text - bad request")
     void testTransformWithoutUrlOrText() throws IOException, Exception {
         RecipeRequest request = new RecipeRequest(
