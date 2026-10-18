@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Adaptive HTML cleaning transformer that implements a feedback loop between
@@ -42,6 +43,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
     private final HtmlCleaner htmlCleaner;
     private final JsonLdFieldOverwriter jsonLdFields;
     private final CardSectionAssigner cardSections;
+    private final AnchoredJsonLdExtractor anchoredJsonLd;
 
     @Value("${recipe.adaptive-cleaning.enabled:true}")
     private boolean enabled;
@@ -63,6 +65,12 @@ public class AdaptiveCleaningTransformerService implements Transformer {
         // Initial clean using the full cascade (picks the best strategy)
         HtmlCleaner.Results initial = htmlCleaner.process(rawHtml, sourceUrl);
         log.info("Initial HTML cleaning - URL: {}, {}", sourceUrl, initial.metricsMessage());
+
+        // A page with a schema.org Recipe takes the JSON-LD path; any failure there falls through to full extraction
+        Optional<Response> anchored = anchoredJsonLd.extract(initial, sourceUrl);
+        if (anchored.isPresent()) {
+            return anchored.get();
+        }
 
         Response result = extract(initial, sourceUrl);
 

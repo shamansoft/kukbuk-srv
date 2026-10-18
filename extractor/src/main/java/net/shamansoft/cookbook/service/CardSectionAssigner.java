@@ -100,6 +100,11 @@ public class CardSectionAssigner {
                 List.of(withIngredients(recipe, assigned)), response.rawLlmResponse());
     }
 
+    /** The card gives every JSON-LD line its section: one card line per JSON-LD line, and at least one heading. */
+    static boolean givesSections(List<Row> rows, int jsonLdLines) {
+        return rows.size() == jsonLdLines && rows.stream().anyMatch(r -> r.group() != null);
+    }
+
     /**
      * Each ingredient takes the group of the card line that matches it best: two points per shared word of the item,
      * one per shared word of the notes, one when the line holds the amount. Ties go to the first line at or after the

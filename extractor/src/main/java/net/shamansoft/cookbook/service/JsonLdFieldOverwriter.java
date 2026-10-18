@@ -146,7 +146,7 @@ public class JsonLdFieldOverwriter {
     }
 
     // A name the model only trimmed ("Creamy Lemon Chicken Recipe by Tasty" -> "Creamy Lemon Chicken") keeps the trim
-    private static String title(String page, String model) {
+    static String title(String page, String model) {
         if (page == null) return model;
         if (model == null || model.isBlank()) return page;
         String trimmed = model.trim();
