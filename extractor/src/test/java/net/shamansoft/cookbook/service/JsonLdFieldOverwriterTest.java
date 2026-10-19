@@ -122,6 +122,19 @@ class JsonLdFieldOverwriterTest {
     }
 
     @Test
+    void recognisesLinesWhoseLongestWordIsTheUnit() {
+        String jsonLd = "{\"@type\":\"Recipe\",\"name\":\"Carrot Cake\","
+                + "\"recipeIngredient\":[\"2 tablespoons carrots\",\"1 &frac12; teaspoons oil\",\"1 tsp cinnamon\"]}";
+        Recipe recipe = new Recipe(true, "1.0.0", "1.0.0", modelRecipe().metadata(), null,
+                List.of(new Ingredient("carrots", "2", "tablespoon", null, false, null, "main"),
+                        new Ingredient("oil", "1.5", "teaspoon", null, false, null, "main")),
+                null, modelRecipe().instructions(), null, null, null);
+
+        assertThat(apply(recipe, jsonLd, Strategy.STRUCTURED_DATA).recipe().metadata().title())
+                .isEqualTo("Carrot Cake");
+    }
+
+    @Test
     void keepsModelCoverWhenJsonLdHasNoImage() {
         Recipe recipe = apply(modelRecipe(), "{\"@type\":\"Recipe\",\"name\":\"Carrot Cake\"}",
                 Strategy.STRUCTURED_DATA).recipe();

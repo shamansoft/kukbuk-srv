@@ -41,6 +41,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
     private final ValidatingTransformerService innerTransformer;
     private final HtmlCleaner htmlCleaner;
     private final JsonLdFieldOverwriter jsonLdFields;
+    private final CardSectionAssigner cardSections;
 
     @Value("${recipe.adaptive-cleaning.enabled:true}")
     private boolean enabled;
@@ -63,8 +64,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
         HtmlCleaner.Results initial = htmlCleaner.process(rawHtml, sourceUrl);
         log.info("Initial HTML cleaning - URL: {}, {}", sourceUrl, initial.metricsMessage());
 
-        Response result = jsonLdFields.apply(innerTransformer.transform(initial.cleanedHtml(), sourceUrl), initial,
-                sourceUrl);
+        Response result = extract(initial, sourceUrl);
 
         if (!enabled) {
             return result;
@@ -92,8 +92,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
                     result.confidence(), confidenceThreshold, nextStrategy, sourceUrl);
 
             HtmlCleaner.Results retryClean = htmlCleaner.processWithStrategy(rawHtml, sourceUrl, nextStrategy);
-            result = jsonLdFields.apply(innerTransformer.transform(retryClean.cleanedHtml(), sourceUrl), retryClean,
-                    sourceUrl);
+            result = extract(retryClean, sourceUrl);
 
             if (result.isRecipe()) {
                 log.info("Recipe found after {} strategy for URL: {}", nextStrategy, sourceUrl);
@@ -109,6 +108,12 @@ public class AdaptiveCleaningTransformerService implements Transformer {
 
         log.info("All {} cleaning strategies exhausted for URL: {}", Strategy.ADAPTIVE_ORDER.size(), sourceUrl);
         return result;
+    }
+
+    /** The model's answer for one cleaning, with what the JSON-LD and the recipe card fix in code applied. */
+    private Response extract(HtmlCleaner.Results cleaned, String sourceUrl) {
+        Response response = innerTransformer.transform(cleaned.cleanedHtml(), sourceUrl);
+        return jsonLdFields.apply(cardSections.apply(response, cleaned, sourceUrl), cleaned, sourceUrl);
     }
 
     /**

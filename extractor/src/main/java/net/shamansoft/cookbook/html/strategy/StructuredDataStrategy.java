@@ -29,6 +29,7 @@ import java.util.Optional;
 public class StructuredDataStrategy implements CleanupStrategy {
 
     private static final String CARD_START = "\n\n<" + RecipeCardCutter.TAG + ">\n";
+    private static final String CARD_END = "\n</" + RecipeCardCutter.TAG + ">";
 
     private final HtmlCleanupConfig config;
     private final ObjectMapper objectMapper;
@@ -86,6 +87,14 @@ public class StructuredDataStrategy implements CleanupStrategy {
         return card < 0 ? cleaned : cleaned.substring(0, card);
     }
 
+    /** The ingredient card part of this strategy's output, if one was found. */
+    public static Optional<String> card(String cleaned) {
+        int start = cleaned.indexOf(CARD_START);
+        int end = cleaned.lastIndexOf(CARD_END);
+        if (start < 0 || end < start + CARD_START.length()) return Optional.empty();
+        return Optional.of(cleaned.substring(start + CARD_START.length(), end));
+    }
+
     private String withIngredientCard(Document doc, JsonNode recipe, String jsonString) {
         if (!config.getStructuredData().isIncludeIngredientCard()) return jsonString;
         Optional<String> card;
@@ -99,7 +108,7 @@ public class StructuredDataStrategy implements CleanupStrategy {
         meterRegistry.counter("html.preprocessing.ingredient_card", "found", String.valueOf(card.isPresent()))
                 .increment();
         return card
-                .map(block -> jsonString + CARD_START + block + "\n</" + RecipeCardCutter.TAG + ">")
+                .map(block -> jsonString + CARD_START + block + CARD_END)
                 .orElse(jsonString);
     }
 

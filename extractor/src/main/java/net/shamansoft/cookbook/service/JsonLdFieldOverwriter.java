@@ -10,13 +10,18 @@ import net.shamansoft.recipe.model.CoverImage;
 import net.shamansoft.recipe.model.Nutrition;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
+import org.jsoup.parser.Parser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,6 +36,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JsonLdFieldOverwriter {
 
+    private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
+    // Three-letter words that say nothing about which recipe it is; longer words match as substrings (plurals)
+    private static final Set<String> SHORT_FILLERS = Set.of(
+            "and", "the", "for", "cup", "tsp", "can", "jar", "box", "bag", "pkg", "und", "mit", "les", "des", "con",
+            "per", "och", "med", "til", "или", "для");
     private static final Pattern SITE_SUFFIX = Pattern.compile(
             "\\s*(?:[-–—|:]|by\\b|recipes?\\b|rezept\\b|receita\\b|recette\\b|ricetta\\b|receta\\b|рецепт)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
@@ -74,15 +84,30 @@ public class JsonLdFieldOverwriter {
                 List.of(overwrite(response.recipe(), fields, sourceUrl)), response.rawLlmResponse());
     }
 
-    // At least half of the JSON-LD ingredient lines show up among the recipe's ingredients
+    // At least half of the JSON-LD ingredient lines show up among the recipe's ingredients. A line shows up when any
+    // of its words does, not only its longest: that is often the unit ("1 ½ teaspoons chili powder")
     private static boolean describes(JsonLdRecipe fields, Recipe recipe) {
-        List<String> keys = JsonLdRecipeReader.keyWords(fields.ingredients());
-        if (keys.isEmpty() || recipe.ingredients() == null) return keys.isEmpty();
+        List<List<String>> lines = fields.ingredients().stream()
+                .map(line -> words(Parser.unescapeEntities(line, false)))
+                .filter(words -> !words.isEmpty())
+                .toList();
+        if (lines.isEmpty() || recipe.ingredients() == null) return lines.isEmpty();
         String items = recipe.ingredients().stream()
                 .map(i -> i.item() + " " + Objects.toString(i.notes(), ""))
                 .collect(Collectors.joining(" "))
                 .toLowerCase(Locale.ROOT);
-        return keys.stream().filter(items::contains).count() * 2 >= keys.size();
+        Set<String> itemWords = new HashSet<>(words(items));
+        return lines.stream()
+                .filter(words -> words.stream().anyMatch(w -> w.length() > 3 ? items.contains(w)
+                        : itemWords.contains(w) && !SHORT_FILLERS.contains(w)))
+                .count() * 2 >= lines.size();
+    }
+
+    private static List<String> words(String text) {
+        List<String> words = new ArrayList<>();
+        Matcher m = WORD.matcher(text.toLowerCase(Locale.ROOT));
+        while (m.find()) words.add(m.group());
+        return words;
     }
 
     Recipe overwrite(Recipe recipe, JsonLdRecipe fields, String sourceUrl) {

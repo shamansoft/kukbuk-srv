@@ -127,6 +127,14 @@ class StructuredDataStrategyTest {
         assertThat(objectMapper.readTree(json).get("name").asText()).isEqualTo("Pie");
         assertThat(out.get()).endsWith("</RECIPE_CARD_INGREDIENTS>")
                 .contains("<h3>Dough</h3>", "<h3>Filling</h3>");
+        assertThat(StructuredDataStrategy.jsonLd(out.get())).isEqualTo(json);
+        assertThat(StructuredDataStrategy.card(out.get())).hasValueSatisfying(card ->
+                assertThat(card).startsWith("<div>").endsWith("</div>").doesNotContain("RECIPE_CARD"));
+    }
+
+    @Test
+    void cardIsEmptyForJsonLdAlone() {
+        assertThat(StructuredDataStrategy.card(RECIPE)).isEmpty();
     }
 
     @Test

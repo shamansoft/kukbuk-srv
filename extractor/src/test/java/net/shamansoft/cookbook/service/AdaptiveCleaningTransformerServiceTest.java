@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.service;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.shamansoft.cookbook.html.HtmlCleaner;
 import net.shamansoft.cookbook.html.strategy.Strategy;
 import net.shamansoft.recipe.model.Ingredient;
@@ -40,6 +41,8 @@ class AdaptiveCleaningTransformerServiceTest {
 
     private JsonLdFieldOverwriter jsonLdFields;
 
+    private CardSectionAssigner cardSections;
+
     private static final String RAW_HTML = "<html><body>Recipe content</body></html>";
     private static final String CLEANED_HTML = "<div>Recipe content</div>";
     private static final String SOURCE_URL = "https://example.com/recipe";
@@ -47,7 +50,8 @@ class AdaptiveCleaningTransformerServiceTest {
     @BeforeEach
     void setUp() {
         jsonLdFields = new JsonLdFieldOverwriter(new ObjectMapper());
-        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields);
+        cardSections = new CardSectionAssigner(new ObjectMapper(), new SimpleMeterRegistry());
+        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields, cardSections);
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.5);
     }
@@ -212,6 +216,27 @@ class AdaptiveCleaningTransformerServiceTest {
 
         assertThat(result.recipe().metadata().title()).isEqualTo("Pasta alla Norma");
         assertThat(result.recipe().metadata().servings()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Takes ingredient sections from the recipe card on the JSON-LD path")
+    void transform_appliesCardSections() {
+        ReflectionTestUtils.setField(cardSections, "enabled", true);
+        String cleaned = "{\"@type\":\"Recipe\",\"recipeIngredient\":[\"1 cup flour\",\"1 cup sugar\"]}"
+                + "\n\n<RECIPE_CARD_INGREDIENTS>\n<div><ul><li>1 cup flour</li></ul>"
+                + "<h4>Glaze</h4><ul><li>1 cup sugar</li></ul></div>\n</RECIPE_CARD_INGREDIENTS>";
+        Recipe recipe = createRecipe("Cake");
+        Recipe twoLines = new Recipe(true, "1.0.0", "1.0.0", recipe.metadata(), recipe.description(),
+                List.of(new Ingredient("flour", "1", "cup", null, false, null, "main"),
+                        new Ingredient("sugar", "1", "cup", null, false, null, "main")),
+                null, recipe.instructions(), null, null, null);
+
+        when(htmlCleaner.process(RAW_HTML, SOURCE_URL)).thenReturn(buildCleanerResult(cleaned, Strategy.STRUCTURED_DATA));
+        when(innerTransformer.transform(cleaned, SOURCE_URL)).thenReturn(Transformer.Response.recipe(twoLines));
+
+        Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
+
+        assertThat(result.recipe().ingredients()).extracting(Ingredient::component).containsExactly("main", "Glaze");
     }
 
     private HtmlCleaner.Results buildCleanerResult(String html, Strategy strategy) {
