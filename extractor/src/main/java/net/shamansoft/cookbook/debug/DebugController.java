@@ -147,7 +147,10 @@ public class DebugController {
         }
         // Tuning calls are never cached: a result produced with non-default generation
         // parameters must never be read back as (or overwrite) the canonical cached recipe.
-        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides;
+        // The cache is keyed by URL only, so Markdown input (which would share the HTML entry for
+        // the same URL) and text without a URL (which would all share one "text-input" key) skip it too.
+        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides || request.isMarkdown()
+                || !request.hasUrl();
 
         // Build response with metadata tracking
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder();

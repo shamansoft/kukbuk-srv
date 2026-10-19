@@ -55,18 +55,6 @@ public record RecipeRequest(
     public static final String FORMAT_HTML = "html";
     public static final String FORMAT_MARKDOWN = "markdown";
 
-    public RecipeRequest(String url, String text, String compression, String returnFormat, String cleanHtml,
-                         Boolean skipCache, Boolean verbose, Boolean dumpRawHtml, Boolean dumpExtractedHtml,
-                         Boolean dumpCleanedHtml, Boolean dumpLLMResponse, Boolean dumpResultJson,
-                         Boolean dumpResultYaml, Float temperature, Double topP, Integer maxOutputTokens,
-                         Integer thinkingBudget, String model, Integer topK, Integer seed, Float presencePenalty,
-                         Float frequencyPenalty, List<String> stopSequences) {
-        this(url, text, compression, returnFormat, cleanHtml, skipCache, verbose, dumpRawHtml, dumpExtractedHtml,
-                dumpCleanedHtml, dumpLLMResponse, dumpResultJson, dumpResultYaml, temperature, topP,
-                maxOutputTokens, thinkingBudget, model, topK, seed, presencePenalty, frequencyPenalty,
-                stopSequences, null);
-    }
-
     public boolean hasUrl() {
         return url != null && !url.isEmpty();
     }

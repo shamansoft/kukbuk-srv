@@ -64,6 +64,9 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
 - When any override is set, the request **bypasses the cache entirely** — no read, no write. A
   result produced with non-default parameters must never be served back to (or contaminate) real
   `/v1/recipes` traffic reading from the same cache.
+- The cache is keyed by URL alone, so two more cases also bypass it: `contentFormat: "markdown"` (it
+  would share the HTML entry for the same URL) and `text` without a `url` (every such request would
+  share one `"text-input"` key).
 - When any override is set, the request calls `GeminiRestTransformer` directly, **bypassing**
   `AdaptiveCleaningTransformerService`/`ValidatingTransformerService` (the retry-chain wrapper
   used by production traffic). This isolates the tuning signal to one raw Gemini call per
