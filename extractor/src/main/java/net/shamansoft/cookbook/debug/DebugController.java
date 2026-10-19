@@ -92,6 +92,8 @@ public class DebugController {
      * - returnFormat: "yaml" (default) or "json"
      * - cleanHtml: "auto" (default), "structured", "section", "content", "raw",
      * "disabled"
+     * - contentFormat: "html" (default) or "markdown" (text only: not cleaned, sent with the Markdown prompt,
+     * as POST /v1/recipes/url sends a page fetched through markdown.new)
      * - skipCache: Skip recipe caching (default: false)
      * - verbose: Include detailed processing metadata (default: false)
      * <p>
@@ -122,6 +124,17 @@ public class DebugController {
                     .body("{\"error\": \"Either 'url' or 'text' field is required\"}");
         }
 
+        if (!RecipeRequest.FORMAT_HTML.equals(request.getContentFormat()) && !request.isMarkdown()) {
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"contentFormat must be 'html' or 'markdown'\"}");
+        }
+        if (request.isMarkdown() && !request.hasText()) {
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"contentFormat 'markdown' needs the Markdown in 'text'\"}");
+        }
+
         GenerationOverrides overrides = request.overrides();
         boolean hasOverrides = !overrides.isEmpty();
         if (hasOverrides) {
@@ -134,7 +147,10 @@ public class DebugController {
         }
         // Tuning calls are never cached: a result produced with non-default generation
         // parameters must never be read back as (or overwrite) the canonical cached recipe.
-        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides;
+        // The cache is keyed by URL only, so Markdown input (which would share the HTML entry for
+        // the same URL) and text without a URL (which would all share one "text-input" key) skip it too.
+        boolean effectiveSkipCache = request.isSkipCache() || hasOverrides || request.isMarkdown()
+                || !request.hasUrl();
 
         // Build response with metadata tracking
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder();
@@ -209,8 +225,9 @@ public class DebugController {
                     }
                 }
 
-                // 2b. Preprocess HTML (with configurable strategy)
-                HtmlCleaner.Results preprocessed = preprocessHtml(htmlContent, url, request.getCleanHtml());
+                // 2b. Preprocess HTML (with configurable strategy). Production never cleans Markdown
+                HtmlCleaner.Results preprocessed = preprocessHtml(htmlContent, url,
+                        request.isMarkdown() ? "disabled" : request.getCleanHtml());
 
                 if (request.isVerbose()) {
                     metadataBuilder
@@ -237,9 +254,15 @@ public class DebugController {
 
                 // 2c. Transform to Recipe using Gemini. The production transformer cleans the HTML itself,
                 // so it gets the raw page, exactly as RecipeService passes it; cleaning it twice changes the input
-                transformResponse = hasOverrides
-                        ? geminiRestTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
-                        : transformer.transform(htmlContent, url);
+                if (request.isMarkdown()) {
+                    transformResponse = hasOverrides
+                            ? geminiRestTransformer.transformMarkdownWithOverrides(htmlContent, overrides)
+                            : transformer.transformMarkdown(htmlContent, url);
+                } else {
+                    transformResponse = hasOverrides
+                            ? geminiRestTransformer.transformWithOverrides(preprocessed.cleanedHtml(), overrides)
+                            : transformer.transform(htmlContent, url);
+                }
 
                 long transformTime = System.currentTimeMillis() - transformStart;
                 if (request.isVerbose()) {

@@ -100,7 +100,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -129,7 +129,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 null, htmlText, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Test Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -155,7 +155,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 null, htmlText, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Test Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -178,7 +178,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 null, null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -194,7 +194,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Not a recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -220,7 +220,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -246,7 +246,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -275,7 +275,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, "gemini-3.5-flash-lite", null, null, null, null, null
+                null, null, null, null, "gemini-3.5-flash-lite", null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -301,7 +301,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 true, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -327,7 +327,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -355,7 +355,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         Recipe recipe = createTestRecipe("Cached Recipe");
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -380,7 +380,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/notrecipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         RecipeStoreService.CachedRecipes cached = new RecipeStoreService.CachedRecipes(false, List.of());
 
@@ -400,7 +400,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipes", null, null, "json", "auto",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Multiple recipes</body></html>";
         Recipe recipe1 = createTestRecipe("Recipe 1");
@@ -427,7 +427,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, true, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         HtmlCleaner.Results cleanResults = new HtmlCleaner.Results(
@@ -452,7 +452,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "raw",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -475,7 +475,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "disabled",
                 null, false, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -497,7 +497,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, false, null, null, null, null, null, null,
-                0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null
+                0.2f, null, null, null, "gemini-2.5-pro", null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -524,7 +524,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "yaml", "auto",
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe content</body></html>";
         Recipe recipe = createTestRecipe("Test Recipe");
@@ -549,7 +549,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                3.0f, null, null, null, null, null, null, null, null, null
+                3.0f, null, null, null, null, null, null, null, null, null, null
         );
 
         ResponseEntity<?> response = controller.testTransform(request);
@@ -568,7 +568,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                0.2f, null, null, null, null, null, null, null, null, null
+                0.2f, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -593,7 +593,7 @@ class DebugControllerTest {
         RecipeRequest request = new RecipeRequest(
                 "https://example.com/recipe", null, null, "json", "auto",
                 null, null, null, null, null, null, null, null,
-                0.2f, null, null, null, null, null, null, null, null, null
+                0.2f, null, null, null, null, null, null, null, null, null, null
         );
         String htmlContent = "<html><body>Recipe</body></html>";
         Recipe recipe = createTestRecipe("Tuned Recipe");
@@ -611,6 +611,100 @@ class DebugControllerTest {
 
         verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
         verify(recipeStoreService, never()).storeInvalidRecipe(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with Markdown input neither reads nor writes the URL-keyed cache")
+    void testTransformMarkdownSkipsCache() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                "https://example.com/recipe", "# Recipe", null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, "markdown");
+        when(transformer.transformMarkdown("# Recipe", "https://example.com/recipe"))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe("Md Recipe")));
+
+        controller.testTransform(request);
+
+        verify(recipeStoreService, never()).findCachedRecipes(anyString());
+        verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("testTransform with text and no URL neither reads nor writes the cache")
+    void testTransformTextWithoutUrlSkipsCache() throws IOException, Exception {
+        RecipeRequest request = new RecipeRequest(
+                null, "<html>Recipe</html>", null, "json", "auto",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null);
+        lenient().when(htmlPreprocessor.process(anyString(), anyString())).thenReturn(new HtmlCleaner.Results(
+                "<html>Recipe</html>", 19, 19, 0.0, Strategy.DISABLED, "Strategy: DISABLED"));
+        when(transformer.transform("<html>Recipe</html>", "text-input"))
+                .thenReturn(Transformer.Response.recipe(createTestRecipe("Text Recipe")));
+
+        controller.testTransform(request);
+
+        verify(recipeStoreService, never()).findCachedRecipes(anyString());
+        verify(recipeStoreService, never()).storeValidRecipes(anyString(), anyString(), any());
+    }
+
+    private static RecipeRequest markdownRequest(String url, String text, Float temperature, String contentFormat) {
+        return new RecipeRequest(
+                url, text, null, "json", "auto",
+                true, null, null, null, null, null, null, null,
+                temperature, null, null, null, null, null, null, null, null, null, contentFormat
+        );
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown skips HTML cleaning and uses transformMarkdown")
+    void testTransformMarkdownRoutesToTransformMarkdown() throws IOException, Exception {
+        String markdown = "# Cookies\n\n- 1 cup flour";
+        Recipe recipe = createTestRecipe("Cookies");
+        when(transformer.transformMarkdown(markdown, "text-input")).thenReturn(Transformer.Response.recipe(recipe));
+
+        ResponseEntity<?> response = controller.testTransform(markdownRequest(null, markdown, null, "Markdown"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+        verify(transformer).transformMarkdown(markdown, "text-input");
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(htmlPreprocessor, never()).process(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown and overrides uses transformMarkdownWithOverrides")
+    void testTransformMarkdownWithOverridesRoutesToGeminiRestTransformer() throws IOException, Exception {
+        String markdown = "# Cookies\n\n- 1 cup flour";
+        Recipe recipe = createTestRecipe("Cookies");
+        when(geminiRestTransformer.transformMarkdownWithOverrides(eq(markdown), any(GenerationOverrides.class)))
+                .thenReturn(Transformer.Response.recipe(recipe));
+
+        controller.testTransform(markdownRequest(null, markdown, 0.2f, "markdown"));
+
+        verify(geminiRestTransformer).transformMarkdownWithOverrides(eq(markdown), any(GenerationOverrides.class));
+        verify(geminiRestTransformer, never()).transformWithOverrides(anyString(), any());
+        verify(transformer, never()).transformMarkdown(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("testTransform with contentFormat=markdown and no text is a bad request")
+    void testTransformMarkdownWithoutTextReturnsBadRequest() throws IOException, Exception {
+        ResponseEntity<?> response = controller.testTransform(
+                markdownRequest("https://example.com/recipe", null, null, "markdown"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("text");
+        verify(htmlExtractor, never()).extractHtml(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("testTransform with an unknown contentFormat is a bad request")
+    void testTransformUnknownContentFormatReturnsBadRequest() throws IOException, Exception {
+        ResponseEntity<?> response = controller.testTransform(markdownRequest(null, "text", null, "pdf"));
+
+        assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+        assertThat((String) response.getBody()).contains("contentFormat");
+        verify(transformer, never()).transform(anyString(), anyString());
+        verify(transformer, never()).transformMarkdown(anyString(), anyString());
     }
 
     @Test

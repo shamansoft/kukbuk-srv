@@ -29,7 +29,9 @@ metadata (`htmlCleanupStrategy`, sizes) and the `dumpCleanedHtml` file. Before `
   Gemini API call is made.
 
 Implementation: `GenerationOverrides` (`extractor/src/main/java/.../service/gemini/GenerationOverrides.java`),
-wired through `RequestBuilder.buildRequest(html, overrides)` → `GeminiRequest.GenerationConfig`.
+wired through `RequestBuilder.buildRequest(html, overrides)` → `GeminiRequest.GenerationConfig`. With
+`"contentFormat": "markdown"` ([debug-flags.md](debug-flags.md#markdown-pages-contentformat)) the overrides go
+through `RequestBuilder.buildMarkdownRequest(markdown, overrides)` instead.
 
 ---
 

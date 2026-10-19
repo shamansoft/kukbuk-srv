@@ -46,8 +46,15 @@ public record RecipeRequest(
         Integer seed,
         Float presencePenalty,
         Float frequencyPenalty,
-        List<String> stopSequences
+        List<String> stopSequences,
+
+        // Format of `text` (optional, default: html). "markdown" sends it the way POST /v1/recipes/url
+        // sends a page fetched through markdown.new: no HTML cleaning, Markdown prompt.
+        String contentFormat
 ) {
+    public static final String FORMAT_HTML = "html";
+    public static final String FORMAT_MARKDOWN = "markdown";
+
     public boolean hasUrl() {
         return url != null && !url.isEmpty();
     }
@@ -62,6 +69,14 @@ public record RecipeRequest(
 
     public String getCleanHtml() {
         return cleanHtml != null ? cleanHtml.toLowerCase() : "auto";
+    }
+
+    public String getContentFormat() {
+        return contentFormat != null ? contentFormat.toLowerCase() : FORMAT_HTML;
+    }
+
+    public boolean isMarkdown() {
+        return FORMAT_MARKDOWN.equals(getContentFormat());
     }
 
     public boolean isSkipCache() {

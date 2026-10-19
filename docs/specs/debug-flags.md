@@ -64,6 +64,9 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
 - When any override is set, the request **bypasses the cache entirely** — no read, no write. A
   result produced with non-default parameters must never be served back to (or contaminate) real
   `/v1/recipes` traffic reading from the same cache.
+- The cache is keyed by URL alone, so two more cases also bypass it: `contentFormat: "markdown"` (it
+  would share the HTML entry for the same URL) and `text` without a `url` (every such request would
+  share one `"text-input"` key).
 - When any override is set, the request calls `GeminiRestTransformer` directly, **bypassing**
   `AdaptiveCleaningTransformerService`/`ValidatingTransformerService` (the retry-chain wrapper
   used by production traffic). This isolates the tuning signal to one raw Gemini call per
@@ -75,6 +78,22 @@ curl -X POST http://localhost:8080/debug/v1/recipes \
   `request(req, class, modelOverride)`, etc.) — the existing no-overrides methods used by
   production code paths (`RecipeService`, `POST /v1/recipes`, `POST /v1/recipes/custom`) are
   unchanged and still call into the same code as before.
+
+---
+
+## Markdown pages: `contentFormat`
+
+`"contentFormat": "markdown"` sends `text` the way `POST /v1/recipes/url` sends a page it fetched through
+markdown.new: no HTML cleaning, `Transformer.transformMarkdown`, the Markdown prompt (`prompt-markdown.md`) and the
+Markdown response schema (`component` required on every ingredient). With overrides it goes to
+`GeminiRestTransformer.transformMarkdownWithOverrides`. Default `"html"`. `markdown` without `text` → `400` (the
+endpoint never calls markdown.new); any other value → `400`.
+
+```bash
+curl -X POST http://localhost:8080/debug/v1/recipes \
+  -H "Content-Type: application/json" \
+  -d '{"text": "# Pancakes\n\n### Ingredients\n\n- 1 1/2 cups flour\n- 2 eggs", "contentFormat": "markdown", "returnFormat": "json"}'
+```
 
 ---
 

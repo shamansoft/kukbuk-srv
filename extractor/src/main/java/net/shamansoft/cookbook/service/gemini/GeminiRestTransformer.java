@@ -96,8 +96,22 @@ public class GeminiRestTransformer implements Transformer {
      * so a single call reflects exactly the given parameters.
      */
     public Response transformWithOverrides(String htmlContent, GenerationOverrides overrides) {
+        return transformWithOverrides(htmlContent, PageContent.Format.HTML, overrides);
+    }
+
+    /**
+     * Markdown counterpart of {@link #transformWithOverrides(String, GenerationOverrides)}.
+     */
+    public Response transformMarkdownWithOverrides(String markdown, GenerationOverrides overrides) {
+        return transformWithOverrides(markdown, PageContent.Format.MARKDOWN, overrides);
+    }
+
+    private Response transformWithOverrides(String htmlContent, PageContent.Format format,
+                                            GenerationOverrides overrides) {
         try {
-            GeminiRequest request = requestBuilder.buildRequest(htmlContent, overrides);
+            GeminiRequest request = format == PageContent.Format.MARKDOWN
+                    ? requestBuilder.buildMarkdownRequest(htmlContent, overrides)
+                    : requestBuilder.buildRequest(htmlContent, overrides);
             GeminiResponse<GeminiExtractionResult> geminiResponse =
                     geminiClient.request(request, GeminiExtractionResult.class,
                             overrides != null ? overrides.model() : null);
