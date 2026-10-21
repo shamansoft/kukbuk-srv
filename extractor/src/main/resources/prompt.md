@@ -91,10 +91,12 @@ Before parsing ingredients, scan the HTML for ingredient section headers:
      measurement unit, YOU ARE DOING IT WRONG.
    * **Unit field WHITELIST (use EXACTLY as shown, singular form, NO additions):**
       - Weight: g, kg, mg, oz, lb, pound
-      - Volume: ml, l, cup, tablespoon, teaspoon, fl oz, pint, quart, gallon
+      - Volume: ml, cl, dl, l, cup, tablespoon, teaspoon, fl oz, pint, quart, gallon
       - Count: clove, slice, sprig, piece
       - Packaging: bottle, jar, can, bar, package, box, bag
       - Temperature: °C, °F
+   * **Keep metric volumes as written:** "1 dl vetemjöl" → `"amount": 1`, `"unit": "dl"` (NOT cup: a decilitre is
+     not a cup); "2 cl" → `"unit": "cl"`. Never convert between unit systems.
    * **FORBIDDEN in unit field:** Any parentheses, any commas, any descriptive text, any preparation methods
    * **Notes field:** ALL preparation details, states, qualifiers, and special instructions
    * **PACKAGED INGREDIENTS:** When an ingredient is sold/measured by package count (bottle, jar, can, bar, package, etc.), use `amount` for the COUNT of packages, `unit` for the package type, and put the package size in `notes`:

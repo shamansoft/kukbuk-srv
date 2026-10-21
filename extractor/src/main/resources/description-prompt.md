@@ -104,8 +104,8 @@ its crust, a cake and its frosting) is ONE recipe with ingredient groups.
      `"item": "garlic"`, `"amount": 4`, `"unit": "clove"`, `"notes": "minced"`.
    - A size is not an amount: "a 3 cm piece of horseradish" → `"amount": 1`, `"unit": "piece"`, `"notes": "3 cm"`
      (NOT 3); "1 head garlic" → `"amount": 1`, `"unit": null`, `"item": "head of garlic"` (NOT 10 cloves).
-9. **Unit WHITELIST** (exactly as shown, singular): g, kg, mg, oz, lb, ml, l, cup, tablespoon, teaspoon, fl oz, pint,
-   quart, gallon, clove, slice, sprig, piece, bottle, jar, can, bar, package, box, bag.
+9. **Unit WHITELIST** (exactly as shown, singular): g, kg, mg, oz, lb, ml, cl, dl, l, cup, tablespoon, teaspoon, fl oz,
+   pint, quart, gallon, clove, slice, sprig, piece, bottle, jar, can, bar, package, box, bag.
    - Convert unit words in any language: "tbsp", "ст. л.", "EL", "cda", "cucharada" → "tablespoon"; "tsp", "ч. л.",
      "TL", "cdta", "cucharadita" → "teaspoon"; "gram", "г", "гр" → "g"; "litre", "liter", "л" → "l"; "ml", "мл" → "ml"; "стакан" → "cup" (keep "стакан" in `notes`, do not
      convert the volume); "пакетик", "pack", "packet" → "package"; "tin", "банка" (can) → "can". A package word on
