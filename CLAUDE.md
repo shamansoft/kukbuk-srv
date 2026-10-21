@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Quick links:** [STATUS.md](STATUS.md) for current project state · [Documentation Index](#documentation-index) for all docs · [docs/archive/](docs/archive/README.md) for historical material. This repo (`sar-srv`) is the backend of the SAR / MyKukBuk product; siblings are `sar-ext` (extension), `sar-kmp` (client), `sar-infra` (Terraform/GCP).
+> **Quick links:** [STATUS.md](STATUS.md) for current project state · [Documentation Index](#documentation-index) for all docs · [docs/archive/](docs/archive/README.md) for historical material. This repo (`sar-srv`) is the backend of the Save-A-Recipe (SAR) product; siblings are `sar-ext` (extension), `sar-kmp` (client), `sar-infra` (Terraform/GCP).
 
 ## Project Overview
 
