@@ -38,7 +38,6 @@ out/
 .aider*
 .env
 
-CLAUDE.md
 
 crash.log
 *.env
@@ -48,3 +47,8 @@ progress*.txt
 
 .DS_Store
 Thumbs.db
+
+# Local tool state
+.omo/
+.opencode/
+.ralphex/
