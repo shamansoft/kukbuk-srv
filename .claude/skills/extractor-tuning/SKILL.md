@@ -71,6 +71,10 @@ cd <sar-srv checkout>   # the worktree when working in one
 - Headline: "Ingredients fully right". On 615 expected ingredients, 1 point is ~6 ingredients; a drop of 1-2 points
   can be noise, so read the `--details` differences of the pages that changed before calling it a regression.
   Re-run the changed pages into `<folder>-run2` to separate noise from effect.
+- When a page changes a lot (or turns "not a recipe"), check what the model was given before blaming the prompt:
+  the local server dumps the cleaned input to `/tmp/sar-srv/dumps/<date>/<sessionId>-cleanerOutput-*.txt`
+  (`sessionId` and `htmlCleanupStrategy` are in the response `metadata`). A recipe missing from that file is a
+  cleaner problem, and a "right" answer on such input came from the model's memory.
 - Also compare servings, times, temperatures, nutrition, language, category, and pages with the expected number of
   recipes and steps.
 - The expected files were written by hand: check a miss against the page before acting on it.
