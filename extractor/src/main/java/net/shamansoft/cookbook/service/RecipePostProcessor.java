@@ -78,9 +78,9 @@ public class RecipePostProcessor {
                     originalMetadata.title(),
                     sourceUrl, // Override source
                     originalMetadata.author(),
-                    originalMetadata.language(),
+                    LanguageCodes.normalize(originalMetadata.language()).orElse(null), // null → SDK default "en"
                     LocalDate.now(clock), // Override dateCreated
-                    originalMetadata.category(),
+                    RecipeCategories.normalize(originalMetadata.category()),
                     originalMetadata.tags(),
                     originalMetadata.servings(),
                     originalMetadata.prepTime(),

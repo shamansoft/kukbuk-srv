@@ -400,6 +400,58 @@ class RecipePostProcessorTest {
                 processed.instructions());
     }
 
+    @ParameterizedTest
+    @CsvSource(value = {
+            "pl      | pl",
+            "en-US   | en",
+            "EN      | en",
+            "english | en",  // not a code: falls back to the SDK default
+            "NULL    | en",
+    }, delimiterString = " | ", nullValues = "NULL")
+    void testProcess_normalizesLanguage(String language, String expected) {
+        // Given
+        Recipe recipe = recipeWithMetadata(language, null, List.of("vegan"));
+
+        // When
+        Recipe processed = postProcessor.process(recipe, SOURCE_URL);
+
+        // Then
+        assertEquals(expected, processed.metadata().language());
+    }
+
+    @Test
+    void testProcess_keepsOnlyCategoriesOnTheClosedList() {
+        // Given
+        Recipe recipe = recipeWithMetadata("sv",
+                List.of("Main", "Huvudrätt", "dinner", "main"), List.of("Huvudrätt", "Swedish"));
+
+        // When
+        Recipe processed = postProcessor.process(recipe, SOURCE_URL);
+
+        // Then
+        assertEquals(List.of("main", "dinner"), processed.metadata().category());
+        // tags keep the page's words (RecipeAdjustmentService lowercases them)
+        assertEquals(List.of("huvudrätt", "swedish"), processed.metadata().tags());
+    }
+
+    private Recipe recipeWithMetadata(String language, List<String> category, List<String> tags) {
+        RecipeMetadata metadata = new RecipeMetadata(
+                "Test Recipe", "https://old-source.com", null, language, null, category, tags, null, null, null,
+                null, null, null);
+        return new Recipe(
+                true,
+                "1.0.0",
+                "1.0.0",
+                metadata,
+                "Test description",
+                List.of(new Ingredient("flour", "2 cups", "cups", null, null, null, null)),
+                List.of("bowl"),
+                List.of(new Instruction(1, "Mix ingredients", null, null, null)),
+                null,
+                "Test notes",
+                null);
+    }
+
     private Recipe recipeWithImages(CoverImage coverImage, List<Instruction> instructions) {
         RecipeMetadata metadata = new RecipeMetadata(
                 "Test Recipe", "https://old-source.com", null, null, null, null, null, null, null, null,

@@ -71,8 +71,8 @@
               },
               "language": {
                 "type": "string",
-                "pattern": "^[a-z]{2}$|^[a-z]{2}/[a-z]{2}$",
-                "description": "ISO 639-1 code of the page's language, e.g. 'en' or 'en/us'"
+                "pattern": "^[a-z]{2}$",
+                "description": "Two-letter ISO 639-1 code of the page's language, e.g. 'en', 'pl'. No region."
               },
               "date_created": {
                 "type": "string",
@@ -80,12 +80,30 @@
               },
               "category": {
                 "type": "array",
+                "maxItems": 3,
+                "description": "1-3 kinds of dish from the closed list, in English whatever the page's language. Meals (breakfast, lunch, dinner) only when the page names them.",
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "breakfast",
+                    "lunch",
+                    "dinner",
+                    "main",
+                    "side",
+                    "soup",
+                    "salad",
+                    "appetizer",
+                    "snack",
+                    "dessert",
+                    "baking",
+                    "drink",
+                    "sauce"
+                  ]
                 }
               },
               "tags": {
                 "type": "array",
+                "description": "Up to 6 short keywords in the page's language and wording: cuisine, diet, main ingredient, occasion, and the page's own category words.",
                 "items": {
                   "type": "string"
                 }

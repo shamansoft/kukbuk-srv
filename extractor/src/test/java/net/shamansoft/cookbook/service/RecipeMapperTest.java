@@ -604,6 +604,39 @@ class RecipeMapperTest {
         assertThat(dto.getLanguage()).isEqualTo("pl");
     }
 
+    @ParameterizedTest(name = "[{index}] stored language {0} -> {1}")
+    @CsvSource(value = {
+            "en      | en",
+            "en/us   | en",
+            "pt-BR   | pt",
+            "EN      | en",
+            "english | NULL",
+    }, delimiterString = " | ", nullValues = "NULL")
+    @DisplayName("Should return stored language as ISO 639-1, null when it is not a code")
+    void shouldNormalizeStoredLanguage(String stored, String expected) {
+        // Given
+        Recipe recipe = createRecipeWithCategoryAndTags(List.of(), List.of(), stored);
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getLanguage()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Should return stored categories as they are, including ones off the closed list")
+    void shouldReturnStoredCategoriesAsTheyAre() {
+        // Given: an older file extracted before the closed list
+        Recipe recipe = createRecipeWithCategoryAndTags(List.of("Main Course", "Dinner"), List.of(), "en");
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getCategory()).containsExactly("Main Course", "Dinner");
+    }
+
     @Test
     @DisplayName("Should return empty category and tags when recipe has none (both overloads)")
     void shouldReturnEmptyCategoryAndTagsWhenRecipeHasNone() {

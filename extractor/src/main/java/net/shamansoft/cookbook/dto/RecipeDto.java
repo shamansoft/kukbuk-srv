@@ -29,7 +29,7 @@ public class RecipeDto {
     private String difficulty;
     private List<String> category;  // e.g. ["Dinner", "Main Course"]; empty list if none
     private List<String> tags;  // e.g. ["vegan", "Italian"]; empty list if none
-    private String language;  // Language code, e.g. "en"
+    private String language;  // ISO 639-1, e.g. "en"; null if the stored value is not a valid code
 
     // Content
     private List<IngredientDto> ingredients;

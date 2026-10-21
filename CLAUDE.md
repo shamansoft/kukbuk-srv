@@ -289,6 +289,10 @@ Post-processing automatically populates deterministic fields after successful AI
 - **Recipe version**: Always "1.0.0" for new recipes (user can update manually later)
 - **Date created**: Current UTC date when recipe is created (LocalDate.now(Clock.systemUTC()))
 - **Source URL**: Original URL from the request
+- **Language**: normalized to two-letter ISO 639-1 by `LanguageCodes` ("en-US", "en/us", "EN" → "en"); anything else
+  falls back to the SDK default "en". `RecipeMapper` applies the same normalization when returning stored recipes.
+- **Category**: only values on the closed English list in `RecipeCategories` are kept (must match the `category`
+  enum in `llm-recipe-schema.json`); the page's own category words go in `tags`. Stored recipes are returned as stored.
 - **Processing order**: Happens AFTER validation, BEFORE caching
 - **Immutability**: Uses Java record "with" methods to create updated copies
 

@@ -548,24 +548,31 @@ components:
         category:
           type: array
           description: >-
-            Recipe categories as extracted, free text in the page's language (not normalized).
-            Empty array when the recipe has none; never null.
+            Kinds of dish. Recipes extracted from now on carry 1-3 values from a closed English list:
+            breakfast, lunch, dinner, main, side, soup, salad, appetizer, snack, dessert, baking, drink,
+            sauce. Recipes extracted earlier keep their stored free text in the page's language
+            (e.g. "Main Course", "Huvudrätt"), so clients should lowercase and dedupe. Empty array when
+            the recipe has none; never null.
           items:
             type: string
-          example: [ "Dinner", "Main Course" ]
+          example: [ "main", "dinner" ]
         tags:
           type: array
           description: >-
-            Recipe tags as extracted (cuisine, diet, ingredient, effort), free text in the page's
-            language. Empty array when the recipe has none; never null.
+            Recipe tags as extracted (cuisine, diet, main ingredient, occasion, and the page's own
+            category words), free text in the page's language. Empty array when the recipe has none;
+            never null.
           items:
             type: string
           example: [ "vegan", "Italian" ]
         language:
           type: string
+          nullable: true
           description: >-
-            Recipe language code as detected at extraction, normally ISO 639-1 (e.g. "en", "pl").
-            Recipes stored without a language report "en", the recipe SDK default.
+            Two-letter ISO 639-1 code of the recipe's language (e.g. "en", "pl"), with no region or
+            script; stored values like "en-US" or "en/us" are returned as "en". Recipes stored without
+            a language report "en", the recipe SDK default. Null only when the stored value is not a
+            valid code. Region or script, if ever needed, will come as a separate `locale` field.
           example: "en"
         ingredients:
           type: array
