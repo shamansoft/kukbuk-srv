@@ -2,7 +2,7 @@
 _Last updated: 2026-10-15_
 
 ## What this is
-The Spring Boot backend for the SAR / MyKukBuk recipe product. It extracts structured recipes from
+The Spring Boot backend for the Save-A-Recipe (SAR) recipe product. It extracts structured recipes from
 web pages and free-text descriptions using Google Gemini AI, enforces per-user
 quotas (entitlements), and stores recipes in the user's Google Drive or Dropbox. It serves the
 sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar-infra.

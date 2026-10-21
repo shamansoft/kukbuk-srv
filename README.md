@@ -5,7 +5,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-brightgreen)
 ![Gradle](https://img.shields.io/badge/Gradle-9.2.0-blue)
 
-Spring Boot (Kotlin/Java) backend for the **SAR / MyKukBuk** recipe product. It extracts structured
+Spring Boot (Kotlin/Java) backend for the **Save-A-Recipe (SAR)** recipe product. It extracts structured
 recipes from web pages and free-text descriptions using Google Gemini AI, enforces
 per-user quotas (entitlements), and stores recipes in the user's Google Drive or Dropbox. Deployed
 as a GraalVM native image on Google Cloud Run.
