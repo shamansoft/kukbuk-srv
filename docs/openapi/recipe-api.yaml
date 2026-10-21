@@ -545,6 +545,28 @@ components:
           description: Recipe difficulty level
           enum: [ easy, medium, hard ]
           example: "easy"
+        category:
+          type: array
+          description: >-
+            Recipe categories as extracted, free text in the page's language (not normalized).
+            Empty array when the recipe has none; never null.
+          items:
+            type: string
+          example: [ "Dinner", "Main Course" ]
+        tags:
+          type: array
+          description: >-
+            Recipe tags as extracted (cuisine, diet, ingredient, effort), free text in the page's
+            language. Empty array when the recipe has none; never null.
+          items:
+            type: string
+          example: [ "vegan", "Italian" ]
+        language:
+          type: string
+          description: >-
+            Recipe language code as detected at extraction, normally ISO 639-1 (e.g. "en", "pl").
+            Recipes stored without a language report "en", the recipe SDK default.
+          example: "en"
         ingredients:
           type: array
           description: List of ingredients

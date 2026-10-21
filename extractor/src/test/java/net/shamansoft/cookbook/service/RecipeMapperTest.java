@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DisplayName("RecipeMapper Tests")
 class RecipeMapperTest {
@@ -560,9 +562,114 @@ class RecipeMapperTest {
         assertThat(dto.getAuthor()).isEqualTo("Jamie Oliver");
         assertThat(dto.getSource()).isEqualTo("https://example.com/carbonara");
         assertThat(dto.getDifficulty()).isEqualTo("medium");
+        assertThat(dto.getCategory()).containsExactly("pasta", "italian");
+        assertThat(dto.getTags()).containsExactly("egg", "cheese", "bacon");
+        assertThat(dto.getLanguage()).isEqualTo("it");
+    }
+
+    // ===== Test: category, tags, language =====
+
+    @Test
+    @DisplayName("Should map category, tags and language using DriveFileMetadata")
+    void shouldMapCategoryTagsAndLanguageUsingDriveFileMetadata() {
+        // Given
+        Recipe recipe = createRecipeWithCategoryAndTags(
+                List.of("Dinner", "Main Course"), List.of("vegan", "Italian"), "pl");
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, driveFileMetadata());
+
+        // Then
+        assertThat(dto.getCategory()).containsExactly("Dinner", "Main Course");
+        assertThat(dto.getTags()).containsExactly("vegan", "Italian");
+        assertThat(dto.getLanguage()).isEqualTo("pl");
+    }
+
+    @Test
+    @DisplayName("Should map category, tags and language using DriveFileInfo")
+    void shouldMapCategoryTagsAndLanguageUsingDriveFileInfo() {
+        // Given
+        Recipe recipe = createRecipeWithCategoryAndTags(
+                List.of("Dinner", "Main Course"), List.of("vegan", "Italian"), "pl");
+        GoogleDrive.DriveFileInfo fileInfo = new GoogleDrive.DriveFileInfo(
+                RECIPE_ID, "recipe.yaml", LAST_MODIFIED
+        );
+
+        // When
+        RecipeDto dto = recipeMapper.toDto(recipe, fileInfo);
+
+        // Then
+        assertThat(dto.getCategory()).containsExactly("Dinner", "Main Course");
+        assertThat(dto.getTags()).containsExactly("vegan", "Italian");
+        assertThat(dto.getLanguage()).isEqualTo("pl");
+    }
+
+    @Test
+    @DisplayName("Should return empty category and tags when recipe has none (both overloads)")
+    void shouldReturnEmptyCategoryAndTagsWhenRecipeHasNone() {
+        // Given: metadata built without category/tags, as for an old stored file
+        Recipe recipe = createRecipeWithCategoryAndTags(null, null, null);
+        GoogleDrive.DriveFileInfo fileInfo = new GoogleDrive.DriveFileInfo(
+                RECIPE_ID, "recipe.yaml", LAST_MODIFIED
+        );
+
+        // When
+        RecipeDto fromMetadata = recipeMapper.toDto(recipe, driveFileMetadata());
+        RecipeDto fromFileInfo = recipeMapper.toDto(recipe, fileInfo);
+
+        // Then
+        for (RecipeDto dto : List.of(fromMetadata, fromFileInfo)) {
+            assertThat(dto.getCategory()).isNotNull().isEmpty();
+            assertThat(dto.getTags()).isNotNull().isEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("Should map null category and tags lists to empty lists (both overloads)")
+    void shouldMapNullCategoryAndTagsToEmptyLists() {
+        // Given: metadata whose accessors return null, bypassing the SDK defaults
+        RecipeMetadata metadata = mock(RecipeMetadata.class);
+        when(metadata.title()).thenReturn(RECIPE_TITLE);
+        when(metadata.source()).thenReturn(RECIPE_SOURCE);
+        when(metadata.category()).thenReturn(null);
+        when(metadata.tags()).thenReturn(null);
+        when(metadata.language()).thenReturn(null);
+        Recipe recipe = new Recipe(
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                List.of(createIngredient("flour")), Collections.emptyList(),
+                List.of(createInstruction(1, "Step 1")), null, NOTES, null
+        );
+        GoogleDrive.DriveFileInfo fileInfo = new GoogleDrive.DriveFileInfo(
+                RECIPE_ID, "recipe.yaml", LAST_MODIFIED
+        );
+
+        // When
+        RecipeDto fromMetadata = recipeMapper.toDto(recipe, driveFileMetadata());
+        RecipeDto fromFileInfo = recipeMapper.toDto(recipe, fileInfo);
+
+        // Then
+        for (RecipeDto dto : List.of(fromMetadata, fromFileInfo)) {
+            assertThat(dto.getCategory()).isNotNull().isEmpty();
+            assertThat(dto.getTags()).isNotNull().isEmpty();
+            assertThat(dto.getLanguage()).isNull();
+        }
     }
 
     // ===== Helper methods =====
+
+    private Recipe createRecipeWithCategoryAndTags(List<String> category, List<String> tags, String language) {
+        RecipeMetadata metadata = new RecipeMetadata(
+                RECIPE_TITLE, RECIPE_SOURCE, RECIPE_AUTHOR, language, null,
+                category, tags, SERVINGS, PREP_TIME,
+                COOK_TIME, TOTAL_TIME, DIFFICULTY, null
+        );
+
+        return new Recipe(
+                true, "1.0.0", "1.0.0", metadata, RECIPE_DESCRIPTION,
+                List.of(createIngredient("flour")), Collections.emptyList(),
+                List.of(createInstruction(1, "Step 1")), null, NOTES, null
+        );
+    }
 
     private Recipe createCompleteRecipe() {
         List<Ingredient> ingredients = List.of(

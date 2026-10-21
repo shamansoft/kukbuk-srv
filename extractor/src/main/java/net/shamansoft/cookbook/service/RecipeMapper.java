@@ -36,9 +36,24 @@ public class RecipeMapper {
      * @return Recipe DTO for mobile API
      */
     public RecipeDto toDto(Recipe recipe, GoogleDrive.DriveFileMetadata metadata) {
+        return toDto(recipe, metadata.id(), metadata.modifiedTime());
+    }
+
+    /**
+     * Map Recipe to DTO using Drive file info (from list endpoint).
+     *
+     * @param recipe   Parsed recipe from YAML
+     * @param fileInfo Google Drive file info
+     * @return Recipe DTO for mobile API
+     */
+    public RecipeDto toDto(Recipe recipe, GoogleDrive.DriveFileInfo fileInfo) {
+        return toDto(recipe, fileInfo.id(), fileInfo.modifiedTime());
+    }
+
+    private RecipeDto toDto(Recipe recipe, String id, String lastModified) {
         return RecipeDto.builder()
-                .id(metadata.id())
-                .lastModified(metadata.modifiedTime())
+                .id(id)
+                .lastModified(lastModified)
                 .title(recipe.metadata().title())
                 .description(recipe.description())
                 .author(recipe.metadata().author())
@@ -48,6 +63,9 @@ public class RecipeMapper {
                 .cookTime(recipe.metadata().cookTime())
                 .totalTime(recipe.metadata().totalTime())
                 .difficulty(recipe.metadata().difficulty())
+                .category(orEmpty(recipe.metadata().category()))
+                .tags(orEmpty(recipe.metadata().tags()))
+                .language(recipe.metadata().language())
                 .ingredients(mapIngredients(recipe.ingredients()))
                 .equipment(recipe.equipment())
                 .instructions(mapInstructions(recipe.instructions()))
@@ -59,33 +77,10 @@ public class RecipeMapper {
     }
 
     /**
-     * Map Recipe to DTO using Drive file info (from list endpoint).
-     *
-     * @param recipe   Parsed recipe from YAML
-     * @param fileInfo Google Drive file info
-     * @return Recipe DTO for mobile API
+     * Returns an empty list for null, so clients never receive null for list fields.
      */
-    public RecipeDto toDto(Recipe recipe, GoogleDrive.DriveFileInfo fileInfo) {
-        return RecipeDto.builder()
-                .id(fileInfo.id())
-                .lastModified(fileInfo.modifiedTime())
-                .title(recipe.metadata().title())
-                .description(recipe.description())
-                .author(recipe.metadata().author())
-                .source(recipe.metadata().source())
-                .servings(recipe.metadata().servings())
-                .prepTime(recipe.metadata().prepTime())
-                .cookTime(recipe.metadata().cookTime())
-                .totalTime(recipe.metadata().totalTime())
-                .difficulty(recipe.metadata().difficulty())
-                .ingredients(mapIngredients(recipe.ingredients()))
-                .equipment(recipe.equipment())
-                .instructions(mapInstructions(recipe.instructions()))
-                .nutrition(mapNutrition(recipe.nutrition()))
-                .notes(recipe.notes())
-                .coverImageUrl(extractCoverImageUrl(recipe))
-                .allImageUrls(extractAllImageUrls(recipe))
-                .build();
+    private static List<String> orEmpty(List<String> values) {
+        return values == null ? Collections.emptyList() : values;
     }
 
     /**

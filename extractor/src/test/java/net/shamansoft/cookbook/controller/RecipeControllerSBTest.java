@@ -1,6 +1,7 @@
 package net.shamansoft.cookbook.controller;
 
 import net.shamansoft.cookbook.client.ClientException;
+import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;
 import net.shamansoft.cookbook.dto.RecipeResponse;
 import net.shamansoft.cookbook.dto.Request;
@@ -36,6 +37,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -412,6 +414,68 @@ class RecipeControllerSBTest {
         // Then
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("error")).isEqualTo("IO Error");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listRecipes_returnsCategoryTagsAndLanguage_includingForOldFilesWithoutThem() {
+        // Given: one stored file with category/tags/language and one older file without those keys
+        String newYaml = """
+                schema_version: "1.0.0"
+                recipe_version: "1.0.0"
+                metadata:
+                  title: "Zupa ogórkowa"
+                  source: "https://example.com/zupa"
+                  language: "pl"
+                  category: ["zupy", "Lunch"]
+                  tags: ["vegetarian"]
+                ingredients:
+                  - item: "ogórki"
+                instructions:
+                  - step: 1
+                    description: "Gotuj"
+                """;
+        String oldYaml = """
+                schema_version: "1.0.0"
+                recipe_version: "1.0.0"
+                metadata:
+                  title: "Old Recipe"
+                  source: "https://example.com/old"
+                ingredients:
+                  - item: "flour"
+                instructions:
+                  - step: 1
+                    description: "Mix"
+                """;
+        when(googleDriveService.listRecipeFiles(anyString(), eq("mock-folder-id"), eq(20), isNull()))
+                .thenReturn(new GoogleDrive.DriveFileListResult(List.of(
+                        new GoogleDrive.DriveFileInfo("file-new", "zupa.yaml", "2026-10-01T10:00:00Z"),
+                        new GoogleDrive.DriveFileInfo("file-old", "old.yaml", "2025-01-01T10:00:00Z")),
+                        null));
+        when(googleDriveService.getFileContent(anyString(), eq("file-new"))).thenReturn(newYaml);
+        when(googleDriveService.getFileContent(anyString(), eq("file-old"))).thenReturn(oldYaml);
+
+        // When
+        ResponseEntity<Map> response = restTemplate.exchange(
+                RECIPE_PATH, HttpMethod.GET, new HttpEntity<>(createHeadersWithOAuthToken()), Map.class);
+
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Map<String, Object>> recipes = (List<Map<String, Object>>) response.getBody().get("recipes");
+        assertThat(recipes).hasSize(2);
+
+        Map<String, Object> newRecipe = recipes.get(0);
+        assertThat(newRecipe)
+                .containsEntry("category", List.of("zupy", "Lunch"))
+                .containsEntry("tags", List.of("vegetarian"))
+                .containsEntry("language", "pl");
+
+        // Old files still map: lists come back as [] (never null), language takes the SDK default
+        Map<String, Object> oldRecipe = recipes.get(1);
+        assertThat(oldRecipe)
+                .containsEntry("category", List.of())
+                .containsEntry("tags", List.of())
+                .containsEntry("language", "en");
     }
 
     @Test

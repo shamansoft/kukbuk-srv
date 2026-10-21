@@ -27,6 +27,9 @@ public class RecipeDto {
     private String cookTime;
     private String totalTime;
     private String difficulty;
+    private List<String> category;  // e.g. ["Dinner", "Main Course"]; empty list if none
+    private List<String> tags;  // e.g. ["vegan", "Italian"]; empty list if none
+    private String language;  // Language code, e.g. "en"
 
     // Content
     private List<IngredientDto> ingredients;
