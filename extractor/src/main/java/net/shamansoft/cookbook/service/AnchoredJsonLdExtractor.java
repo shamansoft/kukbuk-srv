@@ -76,7 +76,7 @@ public class AnchoredJsonLdExtractor {
             }
             String card = StructuredDataStrategy.card(cleaned.cleanedHtml()).orElse(null);
             List<Row> rows = card == null ? List.of() : RecipeCardCutter.rows(card);
-            List<Row> cardRows = CardSectionAssigner.givesSections(rows, fields.ingredients().size()) ? rows : null;
+            List<Row> cardRows = CardSectionAssigner.givesSections(rows, fields.ingredients()) ? rows : null;
 
             GeminiResponse<JsonLdEnrichment> answer = gemini.enrich(requestBuilder.build(node, fields, card), false);
             if (answer.code() != GeminiResponse.Code.SUCCESS) {

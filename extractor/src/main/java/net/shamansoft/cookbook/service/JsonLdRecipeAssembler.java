@@ -29,6 +29,7 @@ final class JsonLdRecipeAssembler {
     private static final String MAIN = "main";
     private static final String SCHEMA_VERSION = "1.0.0";
     private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
+    private static final Pattern QUANTITY = Pattern.compile("[\\d½¼¾⅓⅔⅛⅜⅝⅞]");
     private static final int MAX_QUOTE = 80;
 
     private JsonLdRecipeAssembler() {
@@ -74,6 +75,12 @@ final class JsonLdRecipeAssembler {
             }
             if (index != null) used.add(index);
             if (row.isHeader()) {
+                // a line with a quantity is an ingredient: as a header it would cover its line and drop the ingredient
+                if (index != null && QUANTITY.matcher(lines.get(index)).find()) {
+                    violations.add(("Line %d (\"%s\") has a quantity, so it is an ingredient, not a section header. "
+                            + "Give it an ingredient row.").formatted(index, quote(lines.get(index))));
+                    continue;
+                }
                 String name = RecipeCardCutter.groupName(item);
                 section = name != null ? name : MAIN;
                 continue;
@@ -82,21 +89,23 @@ final class JsonLdRecipeAssembler {
                 violations.add("A row for line %s has no item.".formatted(index));
                 continue;
             }
-            if (index == null) {
-                if (cardText == null || !mentions(cardText, item)) {
-                    violations.add(("Row \"%s\" has no source_index and is not in <%s>. Give it the number of the "
-                            + "line it comes from, or drop it if no line holds it.").formatted(quote(item),
-                            RecipeCardCutter.TAG));
-                    continue;
-                }
-                cardOnly++;
-            } else if (!seen.add(String.join("|", String.valueOf(index), normalized(item), normalized(row.amount()),
+            if (index == null && (cardText == null || !mentions(cardText, item))) {
+                violations.add(("Row \"%s\" has no source_index and is not in <%s>. Give it the number of the "
+                        + "line it comes from, or drop it if no line holds it.").formatted(quote(item),
+                        RecipeCardCutter.TAG));
+                continue;
+            }
+            if (!seen.add(String.join("|", String.valueOf(index), normalized(item), normalized(row.amount()),
                     normalized(row.unit())))) {
                 // the same quantity twice is a repeat; "115 g butter, plus extra for greasing" is two rows
-                violations.add("Line %d (\"%s\") has the row \"%s\" twice. Return each ingredient of a line once."
+                violations.add(index == null
+                        ? "The row \"%s\" without source_index is there twice. Return each ingredient once."
+                        .formatted(quote(item))
+                        : "Line %d (\"%s\") has the row \"%s\" twice. Return each ingredient of a line once."
                         .formatted(index, quote(lines.get(index)), quote(item)));
                 continue;
             }
+            if (index == null) cardOnly++;
             String component = component(row, index, cardRows, section, ingredients);
             ingredients.add(new Ingredient(item, row.amount(), row.unit(), row.notes(), row.optional(),
                     row.substitutions(), component));
@@ -116,8 +125,9 @@ final class JsonLdRecipeAssembler {
     private static String component(JsonLdEnrichment.Row row, Integer index, List<Row> cardRows, String section,
                                     List<Ingredient> previous) {
         if (cardRows != null) {
-            if (index == null) return previous.isEmpty() ? MAIN : previous.getLast().component();
-            String group = cardRows.get(index).group();
+            Row cardRow = index != null ? cardRows.get(index) : cardRow(row.item(), cardRows);
+            if (cardRow == null) return previous.isEmpty() ? MAIN : previous.getLast().component();
+            String group = cardRow.group();
             return group != null ? group : MAIN;
         }
         String model = row.component();
@@ -152,13 +162,33 @@ final class JsonLdRecipeAssembler {
                 answer.equipment(), List.copyOf(instructions), fields.nutrition(), answer.notes(), answer.storage());
     }
 
-    // The card lists an ingredient when one of its words appears there
+    // The card lists an ingredient when every word of it appears there: "fresh parsley" is not "fresh lemon"
     private static boolean mentions(String cardText, String item) {
-        Matcher m = WORD.matcher(item.toLowerCase(Locale.ROOT));
-        while (m.find()) {
-            if (cardText.contains(m.group())) return true;
+        Set<String> words = words(item);
+        return !words.isEmpty() && words.stream().allMatch(cardText::contains);
+    }
+
+    // The card line sharing the most words with a card-only ingredient, or null when none shares one
+    private static Row cardRow(String item, List<Row> cardRows) {
+        Set<String> words = words(item);
+        Row best = null;
+        long bestCount = 0;
+        for (Row r : cardRows) {
+            Set<String> line = words(r.text());
+            long count = words.stream().filter(line::contains).count();
+            if (count > bestCount) {
+                best = r;
+                bestCount = count;
+            }
         }
-        return false;
+        return best;
+    }
+
+    private static Set<String> words(String text) {
+        Set<String> words = new HashSet<>();
+        Matcher m = WORD.matcher(text.toLowerCase(Locale.ROOT));
+        while (m.find()) words.add(m.group());
+        return words;
     }
 
     private static String normalized(String text) {

@@ -136,6 +136,52 @@ class JsonLdRecipeAssemblerTest {
     }
 
     @Test
+    void aLineWithAQuantityIsNotAHeader() {
+        List<String> lines = List.of("2 eggs", "1 cup flour");
+        Assembly assembly = assemble(fields(lines), null, null,
+                header(0, "eggs"), row(1, "flour", "1", "cup"));
+
+        assertThat(assembly.violations()).containsExactly("Line 0 (\"2 eggs\") has a quantity, so it is an "
+                + "ingredient, not a section header. Give it an ingredient row.");
+    }
+
+    @Test
+    void aCardOnlyRowNeedsAllItsWordsInTheCard() {
+        String card = "<ul><li>500 g flour</li><li>salt and pepper</li><li>200 g onions</li>"
+                + "<li>fresh lemon</li></ul>";
+        Assembly assembly = assemble(fields(LINES), null, card, row(0, "flour", "500", "g"),
+                row(1, "salt", null, null), row(2, "onions", "200", "g"), row(null, "fresh parsley", null, null));
+
+        assertThat(assembly.violations()).singleElement().asString()
+                .startsWith("Row \"fresh parsley\" has no source_index");
+    }
+
+    @Test
+    void reportsARepeatedCardOnlyRow() {
+        String card = "<ul><li>500 g flour</li><li>salt and pepper</li><li>200 g onions</li>"
+                + "<li>fresh parsley</li></ul>";
+        Assembly assembly = assemble(fields(LINES), null, card, row(0, "flour", "500", "g"),
+                row(1, "salt", null, null), row(2, "onions", "200", "g"),
+                row(null, "parsley", null, null), row(null, "Parsley", null, null));
+
+        assertThat(assembly.violations()).containsExactly(
+                "The row \"Parsley\" without source_index is there twice. Return each ingredient once.");
+        assertThat(assembly.cardOnlyRows()).isEqualTo(1);
+    }
+
+    @Test
+    void aCardOnlyRowTakesTheGroupOfTheCardLineHoldingIt() {
+        List<Row> card = List.of(new Row(null, "500 g flour"), new Row("Filling", "salt and pepper"),
+                new Row("Filling", "200 g onions"));
+        Assembly assembly = assemble(fields(LINES), card, "<ul><li>salt and pepper</li></ul>",
+                row(null, "pepper", null, null), row(0, "flour", "500", "g"), row(1, "salt", null, null),
+                row(2, "onions", "200", "g"));
+
+        assertThat(assembly.recipe().ingredients()).extracting(Ingredient::component)
+                .containsExactly("Filling", "main", "Filling", "Filling");
+    }
+
+    @Test
     void anAnswerWithoutIngredientsIsAViolation() {
         Assembly assembly = assemble(fields(List.of("Dressing:")), null, null, header(0, "Dressing:"));
 

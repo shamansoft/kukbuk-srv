@@ -100,9 +100,24 @@ public class CardSectionAssigner {
                 List.of(withIngredients(recipe, assigned)), response.rawLlmResponse());
     }
 
-    /** The card gives every JSON-LD line its section: one card line per JSON-LD line, and at least one heading. */
-    static boolean givesSections(List<Row> rows, int jsonLdLines) {
-        return rows.size() == jsonLdLines && rows.stream().anyMatch(r -> r.group() != null);
+    /**
+     * The card gives every JSON-LD line its section: one card line per JSON-LD line, in the same order (each pair
+     * shares a word), and at least one heading. A count alone would pass a card that lists the same number of
+     * lines in another order.
+     */
+    static boolean givesSections(List<Row> rows, List<String> jsonLdLines) {
+        if (rows.size() != jsonLdLines.size() || rows.stream().noneMatch(r -> r.group() != null)) return false;
+        for (int i = 0; i < rows.size(); i++) {
+            if (!sameLine(rows.get(i).text(), jsonLdLines.get(i))) return false;
+        }
+        return true;
+    }
+
+    // A line without a word of three letters or more ("2 개") has nothing to compare, so it does not break the order
+    private static boolean sameLine(String cardLine, String jsonLdLine) {
+        Set<String> card = words(cardLine);
+        Set<String> line = words(jsonLdLine);
+        return card.isEmpty() || line.isEmpty() || card.stream().anyMatch(line::contains);
     }
 
     /**
