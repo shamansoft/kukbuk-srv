@@ -365,6 +365,24 @@ A value the page does not give is `null`. Ignore other nutrients (saturated fat,
 `[Nutrition Information](/nutritional-info/62776)` is not nutrition facts: the numbers are on another page, so
 `nutrition` is `null`.
 
+**CATEGORY AND TAGS (`metadata.category`, `metadata.tags`):**
+
+- `category`: 1-3 values from this closed list, always in English whatever the page's language (the one exception to
+  "maintain original language"): breakfast, lunch, dinner, main, side, soup, salad, appetizer, snack, dessert, baking,
+  drink, sauce.
+  * First say what kind of dish it is: main, side, soup, salad, appetizer, snack, dessert, drink or sauce.
+  * Breads, cakes, cookies, pies and pastries → "baking"; sweet ones are also "dessert".
+  * Dips, spreads, dressings, salsas and condiments → "sauce".
+  * Add breakfast, lunch or dinner only when the page names that meal (its category, title or text). "Brunch" →
+    breakfast.
+  * Map the page's own category words: "Main Course", "Main Dish", "Entrée", "Huvudrätt", "Plat principal" → "main";
+    "Side Dish" → "side"; "Zupy", "Супы" → "soup"; "Завтраки" → "breakfast".
+  * `[]` only when nothing on the list fits.
+- `tags`: up to 6 short keywords, in the page's language and wording: cuisine ("Italian"), diet ("vegan",
+  "gluten-free"), main ingredient, occasion ("Christmas"), and the page's own category words ("Huvudrätt", "Primi").
+  Take them from the page (JSON-LD `recipeCuisine`, `recipeCategory`, `keywords`, or the page's tags). No duplicates.
+- `language`: the two-letter ISO 639-1 code of the page's language ("en", "pl", "ru"), no region.
+
 **Additional Extraction Guidelines:**
 
 - Image URLs must be absolute http(s) URLs taken from `![alt](url)`; never a `data:` URL
@@ -388,6 +406,7 @@ A value the page does not give is `null`. Ignore other nutrients (saturated fat,
 10. ✓ If the page shows nutrition facts, is `nutrition` filled with per-serving numbers? Is every number copied from
     the page, none estimated?
 11. ✓ Is all text in the page's original language?
+12. ✓ Is `category` 1-3 values from the closed list, in English? Are the page's own category words in `tags`?
 
 **JSON Output:**
 Return ONLY valid JSON conforming to the provided schema. No text before or after.

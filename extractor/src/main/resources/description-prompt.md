@@ -104,8 +104,8 @@ its crust, a cake and its frosting) is ONE recipe with ingredient groups.
      `"item": "garlic"`, `"amount": 4`, `"unit": "clove"`, `"notes": "minced"`.
    - A size is not an amount: "a 3 cm piece of horseradish" → `"amount": 1`, `"unit": "piece"`, `"notes": "3 cm"`
      (NOT 3); "1 head garlic" → `"amount": 1`, `"unit": null`, `"item": "head of garlic"` (NOT 10 cloves).
-9. **Unit WHITELIST** (exactly as shown, singular): g, kg, mg, oz, lb, ml, l, cup, tablespoon, teaspoon, fl oz, pint,
-   quart, gallon, clove, slice, sprig, piece, bottle, jar, can, bar, package, box, bag.
+9. **Unit WHITELIST** (exactly as shown, singular): g, kg, mg, oz, lb, ml, cl, dl, l, cup, tablespoon, teaspoon, fl oz,
+   pint, quart, gallon, clove, slice, sprig, piece, bottle, jar, can, bar, package, box, bag.
    - Convert unit words in any language: "tbsp", "ст. л.", "EL", "cda", "cucharada" → "tablespoon"; "tsp", "ч. л.",
      "TL", "cdta", "cucharadita" → "teaspoon"; "gram", "г", "гр" → "g"; "litre", "liter", "л" → "l"; "ml", "мл" → "ml"; "стакан" → "cup" (keep "стакан" in `notes`, do not
      convert the volume); "пакетик", "pack", "packet" → "package"; "tin", "банка" (can) → "can". A package word on
@@ -137,6 +137,20 @@ its crust, a cake and its frosting) is ONE recipe with ingredient groups.
   Otherwise set them to `null`.
 - `nutrition` is `null` unless the user gives nutrition facts; then per serving, plain numbers without units.
 
+**CATEGORY AND TAGS (`metadata.category`, `metadata.tags`):**
+
+- `category`: 1-3 values from this closed list, always in English whatever the user's language (the one exception to
+  "maintain original language"): breakfast, lunch, dinner, main, side, soup, salad, appetizer, snack, dessert, baking,
+  drink, sauce.
+  * First say what kind of dish it is: main, side, soup, salad, appetizer, snack, dessert, drink or sauce.
+  * Breads, cakes, cookies, pies and pastries → "baking"; sweet ones are also "dessert".
+  * Dips, spreads, dressings, salsas and condiments → "sauce".
+  * Add breakfast, lunch or dinner only when the user names that meal. "Brunch" → breakfast.
+  * `[]` only when nothing on the list fits.
+- `tags`: up to 6 short keywords in the user's language: cuisine, diet ("vegan", "gluten-free"), main ingredient,
+  occasion. Only what the text makes clear; `[]` if nothing does. No duplicates.
+- `language`: the two-letter ISO 639-1 code of the user's language ("en", "ru", "de"), no region.
+
 **INSTRUCTION RULES:**
 
 - Number steps sequentially.
@@ -158,6 +172,7 @@ its crust, a cake and its frosting) is ONE recipe with ingredient groups.
 7. ✓ Do groups come only from parts the user named?
 8. ✓ Are optional and garnish ingredients `optional: true`, and every alternative the user wrote in `substitutions`?
 9. ✓ Does every oven step have its `temperature`? Are times filled where the user stated them, and `null` otherwise?
+10. ✓ Is `category` 1-3 values from the closed list, in English?
 
 **JSON Output:**
 Return ONLY valid JSON conforming to the provided schema. No text before or after.
