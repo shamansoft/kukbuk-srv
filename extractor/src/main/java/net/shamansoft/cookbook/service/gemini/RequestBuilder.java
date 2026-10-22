@@ -202,6 +202,19 @@ public class RequestBuilder {
                 DESC_USER_TEMPLATE.replace("%s", description.replace("</USER_DESCRIPTION>", "")), overrides);
     }
 
+    /**
+     * A request for a prompt and response schema of its own (the JSON-LD enrichment prompt), with the same
+     * generation and safety settings as every other request. The caller has already wrapped untrusted content in
+     * delimiter tags.
+     */
+    public GeminiRequest buildRequestWithPrompt(String systemPrompt, String userContent, Object responseSchema) {
+        Objects.requireNonNull(systemPrompt, "systemPrompt cannot be null");
+        Objects.requireNonNull(userContent, "userContent cannot be null");
+        GeminiRequest request = buildRequestBodyWithSchema(systemPrompt, userContent, null);
+        request.getGenerationConfig().setResponseSchema(responseSchema);
+        return request;
+    }
+
     private GeminiRequest buildRequestBodyWithSchema(String systemPromptText, String userContent,
                                                        GenerationOverrides overrides) {
         return buildRequestBodyWithSchema(systemPromptText, userContent, parsedJsonSchema, overrides);

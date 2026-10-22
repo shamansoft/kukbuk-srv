@@ -1,0 +1,176 @@
+{
+  "title": "JsonLdEnrichment",
+  "type": "object",
+  "required": [
+    "title",
+    "description",
+    "language",
+    "ingredients",
+    "instructions"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "One objective sentence describing the dish"
+    },
+    "language": {
+      "type": "string",
+      "description": "Language code of the recipe text, e.g. en, ru"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ]
+    },
+    "servings": {
+      "type": "integer",
+      "minimum": 1,
+      "nullable": true
+    },
+    "prep_time": {
+      "type": "string",
+      "nullable": true,
+      "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+    },
+    "cook_time": {
+      "type": "string",
+      "nullable": true,
+      "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+    },
+    "total_time": {
+      "type": "string",
+      "nullable": true,
+      "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+    },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_index",
+          "item",
+          "amount",
+          "unit"
+        ],
+        "properties": {
+          "source_index": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true,
+            "description": "Number of the <JSONLD_INGREDIENTS> line this row comes from; null only for an ingredient that is in the recipe card but in no line."
+          },
+          "header": {
+            "type": "boolean",
+            "description": "True when the line is a section header, not an ingredient."
+          },
+          "item": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0,
+            "nullable": true,
+            "description": "Numeric quantity. null when the source gives no number (to taste, as needed, a pinch)."
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "description": "One whitelisted unit word, or null for bare counts and unquantified items."
+          },
+          "notes": {
+            "type": "string"
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "item"
+              ],
+              "properties": {
+                "item": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "string"
+                },
+                "ratio": {
+                  "type": "string",
+                  "description": "Conversion ratio like '1:1' or '2:1'"
+                }
+              }
+            }
+          },
+          "component": {
+            "type": "string",
+            "description": "Ingredient grouping like 'dough', 'filling', 'sauce'"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Markdown-formatted instruction"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^(\\d+d\\s*)?(\\d+h\\s*)?(\\d+m)?$"
+          },
+          "temperature": {
+            "type": "string"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Markdown-formatted notes, tips and tricks"
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "refrigerator": {
+          "type": "string"
+        },
+        "freezer": {
+          "type": "string"
+        },
+        "room_temperature": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

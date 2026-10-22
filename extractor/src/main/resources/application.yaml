@@ -123,6 +123,13 @@ recipe:
     # when the card has one line per JSON-LD ingredient line and at least one heading
     enabled: ${RECIPE_JSONLD_SECTIONS_ENABLED:true}
 
+  jsonld-anchored:
+    # A page with a schema.org Recipe takes the JSON-LD path: code reads its fields, the model parses each
+    # ingredient line (rows keyed by line), and code checks every line is used once; on failure the page
+    # falls back to full extraction (prompt-jsonld.md, llm-enrichment-schema.json).
+    # Off until the owner turns it on: it misses the per-page gate on two samples (docs/plans/20261018-…)
+    enabled: ${RECIPE_JSONLD_ANCHORED_ENABLED:false}
+
   adaptive-cleaning:
     # Enable/disable adaptive HTML cleaning with confidence feedback loop.
     # When true: if LLM returns is_recipe=false with confidence >= threshold,
