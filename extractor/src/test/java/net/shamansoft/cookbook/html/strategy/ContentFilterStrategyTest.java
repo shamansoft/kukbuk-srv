@@ -45,4 +45,19 @@ class ContentFilterStrategyTest {
         Optional<String> out = strategy.clean(html);
         assertThat(out).isEmpty();
     }
+
+    @Test
+    void shouldKeepRecipeInPaddingClassedElements() {
+        // Trimmed markup of russianfood.com/recipes/recipe.php?rid=136858
+        String html = "<html><body><table class=\"ingr\"><tr>"
+                + "<td class=\"padding_l ingr_title\"><span>Продукты</span></td></tr><tr>"
+                + "<td class=\"padding_l padding_r\"><span>Творог - 500 г</span></td></tr></table>"
+                + "<div id=\"how\" class=\"padding_l padding_r \"><p>1. Перемешиваем творог с яйцами.</p></div>"
+                + "</body></html>";
+
+        Optional<String> out = strategy.clean(html);
+
+        assertThat(out).isPresent();
+        assertThat(out.get()).contains("Творог - 500 г", "Перемешиваем творог");
+    }
 }

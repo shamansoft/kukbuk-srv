@@ -27,9 +27,6 @@ public class ContentFilterStrategy implements CleanupStrategy {
             doc.select("script, style, noscript").remove();
             doc.select("nav, header, footer").remove();
             doc.select("iframe, embed, object").remove();
-            doc.select("[class*=ad], [id*=ad]").remove();
-            doc.select("[class*=social], [class*=share]").remove();
-            doc.select("[class*=comment], [id*=comment]").remove();
             doc.select("[class*=sidebar], [id*=sidebar]").remove();
             doc.select("[style*=display:none], [style*=visibility:hidden]").remove();
             // recursively clean elements and attributes from the body
