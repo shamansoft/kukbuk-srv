@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Component
@@ -27,6 +28,11 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             "/actuator",
             "/debug"  // Debug/test endpoints (only active in non-prod profiles)
     );
+    // Registration saves the profile before the user can click the verification link,
+    // and login needs it for routing. Everything else requires a verified email.
+    private static final String UNVERIFIED_ALLOWED_PATH = "/v1/user/profile";
+    // Test accounts: these addresses have no inbox, so they can never verify
+    private static final String TEST_EMAIL_SUFFIX = "@test.shmnsft.com";
     private final FirebaseAuth firebaseAuth;
 
     public FirebaseAuthFilter(FirebaseAuth firebaseAuth) {
@@ -43,6 +49,10 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             }
             return path.equals(publicPath) || path.startsWith(publicPath + "/");
         });
+    }
+
+    private boolean isTestEmail(String email) {
+        return email != null && email.toLowerCase(Locale.ROOT).endsWith(TEST_EMAIL_SUFFIX);
     }
 
     @Override
@@ -85,6 +95,18 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         try {
             // Verify Firebase ID token
             FirebaseToken decodedToken = firebaseAuth.verifyIdToken(idToken);
+
+            // The claim is fixed when the token is issued, so clients must force a
+            // token refresh after the user verifies, then retry
+            if (!decodedToken.isEmailVerified()
+                    && !isTestEmail(decodedToken.getEmail())
+                    && !UNVERIFIED_ALLOWED_PATH.equals(path)) {
+                log.warn("Rejected unverified email: userId={}, path={}", decodedToken.getUid(), path);
+                response.setStatus(403);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"email_not_verified\"}");
+                return;
+            }
 
             // Store user info in request attributes
             request.setAttribute("userId", decodedToken.getUid());

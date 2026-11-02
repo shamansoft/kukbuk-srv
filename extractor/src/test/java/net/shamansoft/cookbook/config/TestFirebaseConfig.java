@@ -37,6 +37,7 @@ public class TestFirebaseConfig {
         FirebaseToken mockToken = mock(FirebaseToken.class);
         when(mockToken.getUid()).thenReturn("test-user-id");
         when(mockToken.getEmail()).thenReturn("test@example.com");
+        when(mockToken.isEmailVerified()).thenReturn(true);
 
         // Mock verifyIdToken to return the mock token for any input
         when(mockAuth.verifyIdToken(anyString())).thenReturn(mockToken);
