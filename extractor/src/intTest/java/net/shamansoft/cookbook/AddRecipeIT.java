@@ -699,6 +699,7 @@ class AddRecipeIT {
                     .mock(FirebaseToken.class);
             Mockito.when(mockToken.getUid()).thenReturn("test-user-123");
             Mockito.when(mockToken.getEmail()).thenReturn("testuser@example.com");
+            Mockito.when(mockToken.isEmailVerified()).thenReturn(true);
             Mockito.when(mockAuth.verifyIdToken(org.mockito.ArgumentMatchers.anyString()))
                     .thenReturn(mockToken);
             return mockAuth;

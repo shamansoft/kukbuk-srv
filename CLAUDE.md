@@ -371,6 +371,13 @@ Post-processing automatically populates deterministic fields after successful AI
 **User Profile Endpoints** (`/v1/profiles`):
 - User profile data management
 
+**Email verification**: `FirebaseAuthFilter` rejects tokens without a verified email with HTTP 403 and
+`{"error": "email_not_verified"}` on every authenticated endpoint except `/v1/user/profile`, which registration and
+login need before the user can verify. Addresses ending in `@test.shmnsft.com` bypass this check: they are test
+accounts with no inbox. Anyone can register such an address, so they are not proof of a real user. `email_verified` is
+fixed when a token is issued, so after the user clicks the link, clients must force a token refresh and retry.
+Verification and password reset emails are sent by the clients through Firebase; sar-srv sends no email.
+
 **Admin Endpoints** (`/v1/admin`):
 - `PUT /v1/admin/users/{userId}/tier` - Update a user's subscription tier
   - Requires Firebase token with `admin:true` custom claim
@@ -419,7 +426,7 @@ Infrastructure is managed in the [`sar-infra`](https://github.com/shamansoft/sar
   - `service/RecipeStoreService.java` - Recipe caching layer
   - `service/ContentHashService.java` - Content deduplication
   - `repository/FirestoreRecipeRepository.java` - Firestore data access
-  - `security/FirebaseAuthFilter.java` - OAuth token validation; extracts `userId`, `userEmail`, `userTier`, and `isAdmin` (sets `isAdmin=true` when `admin:true` JWT claim present)
+  - `security/FirebaseAuthFilter.java` - OAuth token validation; rejects unverified emails with 403 `email_not_verified` (except `/v1/user/profile` and `@test.shmnsft.com` addresses); extracts `userId`, `userEmail`, `userTier`, and `isAdmin` (sets `isAdmin=true` when `admin:true` JWT claim present)
   - `security/RequireAdmin.java` - Method-level annotation marking admin-only endpoints
   - `security/AdminAccessAspect.java` - AOP guard; reads `isAdmin` from request context; throws `AdminAccessException` → 403
   - `controller/AdminController.java` - `PUT /v1/admin/users/{userId}/tier` endpoint
