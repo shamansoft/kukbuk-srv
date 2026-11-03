@@ -101,6 +101,26 @@ public class CardSectionAssigner {
     }
 
     /**
+     * The card gives every JSON-LD line its section: one card line per JSON-LD line, in the same order (each pair
+     * shares a word), and at least one heading. A count alone would pass a card that lists the same number of
+     * lines in another order.
+     */
+    static boolean givesSections(List<Row> rows, List<String> jsonLdLines) {
+        if (rows.size() != jsonLdLines.size() || rows.stream().noneMatch(r -> r.group() != null)) return false;
+        for (int i = 0; i < rows.size(); i++) {
+            if (!sameLine(rows.get(i).text(), jsonLdLines.get(i))) return false;
+        }
+        return true;
+    }
+
+    // A line without a word of three letters or more ("2 개") has nothing to compare, so it does not break the order
+    private static boolean sameLine(String cardLine, String jsonLdLine) {
+        Set<String> card = words(cardLine);
+        Set<String> line = words(jsonLdLine);
+        return card.isEmpty() || line.isEmpty() || card.stream().anyMatch(line::contains);
+    }
+
+    /**
      * Each ingredient takes the group of the card line that matches it best: two points per shared word of the item,
      * one per shared word of the notes, one when the line holds the amount. Ties go to the first line at or after the
      * previous match, so the rows of a split line ("salt and pepper") stay in that line's group. An ingredient that

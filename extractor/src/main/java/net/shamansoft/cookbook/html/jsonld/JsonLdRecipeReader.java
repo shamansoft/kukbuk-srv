@@ -31,6 +31,10 @@ public final class JsonLdRecipeReader {
     private static final Pattern NUMBER = Pattern.compile("(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?)|(\\d+(?:[.,]\\d+)?)");
     private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
     private static final int MAX_SERVINGS_DIGITS = 4;
+    private static final int MAX_TAGS = 12;
+    private static final int MAX_STEP_DEPTH = 4;
+    private static final Pattern LANGUAGE = Pattern.compile("[A-Za-z]{2}(?:[-_][A-Za-z0-9]+)*");
+    private static final Pattern LINE_BREAK_TAG = Pattern.compile("<br\\s*/?>|</p>|</li>", Pattern.CASE_INSENSITIVE);
 
     private JsonLdRecipeReader() {
     }
@@ -44,12 +48,26 @@ public final class JsonLdRecipeReader {
      * @param image       first URL of {@code image} (string, list or {@code ImageObject})
      * @param nutrition   numbers parsed from {@code NutritionInformation}; null when it has none
      * @param ingredients {@code recipeIngredient} lines; {@code PropertyValue} objects joined to one line
+     * @param author      first name of {@code author} (person or organisation, object, list or string)
+     * @param language    {@code inLanguage} as a lower-case language code ({@code en-US} → {@code en})
+     * @param category    {@code recipeCategory} (string split on commas, or list); empty when absent
+     * @param tags        {@code recipeCuisine} then {@code keywords} (string split on commas, or list), each once;
+     *                    the stored schema has no cuisine field
+     * @param description {@code description}, decoded
+     * @param steps       {@code recipeInstructions} texts in order: {@code HowToStep}s, {@code HowToSection}s
+     *                    flattened, plain strings, or one text block split on its lines
      */
     public record JsonLdRecipe(String title, Integer servings, String prepTime, String cookTime, String totalTime,
-                               String image, Nutrition nutrition, List<String> ingredients) {
+                               String image, Nutrition nutrition, List<String> ingredients, String author,
+                               String language, List<String> category, List<String> tags, String description,
+                               List<String> steps) {
     }
 
     public static JsonLdRecipe read(JsonNode recipe) {
+        List<String> tags = new ArrayList<>(list(recipe.path("recipeCuisine")));
+        for (String keyword : list(recipe.path("keywords"))) {
+            if (tags.stream().noneMatch(keyword::equalsIgnoreCase)) tags.add(keyword);
+        }
         return new JsonLdRecipe(
                 text(recipe.path("name")),
                 servings(recipe.path("recipeYield")),
@@ -58,7 +76,75 @@ public final class JsonLdRecipeReader {
                 duration(recipe.path("totalTime")),
                 image(recipe.path("image")),
                 nutrition(recipe.path("nutrition")),
-                ingredients(recipe));
+                ingredients(recipe),
+                author(recipe.path("author")),
+                language(recipe.path("inLanguage")),
+                list(recipe.path("recipeCategory")),
+                tags.size() > MAX_TAGS ? List.copyOf(tags.subList(0, MAX_TAGS)) : List.copyOf(tags),
+                text(recipe.path("description")),
+                steps(recipe.path("recipeInstructions")));
+    }
+
+    private static String author(JsonNode author) {
+        if (author.isArray()) {
+            for (JsonNode item : author) {
+                String name = author(item);
+                if (name != null) return name;
+            }
+            return null;
+        }
+        return author.isObject() ? text(author.path("name")) : text(author);
+    }
+
+    private static String language(JsonNode node) {
+        String code = text(node);
+        if (code == null || !LANGUAGE.matcher(code).matches()) return null;
+        return code.substring(0, 2).toLowerCase(Locale.ROOT);
+    }
+
+    // "Dinner, Main Course" or ["Dinner", "Main Course"]
+    private static List<String> list(JsonNode node) {
+        List<String> values = new ArrayList<>();
+        Iterable<JsonNode> items = node.isArray() ? node : List.of(node);
+        for (JsonNode item : items) {
+            String text = text(item);
+            if (text == null) continue;
+            for (String value : text.split(",")) {
+                if (!value.isBlank() && values.stream().noneMatch(value.strip()::equalsIgnoreCase)) {
+                    values.add(value.strip());
+                }
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private static List<String> steps(JsonNode instructions) {
+        List<String> steps = new ArrayList<>();
+        addSteps(instructions, steps, 0);
+        return List.copyOf(steps);
+    }
+
+    private static void addSteps(JsonNode node, List<String> steps, int depth) {
+        if (depth > MAX_STEP_DEPTH) return;
+        if (node.isArray()) {
+            node.forEach(item -> addSteps(item, steps, depth + 1));
+        } else if (node.isObject()) {
+            JsonNode items = node.path("itemListElement");
+            if (!items.isMissingNode()) {
+                addSteps(items, steps, depth + 1);
+                return;
+            }
+            String text = text(node.path("text"));
+            if (text == null) text = text(node.path("name"));
+            if (text != null) steps.add(text);
+        } else if (node.isTextual()) {
+            // one block of text: its lines (or paragraphs) are the steps
+            String marked = LINE_BREAK_TAG.matcher(node.asText()).replaceAll("\n");
+            for (String line : Jsoup.parse(marked).wholeText().split("\\R")) {
+                String text = Jsoup.parse(line).text().strip();
+                if (!text.isEmpty()) steps.add(text);
+            }
+        }
     }
 
     private static String text(JsonNode node) {

@@ -37,6 +37,10 @@ class AdaptiveCleaningTransformerServiceTest {
     @Mock
     private HtmlCleaner htmlCleaner;
 
+    // Mockito's default answer is Optional.empty(): every test below runs the full-extraction path
+    @Mock
+    private AnchoredJsonLdExtractor anchoredJsonLd;
+
     private AdaptiveCleaningTransformerService service;
 
     private JsonLdFieldOverwriter jsonLdFields;
@@ -51,7 +55,8 @@ class AdaptiveCleaningTransformerServiceTest {
     void setUp() {
         jsonLdFields = new JsonLdFieldOverwriter(new ObjectMapper());
         cardSections = new CardSectionAssigner(new ObjectMapper(), new SimpleMeterRegistry());
-        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields, cardSections);
+        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields, cardSections,
+                anchoredJsonLd);
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.5);
     }
@@ -237,6 +242,30 @@ class AdaptiveCleaningTransformerServiceTest {
         Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
 
         assertThat(result.recipe().ingredients()).extracting(Ingredient::component).containsExactly("main", "Glaze");
+    }
+
+    @Test
+    @DisplayName("Returns the JSON-LD path's recipe without running full extraction")
+    void transform_usesJsonLdPathWhenItSucceeds() {
+        HtmlCleaner.Results cleanedResult = buildCleanerResult(CLEANED_HTML, Strategy.STRUCTURED_DATA);
+        Transformer.Response anchored = Transformer.Response.recipe(createRecipe("Anchored"));
+        when(htmlCleaner.process(RAW_HTML, SOURCE_URL)).thenReturn(cleanedResult);
+        when(anchoredJsonLd.extract(cleanedResult, SOURCE_URL)).thenReturn(java.util.Optional.of(anchored));
+
+        assertThat(service.transform(RAW_HTML, SOURCE_URL)).isSameAs(anchored);
+        verify(innerTransformer, never()).transform(any(), any());
+    }
+
+    @Test
+    @DisplayName("Falls back to full extraction when the JSON-LD path gives up")
+    void transform_fallsBackWhenJsonLdPathGivesUp() {
+        HtmlCleaner.Results cleanedResult = buildCleanerResult(CLEANED_HTML, Strategy.STRUCTURED_DATA);
+        when(htmlCleaner.process(RAW_HTML, SOURCE_URL)).thenReturn(cleanedResult);
+        when(anchoredJsonLd.extract(cleanedResult, SOURCE_URL)).thenReturn(java.util.Optional.empty());
+        when(innerTransformer.transform(CLEANED_HTML, SOURCE_URL))
+                .thenReturn(Transformer.Response.recipe(createRecipe("Full")));
+
+        assertThat(service.transform(RAW_HTML, SOURCE_URL).recipe().metadata().title()).isEqualTo("Full");
     }
 
     private HtmlCleaner.Results buildCleanerResult(String html, Strategy strategy) {

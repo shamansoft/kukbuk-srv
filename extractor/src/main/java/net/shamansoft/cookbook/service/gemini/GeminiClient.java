@@ -129,7 +129,10 @@ public class GeminiClient {
             log.debug("Combined JSON from Gemini - Total length: {} chars, First 200 chars: {}",
                     jsonContent.length(),
                     jsonContent.substring(0, Math.min(200, jsonContent.length())));
-            log.info("Gemini API request successful - Response length: {} chars", jsonContent.length());
+            JsonNode usage = response.path("usageMetadata");
+            log.info("Gemini API request successful - Response length: {} chars, tokens in/out: {}/{}",
+                    jsonContent.length(), usage.path("promptTokenCount").asInt(-1),
+                    usage.path("candidatesTokenCount").asInt(-1));
             try {
                 return GeminiResponse.success(objectMapper.readValue(jsonContent, clazz), jsonContent);
             } catch (JacksonException e) {

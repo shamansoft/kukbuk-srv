@@ -149,6 +149,21 @@ class CardSectionAssignerTest {
         assertThat(result).extracting(Ingredient::component).containsExactly("Massa", "Massa", "Cobertura", "Cobertura");
     }
 
+    @Test
+    void givesSectionsOnlyWhenTheCardLinesMatchTheJsonLdLinesInOrder() {
+        List<String> lines = List.of("2 cups flour", "3 apples", "1 cup sugar", "2 개");
+        List<Row> inOrder = List.of(new Row("Dough", "2 cups flour"), new Row("Filling", "3 apples"),
+                new Row("Dough", "1 cup sugar"), new Row("Filling", "2 개"));
+        List<Row> reordered = List.of(new Row("Dough", "2 cups flour"), new Row("Dough", "1 cup sugar"),
+                new Row("Filling", "3 apples"), new Row("Filling", "2 개"));
+
+        assertThat(CardSectionAssigner.givesSections(inOrder, lines)).isTrue();
+        assertThat(CardSectionAssigner.givesSections(reordered, lines)).isFalse();
+        assertThat(CardSectionAssigner.givesSections(inOrder.subList(0, 3), lines)).isFalse();
+        assertThat(CardSectionAssigner.givesSections(
+                inOrder.stream().map(r -> new Row(null, r.text())).toList(), lines)).isFalse();
+    }
+
     private static HtmlCleaner.Results cleaned(String jsonLd, String card) {
         return results(jsonLd + "\n\n<RECIPE_CARD_INGREDIENTS>\n" + card + "\n</RECIPE_CARD_INGREDIENTS>",
                 Strategy.STRUCTURED_DATA);

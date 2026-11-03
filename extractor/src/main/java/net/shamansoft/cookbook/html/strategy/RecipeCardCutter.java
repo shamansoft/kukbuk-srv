@@ -98,7 +98,7 @@ public final class RecipeCardCutter {
     }
 
     /** "For the Sauce:" → "Sauce", "CHICKEN" → "Chicken"; null for the card's "Ingredients" title. */
-    static String groupName(String heading) {
+    public static String groupName(String heading) {
         String name = heading.strip();
         if (INGREDIENTS_TITLE.matcher(name).matches()) return null;
         name = FOR_THE.matcher(name).replaceFirst("").replaceAll("[\\s:]+$", "").strip();

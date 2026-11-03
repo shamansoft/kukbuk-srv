@@ -3,8 +3,10 @@
 _Written 2026-10-18. Story: [feature-requests/jsonld-anchored-extraction.md](../../../feature-requests/jsonld-anchored-extraction.md)
 (tasks 4–8, "Open decisions"). Starts from sar-srv `main` @ `a74dcc6` (A–C merged in #98)._
 
-> **Status (2026-10-18):** the owner approved both phases and the four default decisions. Phase 1 is built and
-> measured (see "Phase 1 result"); Phase 2 follows on top of it.
+> **Status (2026-10-18):** the owner approved both phases and the four default decisions. Phase 1 is in sar-srv
+> PR #101 ("Phase 1 result"). Phase 2 is in its own PR on branch `feat/jsonld-anchored`, stacked on #101, with
+> `recipe.jsonld-anchored.enabled` off by default: it misses the per-page gate by one ingredient on two pages
+> ("Phase 2 result"), so turning it on is the owner's call.
 
 ## 📋 Table of Contents
 
@@ -26,16 +28,16 @@ _Written 2026-10-18. Story: [feature-requests/jsonld-anchored-extraction.md](../
 - [x] 3. Evaluate on the 50 samples (`results/jsonld-d-sections`)
   - [x] 3.1 Fix found on the way: `JsonLdFieldOverwriter`'s recipe check skipped 4 pages (longest word = unit)
 - [x] 4. Fix `expected/indianhealthyrecipes.com.json` and `expected/inspiredtaste.net.json` (sections the page has)
-- [ ] 5. Docs, commit, PR
+- [x] 5. Docs, commit, PR (#101)
 
 **Phase 2: full increment D (story tasks 4–8), on a trigger**
-- [ ] 6. Enrichment prompt and response schema (story 4.1)
-- [ ] 7. `RequestBuilder.buildRequestFromJsonLd` + feedback variant (story 4.2, additive)
-- [ ] 8. `JsonLdRecipeAssembler`: reader fields + enrichment, coverage check (story 5.1, 5.2)
-- [ ] 9. Retry with feedback, then fall back to today's path (story 5.3)
-- [ ] 10. Route before the cleaning cascade; flag `recipe.jsonld-anchored.enabled`; metrics (story 6)
-- [ ] 11. Retire the interim wiring: `JsonLdFieldOverwriter` (2.3), card in the prompt (3.3), Phase 1's assigner
-- [ ] 12. Evaluate (story 7) and docs (story 8)
+- [x] 6. Enrichment prompt and response schema (story 4.1)
+- [x] 7. `JsonLdRequestBuilder` + feedback variant; `RequestBuilder.buildRequestWithPrompt` (story 4.2, additive)
+- [x] 8. `JsonLdRecipeAssembler`: reader fields + enrichment, coverage check (story 5.1, 5.2)
+- [x] 9. Retry with feedback, then fall back to today's path (story 5.3)
+- [x] 10. Route before the cleaning cascade; flag `recipe.jsonld-anchored.enabled`; metrics (story 6)
+- [~] 11. Retire the interim wiring (kept: it is the fallback path while the flag is off): `JsonLdFieldOverwriter` (2.3), card in the prompt (3.3), Phase 1's assigner
+- [x] 12. Evaluate (story 7) and docs (story 8); flag off by default, gate not met
 
 ---
 
@@ -124,6 +126,33 @@ What the samples forced:
   often the unit ("1 ½ teaspoons chili powder" → "teaspoons"). It refused the recipe on cucchiaio.it, inspiredtaste.net,
   omnivorescookbook.com and panlasangpinoy.com, so C's fields were silently not applied there (inspiredtaste.net lost
   its cover in one run). A line now counts when any of its words appears (3-letter words whole, minus fillers).
+
+## Phase 2 result (2026-10-18, branch `feat/jsonld-anchored`)
+
+Built as planned (tasks 6–10), flag `recipe.jsonld-anchored.enabled` (default off; the tuner runs set
+`RECIPE_JSONLD_ANCHORED_ENABLED=true`). The B/C wiring (task 11) stays: it is the fallback path. Results `results/jsonld-d-anchored-v6/SCORE.md`.
+
+| Measure | `jsonld-abc` | Phase 1 | Phase 2 (v6) |
+|---|---|---|---|
+| Ingredients fully right | 569/615 | 591/615 | **596/615** |
+| Quantity right · group right, of found | 599 · 581 | 599 · 604 | **600 · 608** |
+| Pages with sections fully right | 13/17 | 16/17 | **17/17** |
+| Wrong units · extra ingredients | 14 · 8 | 14 · 8 | 12 · 8 |
+| Pages with the expected number of steps | 37/50 | 37/50 | **40/50** |
+| Oven temps (others unchanged) | 17/19 | 17/19 | 18/19 |
+| Path taken | — | — | 47/47 applied on the first answer, 0 retries, 0 fallbacks |
+| Tokens per call in / out (same 10 pages) | 8,299 / 1,669 | same | **4,109 / 1,447** |
+
+**Gate not met:** directoalpaladar.com 11/13 → 10/13 ("1 Diente de ajo" without `clove`) and sbs.com.au 15/15 → 14/15
+("⅔ cup plus 1 tbsp" as ⅔ cup) are each one ingredient worse than `main`. The model's answers are deterministic for a
+fixed prompt (a rerun of 10 pages was identical), but each prompt edit from v3 to v6 moved one to three ingredients
+elsewhere; no run had zero per-page regressions. v3/v4 used examples copied from sample lines and were discarded as
+overfitted; v5/v6 use analogous lines only.
+
+Learned on the way: the retry fixed nothing in v1–v6 (only one page ever broke a rule, sbs.com.au in v3, and the rule
+was wrong: "115 g butter, plus extra for greasing" is two rows of one ingredient, now allowed when the quantities
+differ). Condensing `prompt.md`'s unit rules lost behaviour each time ("ounces" → no unit, "dl" → `cup`, metric
+second quantity preferred); each needed its example back.
 
 ## Recommendation
 

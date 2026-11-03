@@ -102,6 +102,9 @@ class AddRecipeIT {
 
         // Disable Firebase (use mock instead)
         registry.add("firebase.enabled", () -> "false");
+
+        // The JSON-LD path is off by default; on here so its test covers it
+        registry.add("recipe.jsonld-anchored.enabled", () -> "true");
     }
 
     @BeforeEach
@@ -372,6 +375,62 @@ class AddRecipeIT {
                 .withQueryParam("q", containing("chocolate-chip-cookies.yaml")));
         verify(postRequestedFor(urlPathEqualTo("/files")));
         verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
+    }
+
+    @Test
+    @DisplayName("Should take the JSON-LD path for a page with a schema.org Recipe")
+    void shouldCreateRecipeFromJsonLdWithOneModelCall() throws Exception {
+        setupStorageInfoInFirestore("test-user-123", "valid-drive-token");
+        // Only the enrichment request names the numbered ingredient lines
+        stubFor(post(urlPathMatching("/models/gemini-3.1-flash-lite:generateContent.*"))
+                .atPriority(1)
+                .withRequestBody(containing("JSONLD_INGREDIENTS"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
+                                        {
+                                            "candidates": [{
+                                                "content": {
+                                                    "parts": [{
+                                                        "text": "{\\"title\\": \\"Shortbread\\", \\"description\\": \\"Buttery biscuits.\\", \\"language\\": \\"en\\", \\"difficulty\\": \\"easy\\", \\"ingredients\\": [{\\"source_index\\": 0, \\"item\\": \\"flour\\", \\"amount\\": 300, \\"unit\\": \\"g\\"}, {\\"source_index\\": 1, \\"item\\": \\"butter\\", \\"amount\\": 200, \\"unit\\": \\"g\\"}], \\"instructions\\": [{\\"description\\": \\"Rub butter into flour.\\"}, {\\"description\\": \\"Bake until pale golden.\\", \\"temperature\\": \\"160°C\\"}]}"
+                                                    }]
+                                                }
+                                            }]
+                                        }
+                                        """)));
+
+        String sampleHtml = """
+                <html>
+                <head><title>Shortbread</title>
+                <script type="application/ld+json">
+                {"@context": "https://schema.org", "@type": "Recipe", "name": "Shortbread",
+                 "image": "https://example.com/shortbread.jpg", "recipeYield": "12 biscuits", "totalTime": "PT45M",
+                 "recipeIngredient": ["300 g flour", "200 g butter"],
+                 "recipeInstructions": [{"@type": "HowToStep", "text": "Rub the butter into the flour."},
+                                        {"@type": "HowToStep", "text": "Bake at 160C until pale golden."}]}
+                </script></head>
+                <body><h1>Shortbread</h1></body>
+                </html>
+                """;
+        Request request = new Request(sampleHtml, "Shortbread", "https://example.com/shortbread");
+
+        ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
+                "http://localhost:" + port + RECIPE_PATH + "?compression=none",
+                new HttpEntity<>(request, createAuthHeaders()),
+                RecipeResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).extracting(RecipeResponse::title, RecipeResponse::isRecipe)
+                .containsExactly("Shortbread", true);
+        verify(1, postRequestedFor(urlPathMatching("/models/gemini-3.1-flash-lite:generateContent.*")));
+        verify(postRequestedFor(urlPathMatching("/models/gemini-3.1-flash-lite:generateContent.*"))
+                .withRequestBody(containing("0: 300 g flour")));
+        // the stored YAML carries the code-read fields
+        verify(patchRequestedFor(urlPathMatching("/files/file-456.*"))
+                .withRequestBody(containing("https://example.com/shortbread.jpg"))
+                .withRequestBody(containing("45m")));
     }
 
     @Test
