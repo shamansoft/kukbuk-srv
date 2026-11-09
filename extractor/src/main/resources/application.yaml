@@ -307,6 +307,15 @@ cookbook:
     oauth-secret: "${COOKBOOK_GOOGLE_OAUTH_SECRET:REMOVE_LATER}"
 
   # ---------------------------------------------------------------------------
+  # AUTH CONFIGURATION
+  # ---------------------------------------------------------------------------
+  auth:
+    # Email suffix of test accounts that skip the email_verified check (they have no inbox),
+    # e.g. "@test.example.com". Empty = no bypass. Kept out of the repo on purpose.
+    # Used by: FirebaseAuthFilter
+    test-email-suffix: ${COOKBOOK_AUTH_TEST_EMAIL_SUFFIX:}
+
+  # ---------------------------------------------------------------------------
   # DEBUG CONFIGURATION
   # ---------------------------------------------------------------------------
   debug:

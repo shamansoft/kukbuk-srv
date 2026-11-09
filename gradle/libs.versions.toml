@@ -23,7 +23,7 @@ google-cloud-kms = "2.30.0"
 junit-jupiter = "5.10.1"
 mockito = "5.18.0"
 assertj = "3.26.3"
-testcontainers = "1.19.3"
+testcontainers = "1.21.4"
 wiremock = "3.3.1"
 
 # Annotation Processing

@@ -11,6 +11,8 @@ import net.shamansoft.cookbook.entitlement.UserTier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,6 +25,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -47,13 +50,17 @@ class FirebaseAuthFilterTest {
     @Mock
     private FirebaseToken firebaseToken;
 
+    private static final String TEST_SUFFIX = "@test.example.com";
+
     private FirebaseAuthFilter filter;
     private StringWriter responseWriter;
 
     @BeforeEach
     void setUp() {
-        filter = new FirebaseAuthFilter(firebaseAuth);
+        filter = new FirebaseAuthFilter(firebaseAuth, TEST_SUFFIX);
         responseWriter = new StringWriter();
+        // Verified by default; the email verification tests below override this
+        lenient().when(firebaseToken.isEmailVerified()).thenReturn(true);
     }
 
     private void setupResponseWriter() throws IOException {
@@ -228,7 +235,7 @@ class FirebaseAuthFilterTest {
     void testProtectedPath_FirebaseAuthNotConfigured_Returns503() throws ServletException, IOException {
         // Given: FirebaseAuth is null (not configured)
         setupResponseWriter();
-        filter = new FirebaseAuthFilter(null);
+        filter = new FirebaseAuthFilter(null, TEST_SUFFIX);
         when(request.getRequestURI()).thenReturn("/v1/recipes");
 
         // When: filter processes request
@@ -264,6 +271,7 @@ class FirebaseAuthFilterTest {
         when(request.getHeader("Authorization")).thenReturn("Bearer token-2");
         when(firebaseToken.getUid()).thenReturn("user-2");
         when(firebaseToken.getEmail()).thenReturn("user2@example.com");
+        when(firebaseToken.isEmailVerified()).thenReturn(true);
         when(firebaseAuth.verifyIdToken("token-2")).thenReturn(firebaseToken);
 
         // When: second request
@@ -475,6 +483,171 @@ class FirebaseAuthFilterTest {
 
         // Then: userTier is set to ENTERPRISE
         verify(request).setAttribute("userTier", UserTier.ENTERPRISE);
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testUnverifiedEmail_RecipesPath_Returns403() throws ServletException, IOException, FirebaseAuthException {
+        // Given: valid token whose email has not been verified
+        setupResponseWriter();
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: rejected with a code clients can recognise, and no identity is passed on
+        verify(response).setStatus(403);
+        verify(response).setContentType("application/json");
+        verify(filterChain, never()).doFilter(request, response);
+        verify(request, never()).setAttribute(org.mockito.ArgumentMatchers.eq("userId"),
+                org.mockito.ArgumentMatchers.any());
+        assertTrue(responseWriter.toString().contains("email_not_verified"));
+    }
+
+    @Test
+    void testUnverifiedEmail_StoragePath_Returns403() throws ServletException, IOException, FirebaseAuthException {
+        // Given: an unverified user trying to connect storage
+        setupResponseWriter();
+        when(request.getRequestURI()).thenReturn("/v1/storage/status");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(response).setStatus(403);
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testUnverifiedEmail_ProfilePath_AllowsAccess() throws ServletException, IOException, FirebaseAuthException {
+        // Given: registration saves the profile before the user can verify
+        when(request.getRequestURI()).thenReturn("/v1/user/profile");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("user@example.com");
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(request).setAttribute("userId", "user-123");
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
+    void testUnverifiedEmail_PathExtendingProfile_Returns403() throws ServletException, IOException, FirebaseAuthException {
+        // Given: the exemption must match the profile path exactly
+        setupResponseWriter();
+        when(request.getRequestURI()).thenReturn("/v1/user/profile/extra");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(response).setStatus(403);
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"qa@test.example.com", "QA@Test.Example.COM"})
+    void testUnverifiedEmail_TestDomain_AllowsAccess(String email)
+            throws ServletException, IOException, FirebaseAuthException {
+        // Given: an unverified account on the test domain
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn(email);
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        // When
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then
+        verify(request).setAttribute("userId", "user-123");
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "qa@nottest.example.com",
+            "qa@test.example.com.evil.com",
+            "qa@sub.test.example.com",
+            "test.example.com@gmail.com",
+            "qa@example.com"
+    })
+    void testUnverifiedEmail_LookalikeOfTestDomain_Returns403(String email)
+            throws ServletException, IOException, FirebaseAuthException {
+        assertUnverifiedRejected(email);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void testUnverifiedEmail_SuffixNotConfigured_Returns403(String suffix)
+            throws ServletException, IOException, FirebaseAuthException {
+        // Given: no test suffix configured, so nothing bypasses verification
+        filter = new FirebaseAuthFilter(firebaseAuth, suffix);
+        assertUnverifiedRejected("qa@test.example.com");
+    }
+
+    @Test
+    void testUnverifiedEmail_SuffixWithoutAt_MatchesWholeDomainOnly()
+            throws ServletException, IOException, FirebaseAuthException {
+        // Given: suffix configured without the leading "@"
+        filter = new FirebaseAuthFilter(firebaseAuth, "test.example.com");
+        assertUnverifiedRejected("qa@nottest.example.com");
+    }
+
+    @Test
+    void testUnverifiedEmail_NullSuffix_Returns403()
+            throws ServletException, IOException, FirebaseAuthException {
+        filter = new FirebaseAuthFilter(firebaseAuth, null);
+        assertUnverifiedRejected("qa@test.example.com");
+    }
+
+    private void assertUnverifiedRejected(String email)
+            throws ServletException, IOException, FirebaseAuthException {
+        setupResponseWriter();
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn(email);
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(response).setStatus(403);
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testUnverifiedEmail_SuffixWithoutAt_StillAllowsTestDomain()
+            throws ServletException, IOException, FirebaseAuthException {
+        filter = new FirebaseAuthFilter(firebaseAuth, " Test.Example.com ");
+        when(request.getRequestURI()).thenReturn("/v1/recipes");
+        when(request.getHeader("Authorization")).thenReturn("Bearer valid-token");
+        when(firebaseToken.getUid()).thenReturn("user-123");
+        when(firebaseToken.getEmail()).thenReturn("QA@test.example.com");
+        when(firebaseToken.isEmailVerified()).thenReturn(false);
+        when(firebaseAuth.verifyIdToken("valid-token")).thenReturn(firebaseToken);
+
+        filter.doFilterInternal(request, response, filterChain);
+
         verify(filterChain).doFilter(request, response);
     }
 
