@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import net.shamansoft.cookbook.entitlement.UserTier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -31,12 +32,24 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     // Registration saves the profile before the user can click the verification link,
     // and login needs it for routing. Everything else requires a verified email.
     private static final String UNVERIFIED_ALLOWED_PATH = "/v1/user/profile";
-    // Test accounts: these addresses have no inbox, so they can never verify
-    private static final String TEST_EMAIL_SUFFIX = "@test.shmnsft.com";
     private final FirebaseAuth firebaseAuth;
+    // Test accounts: these addresses have no inbox, so they can never verify.
+    // Lowercased, starts with "@"; null when not configured (no bypass)
+    private final String testEmailSuffix;
 
-    public FirebaseAuthFilter(FirebaseAuth firebaseAuth) {
+    public FirebaseAuthFilter(FirebaseAuth firebaseAuth,
+                              @Value("${cookbook.auth.test-email-suffix:}") String testEmailSuffix) {
         this.firebaseAuth = firebaseAuth;
+        this.testEmailSuffix = normalizeSuffix(testEmailSuffix);
+    }
+
+    // Leading "@" is required so "@test.example.com" can't match "qa@nottest.example.com"
+    private static String normalizeSuffix(String suffix) {
+        if (suffix == null || suffix.isBlank()) {
+            return null;
+        }
+        String s = suffix.trim().toLowerCase(Locale.ROOT);
+        return s.startsWith("@") ? s : "@" + s;
     }
 
     private boolean isPublicPath(String path) {
@@ -52,7 +65,9 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isTestEmail(String email) {
-        return email != null && email.toLowerCase(Locale.ROOT).endsWith(TEST_EMAIL_SUFFIX);
+        return testEmailSuffix != null
+                && email != null
+                && email.toLowerCase(Locale.ROOT).endsWith(testEmailSuffix);
     }
 
     @Override
