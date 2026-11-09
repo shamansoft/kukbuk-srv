@@ -24,9 +24,11 @@ COPY recipe-sdk/src ./recipe-sdk/src
 ENV JAVA_OPTS="-Xmx10g -XX:MaxMetaspaceSize=768m"
 ENV NATIVE_IMAGE_OPTS="-J-Xmx3g -J-XX:MaxMetaspaceSize=768m -H:+PrintAnalysisCallTree -H:MaximumHeapSizePercent=50"
 
-# Run native compilation with memory constraints and incremental build support
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew -Dorg.gradle.jvmargs="-Xmx8g" cookbook:nativeCompile \
+# Run native compilation with memory constraints.
+# No cache mount on /root/.gradle: it would hide the Gradle distribution and dependencies that the
+# `dependencies` step above put there. On a fresh CI runner the mount is empty, so Gradle was
+# downloaded a second time here and that download timed out.
+RUN ./gradlew -Dorg.gradle.jvmargs="-Xmx8g" cookbook:nativeCompile \
     -Porg.graalvm.buildtools.native.targetPlatform=linux-amd64 \
     -Porg.graalvm.buildtools.native.imageName=cookbook
 
