@@ -527,7 +527,7 @@ Completed plans live in [docs/plans/completed/](docs/plans/completed/): prompt-i
 ### Testing
 - **JUnit**: 5.10.1
 - **Mockito**: 5.18.0
-- **Testcontainers**: 1.19.3
+- **Testcontainers**: 1.21.4 (1.21.4+ needed for Docker Engine 29 on `ubuntu-latest` runners)
 - **WireMock**: 3.3.1
 
 ### Quality & Security
