@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -24,22 +25,19 @@ public class RestClientConfig {
         return uri.replaceAll("key=([^&]{2})[^&]+", "key=$1***");
     }
 
-    @Bean
-    @Primary
-    public ClientHttpRequestFactory httpRequestFactory() {
-        ConnectionConfig connectionConfig = ConnectionConfig.custom()
-                .setConnectTimeout(Timeout.ofSeconds(2))
-                .build();
-
-        PoolingHttpClientConnectionManager connectionManager =
-                new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(200);
-        connectionManager.setDefaultMaxPerRoute(20);
-        connectionManager.setDefaultConnectionConfig(connectionConfig);
+    /** A pooled Apache HTTP client factory. */
+    private static HttpComponentsClientHttpRequestFactory pooledFactory(int maxTotal, int maxPerRoute,
+                                                                        int connectSeconds, int responseSeconds) {
+        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        connectionManager.setMaxTotal(maxTotal);
+        connectionManager.setDefaultMaxPerRoute(maxPerRoute);
+        connectionManager.setDefaultConnectionConfig(ConnectionConfig.custom()
+                .setConnectTimeout(Timeout.ofSeconds(connectSeconds))
+                .build());
 
         RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(Timeout.ofSeconds(2))
-                .setResponseTimeout(Timeout.ofSeconds(30))
+                .setConnectionRequestTimeout(Timeout.ofSeconds(connectSeconds))
+                .setResponseTimeout(Timeout.ofSeconds(responseSeconds))
                 .build();
 
         CloseableHttpClient httpClient = HttpClients.custom()
@@ -51,29 +49,15 @@ public class RestClientConfig {
     }
 
     @Bean
+    @Primary
+    public ClientHttpRequestFactory httpRequestFactory() {
+        return pooledFactory(200, 20, 2, 30);
+    }
+
+    @Bean
     public ClientHttpRequestFactory geminiHttpRequestFactory(
             @Value("${cookbook.gemini.timeout-seconds:90}") int timeoutSeconds) {
-        ConnectionConfig connectionConfig = ConnectionConfig.custom()
-                .setConnectTimeout(Timeout.ofSeconds(5))
-                .build();
-
-        PoolingHttpClientConnectionManager connectionManager =
-                new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(50);
-        connectionManager.setDefaultMaxPerRoute(10);
-        connectionManager.setDefaultConnectionConfig(connectionConfig);
-
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(Timeout.ofSeconds(5))
-                .setResponseTimeout(Timeout.ofSeconds(timeoutSeconds))
-                .build();
-
-        CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                .build();
-
-        return new HttpComponentsClientHttpRequestFactory(httpClient);
+        return pooledFactory(50, 10, 5, timeoutSeconds);
     }
 
     @Bean
@@ -125,6 +109,19 @@ public class RestClientConfig {
     public RestClient genericRestClient(ClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
                 .requestFactory(requestFactory)
+                .build();
+    }
+
+    /** TypeSafe (Jev) API. Short timeout: the page screen fails open, so a slow answer only delays extraction. */
+    @Bean
+    public RestClient typesafeRestClient(
+            @Value("${cookbook.typesafe.base-url:https://api.typesafe.ai}") String baseUrl,
+            @Value("${cookbook.typesafe.api-key:}") String apiKey,
+            @Value("${cookbook.typesafe.timeout-seconds:5}") int timeoutSeconds) {
+        return RestClient.builder()
+                .requestFactory(pooledFactory(50, 20, 2, timeoutSeconds))
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .build();
     }
 

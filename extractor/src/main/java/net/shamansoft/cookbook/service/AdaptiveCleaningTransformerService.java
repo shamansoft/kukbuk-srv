@@ -27,6 +27,10 @@ import java.util.List;
  * <p>This solves the problem where over-aggressive cleaning removes the recipe content,
  * causing the LLM to incorrectly conclude the page has no recipe.
  *
+ * <p>Before any Gemini call, {@link RecipePageScreen} (Jev) may pick the cleaning that still holds the whole
+ * recipe, or rule out a recipe altogether. When it cannot decide, the cleaner's cascade picks as before.
+ * Either way, the retry loop above still runs from the chosen strategy.
+ *
  * <p>This service is {@link Primary} and owns the cleaning step.
  * It accepts <b>raw</b> (uncleaned) HTML and handles cleaning internally.
  * {@link ValidatingTransformerService} is used as the inner transformer for
@@ -42,6 +46,7 @@ public class AdaptiveCleaningTransformerService implements Transformer {
     private final HtmlCleaner htmlCleaner;
     private final JsonLdFieldOverwriter jsonLdFields;
     private final CardSectionAssigner cardSections;
+    private final RecipePageScreen pageScreen;
 
     @Value("${recipe.adaptive-cleaning.enabled:true}")
     private boolean enabled;
@@ -60,9 +65,23 @@ public class AdaptiveCleaningTransformerService implements Transformer {
      */
     @Override
     public Response transform(String rawHtml, String sourceUrl) {
-        // Initial clean using the full cascade (picks the best strategy)
-        HtmlCleaner.Results initial = htmlCleaner.process(rawHtml, sourceUrl);
-        log.info("Initial HTML cleaning - URL: {}, {}", sourceUrl, initial.metricsMessage());
+        HtmlCleaner.Results initial;
+        switch (pageScreen.screen(rawHtml, sourceUrl)) {
+            case RecipePageScreen.NotRecipe notRecipe -> {
+                log.info("Jev found no recipe, skipping Gemini - URL: {}, {}", sourceUrl, notRecipe.judgement());
+                return Response.notRecipeByScreen(notRecipe.recipeConfidence());
+            }
+            case RecipePageScreen.Use use -> {
+                initial = use.cleaned();
+                log.info("HTML cleaning chosen by Jev - URL: {}, {}", sourceUrl, initial.metricsMessage());
+            }
+            case RecipePageScreen.Undecided undecided -> {
+                // Initial clean using the full cascade (picks the best strategy)
+                initial = htmlCleaner.process(rawHtml, sourceUrl);
+                log.info("Initial HTML cleaning - URL: {}, {} ({})", sourceUrl, initial.metricsMessage(),
+                        undecided.reason());
+            }
+        }
 
         Response result = extract(initial, sourceUrl);
 

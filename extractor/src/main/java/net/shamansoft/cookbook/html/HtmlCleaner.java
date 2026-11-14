@@ -167,6 +167,32 @@ public class HtmlCleaner {
         return buildResult(html, originalSize, Strategy.FALLBACK);
     }
 
+    /**
+     * Runs one strategy without recording metrics or dumps; empty when it produces nothing.
+     * For callers that try several strategies and use at most one ({@code RecipePageScreen}).
+     */
+    public Optional<String> tryStrategy(String html, Strategy targetStrategy) {
+        if (html == null || html.isBlank() || !config.isEnabled()) {
+            return Optional.empty();
+        }
+        for (var strategy : strategies) {
+            if (strategy.getStrategy() == targetStrategy) {
+                try {
+                    return strategy.clean(html).filter(out -> !out.isBlank());
+                } catch (Exception e) {
+                    log.debug("Strategy {} failed", targetStrategy, e);
+                    return Optional.empty();
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Results for output {@link #tryStrategy} produced, recorded (metrics, dump) like any other cleaning. */
+    public Results recordResult(String html, String cleanedHtml, Strategy strategy) {
+        return buildResult(cleanedHtml, html.length(), strategy);
+    }
+
     // removed legacy HtmlCleaner.Strategy enum; use net.shamansoft.cookbook.html.strategy.Strategy
 
     /**

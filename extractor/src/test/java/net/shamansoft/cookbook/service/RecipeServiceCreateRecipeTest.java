@@ -282,6 +282,22 @@ class RecipeServiceCreateRecipeTest {
     }
 
     @Test
+    @DisplayName("Does not cache a not-a-recipe verdict that only the Jev page screen made")
+    void doesNotCacheScreenVerdict() throws IOException {
+        when(storageService.getStorageInfo(USER_ID)).thenReturn(mockStorageInfo);
+        when(contentHashService.generateContentHash(URL)).thenReturn(HASH);
+        when(recipeStoreService.findCachedRecipes(HASH)).thenReturn(Optional.empty());
+        when(htmlExtractor.extractHtml(URL, SOURCE_HTML)).thenReturn(EXTRACTED_HTML);
+        when(transformer.transform(eq(EXTRACTED_HTML), anyString()))
+                .thenReturn(Transformer.Response.notRecipeByScreen(0.02));
+
+        RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
+
+        assertThat(response.isRecipe()).isFalse();
+        verify(recipeStoreService, never()).storeInvalidRecipe(any(), any());
+    }
+
+    @Test
     @DisplayName("Should use cached result when recipe already stored")
     void shouldUseCachedResult() throws Exception {
         Recipe testRecipe = createTestRecipe();
