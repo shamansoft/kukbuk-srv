@@ -234,6 +234,42 @@ cookbook:
     safety-threshold: "BLOCK_NONE"
 
   # ---------------------------------------------------------------------------
+  # TYPESAFE (JEV) CONFIGURATION
+  # ---------------------------------------------------------------------------
+  # Jev answers typed questions with calibrated probabilities (https://docs.typesafe.ai).
+  # Used by RecipePageScreen, called from AdaptiveCleaningTransformerService before any Gemini call:
+  # for each cleaning strategy (STRUCTURED_DATA → SECTION_BASED → CONTENT_FILTER) it asks whether the
+  # cleaned text holds a complete recipe, how it gives the ingredients (list / prose / none) and whether it
+  # has preparation steps. The first complete output goes to Gemini. If none is complete, the whole page's
+  # text is judged: no ingredients and no steps skips Gemini (that verdict is not cached). Otherwise, or
+  # when Jev fails, extraction runs as without the screen.
+  typesafe:
+    # Without a key the screen is off
+    api-key: ${COOKBOOK_TYPESAFE_API_KEY:}
+    base-url: "https://api.typesafe.ai"
+    # Pinned version, not jev-latest: the alias moves and would shift answers under a tuned threshold
+    model: ${COOKBOOK_TYPESAFE_MODEL:jev-1.14.0}
+    # Per request. Jev answers in ~0.1 s; the screen fails open, so a slow answer only delays extraction
+    timeout-seconds: 5
+    page-screen:
+      enabled: ${COOKBOOK_TYPESAFE_PAGE_SCREEN_ENABLED:true}
+      # A yes counts at probability >= threshold, a no at <= 1 - threshold; anything between decides nothing
+      threshold: ${COOKBOOK_TYPESAFE_PAGE_SCREEN_THRESHOLD:0.8}
+      # Text beyond this many UTF-8 bytes is cut before it goes to Jev: ~15k tokens of English, ~20-30k of
+      # CJK, under Jev's 32k-token limit per question. Cut text can be judged complete, never "not a recipe".
+      max-text-bytes: 60000
+      # Stop asking Jev once this much time has passed on a page (up to 4 requests: 3 cleanings + whole page)
+      time-budget-ms: 5000
+    # POST /v1/recipes/url only: when the direct fetch is blocked, RecipeUrlCheck asks Jev whether the URL
+    # (after redirects) looks like a page with one recipe before spending a markdown.new call (500/day per IP).
+    # Below the threshold the request fails with 422 and markdown.new is not called. Low on purpose: skipping a
+    # real recipe loses a save, fetching a category page costs one call. Tested 2026-11-14: recipe URLs
+    # 0.90-0.99, home/category/gallery/search/shop/article URLs 0.01-0.03, opaque URLs (?p=123) 0.20.
+    url-check:
+      enabled: ${COOKBOOK_TYPESAFE_URL_CHECK_ENABLED:true}
+      threshold: ${COOKBOOK_TYPESAFE_URL_CHECK_THRESHOLD:0.1}
+
+  # ---------------------------------------------------------------------------
   # GOOGLE DRIVE CONFIGURATION
   # ---------------------------------------------------------------------------
   drive:

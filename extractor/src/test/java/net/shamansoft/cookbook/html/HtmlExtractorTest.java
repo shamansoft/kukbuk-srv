@@ -17,6 +17,9 @@ import java.net.UnknownHostException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -34,11 +37,15 @@ class HtmlExtractorTest {
     @Mock
     private UrlContentFetcher markdownFetcher;
 
+    @Mock
+    private RecipeUrlCheck recipeUrlCheck;
+
     private HtmlExtractor htmlExtractor;
 
     @BeforeEach
     void setUp() {
-        htmlExtractor = new HtmlExtractor(htmlFetcher, markdownFetcher, true);
+        htmlExtractor = new HtmlExtractor(htmlFetcher, markdownFetcher, recipeUrlCheck, true);
+        lenient().when(recipeUrlCheck.worthFetching(anyString())).thenReturn(true);
     }
 
     // ---- extractHtml (POST /v1/recipes) ------------------------------------
@@ -215,12 +222,61 @@ class HtmlExtractorTest {
 
     @Test
     void doesNotFallBackWhenDisabled() throws IOException {
-        htmlExtractor = new HtmlExtractor(htmlFetcher, markdownFetcher, false);
+        htmlExtractor = new HtmlExtractor(htmlFetcher, markdownFetcher, recipeUrlCheck, false);
         when(htmlFetcher.fetchUsable(URL)).thenThrow(new UrlFetchException(URL, 403));
 
         assertThatThrownBy(() -> htmlExtractor.fetchWithFallback(URL))
                 .isInstanceOf(UrlFetchException.class)
                 .hasMessageContaining("HTTP 403");
         verifyNoInteractions(markdownFetcher);
+    }
+
+    // ---- Jev URL check before markdown.new ----------------------------------
+
+    @Test
+    void doesNotCallMarkdownNewForALinkThatIsNotARecipe() throws IOException {
+        UrlFetchException original = new UrlFetchException(URL, 403).withFinalUrl(URL);
+        when(htmlFetcher.fetchUsable(URL)).thenThrow(original);
+        when(recipeUrlCheck.worthFetching(URL)).thenReturn(false);
+
+        assertThatThrownBy(() -> htmlExtractor.fetchWithFallback(URL))
+                .asInstanceOf(type(UrlFetchException.class))
+                .satisfies(e -> {
+                    assertThat(e.getHttpStatus()).isEqualTo(403);
+                    assertThat(e.getCause()).isSameAs(original);
+                    assertThat(e.getMessage()).contains("does not look like a recipe page");
+                });
+        verifyNoInteractions(markdownFetcher);
+    }
+
+    @Test
+    void urlCheckJudgesWhereARedirectLed() throws IOException {
+        String shortLink = "https://t.co/abc123";
+        String target = "https://example.com/recipes/pumpkin-soup/";
+        when(htmlFetcher.fetchUsable(shortLink))
+                .thenThrow(new BlockedPageException("challenge").withFinalUrl(target));
+        when(markdownFetcher.fetch(shortLink)).thenReturn(RECIPE_MARKDOWN);
+
+        assertThat(htmlExtractor.fetchWithFallback(shortLink)).isEqualTo(PageContent.markdown(RECIPE_MARKDOWN));
+        verify(recipeUrlCheck).worthFetching(target);
+    }
+
+    @Test
+    void urlCheckIsSkippedAfterATimeoutBecauseTheUrlMayBeAShortLink() throws IOException {
+        when(htmlFetcher.fetchUsable("https://pin.it/abc")).thenThrow(new SocketTimeoutException("Read timed out"));
+        when(markdownFetcher.fetch("https://pin.it/abc")).thenReturn(RECIPE_MARKDOWN);
+
+        assertThat(htmlExtractor.fetchWithFallback("https://pin.it/abc"))
+                .isEqualTo(PageContent.markdown(RECIPE_MARKDOWN));
+        verify(recipeUrlCheck, never()).worthFetching(anyString());
+    }
+
+    @Test
+    void urlCheckIsNotAskedWhenThereIsNoFallback() throws IOException {
+        when(htmlFetcher.fetchUsable(URL)).thenReturn("fetched-html");
+
+        htmlExtractor.fetchWithFallback(URL);
+
+        verify(recipeUrlCheck, never()).worthFetching(anyString());
     }
 }

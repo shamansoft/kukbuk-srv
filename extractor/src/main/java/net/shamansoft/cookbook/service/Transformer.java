@@ -36,8 +36,15 @@ public interface Transformer {
      *                       High confidence + isRecipe=false signals over-cleaned HTML.
      * @param recipes        the parsed Recipe objects (empty if isRecipe is false)
      * @param rawLlmResponse raw response text from the LLM (optional, for debugging)
+     * @param cacheable      whether a "not a recipe" verdict may be cached for the URL. False when no LLM saw
+     *                       the page (the Jev page screen ruled it out), so a later save can still extract it.
      */
-    record Response(boolean isRecipe, double confidence, List<Recipe> recipes, String rawLlmResponse) {
+    record Response(boolean isRecipe, double confidence, List<Recipe> recipes, String rawLlmResponse,
+                    boolean cacheable) {
+
+        public Response(boolean isRecipe, double confidence, List<Recipe> recipes, String rawLlmResponse) {
+            this(isRecipe, confidence, recipes, rawLlmResponse, true);
+        }
 
         /**
          * Convenience accessor for single-recipe scenarios.
@@ -63,6 +70,14 @@ public interface Transformer {
          */
         public static Response notRecipe(double confidence) {
             return new Response(false, confidence, List.of(), null);
+        }
+
+        /**
+         * "Not a recipe" decided by the Jev page screen without any LLM call. Not cached, since the screen only
+         * saw the page's text and a wrong verdict would stick to the URL.
+         */
+        public static Response notRecipeByScreen(double confidence) {
+            return new Response(false, confidence, List.of(), null, false);
         }
 
         /**
