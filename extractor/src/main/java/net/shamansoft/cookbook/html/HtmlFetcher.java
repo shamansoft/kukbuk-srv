@@ -37,9 +37,10 @@ public class HtmlFetcher implements UrlContentFetcher {
         Optional<BlockedPageDetector.Finding> finding = BlockedPageDetector.detect(doc);
         if (finding.isPresent()) {
             log.warn("Fetched page is unusable ({}): {}", finding.get().reason(), url);
-            throw finding.get().kind() == BlockedPageDetector.Kind.NOT_FOUND
+            UrlFetchException error = finding.get().kind() == BlockedPageDetector.Kind.NOT_FOUND
                     ? new UrlFetchException(url, 404)
                     : new BlockedPageException(finding.get().reason());
+            throw error.withFinalUrl(doc.location());
         }
         return bodyHtml(url, doc);
     }
@@ -53,7 +54,7 @@ public class HtmlFetcher implements UrlContentFetcher {
                     .get();
         } catch (HttpStatusException e) {
             log.warn("Failed to fetch URL (HTTP {}): {}", e.getStatusCode(), url);
-            throw new UrlFetchException(url, e.getStatusCode());
+            throw new UrlFetchException(url, e.getStatusCode()).withFinalUrl(e.getUrl());
         }
     }
 

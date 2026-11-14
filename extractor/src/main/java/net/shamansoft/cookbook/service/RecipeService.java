@@ -190,6 +190,8 @@ public class RecipeService {
         if (response.isRecipe()) {
             recipeStoreService.storeValidRecipes(contentHash, url, response.recipes());
             log.debug("Cached {} recipe(s) for hash: {}", response.recipes().size(), contentHash);
+        } else if (!response.cacheable()) {
+            log.info("Jev page screen found no recipe - not caching. URL: {}", url);
         } else if (page.isMarkdown()) {
             // markdown.new output can be a challenge or error page we failed to detect; caching the
             // verdict by URL would also block POST /v1/recipes with the real HTML from the extension.

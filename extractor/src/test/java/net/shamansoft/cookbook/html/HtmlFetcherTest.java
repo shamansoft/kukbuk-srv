@@ -1,13 +1,20 @@
 package net.shamansoft.cookbook.html;
 
+import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.shamansoft.cookbook.config.HtmlCleanupConfig;
+import net.shamansoft.cookbook.exception.BlockedPageException;
+import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.html.strategy.StructuredDataStrategy;
 import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HtmlFetcherTest {
 
@@ -69,5 +76,56 @@ class HtmlFetcherTest {
         String fetched = HtmlFetcher.toBodyHtml(Jsoup.parse(html));
 
         assertThat(strategy.clean(fetched)).hasValueSatisfying(json -> assertThat(json).contains("Cake"));
+    }
+
+    // ---- the URL after redirects, for the Jev URL check ---------------------
+
+    @Test
+    void blockedStatusReportsTheUrlARedirectLedTo() throws Exception {
+        HttpServer server = redirectingServer(403, "denied");
+        try {
+            String base = "http://localhost:" + server.getAddress().getPort();
+            assertThatThrownBy(() -> new HtmlFetcher().fetchUsable(base + "/short"))
+                    .isInstanceOf(UrlFetchException.class)
+                    .extracting(e -> ((UrlFetchException) e).getFinalUrl())
+                    .isEqualTo(base + "/recipes/pumpkin-soup");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void challengePageReportsTheUrlARedirectLedTo() throws Exception {
+        HttpServer server = redirectingServer(200,
+                "<html><head><title>Just a moment...</title></head><body>Checking your browser</body></html>");
+        try {
+            String base = "http://localhost:" + server.getAddress().getPort();
+            assertThatThrownBy(() -> new HtmlFetcher().fetchUsable(base + "/short"))
+                    .isInstanceOf(BlockedPageException.class)
+                    .extracting(e -> ((UrlFetchException) e).getFinalUrl())
+                    .isEqualTo(base + "/recipes/pumpkin-soup");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /** {@code /short} redirects to {@code /recipes/pumpkin-soup}, which answers {@code status} with {@code body}. */
+    private static HttpServer redirectingServer(int status, String body) throws Exception {
+        HttpServer server =
+                HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/short", exchange -> {
+            exchange.getResponseHeaders().add("Location", "/recipes/pumpkin-soup");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        server.createContext("/recipes/pumpkin-soup", exchange -> {
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(status, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        return server;
     }
 }

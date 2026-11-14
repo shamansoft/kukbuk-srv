@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,6 +89,25 @@ class HtmlCleanerTest {
         );
 
         htmlCleaner = new HtmlCleaner(config, meterRegistry, strategies, dumpService);
+    }
+
+    @Test
+    void tryStrategyRecordsNothingUntilTheResultIsRecorded() {
+        String html = "<html><body><nav>menu</nav><article><p>" + "Mix the flour and water. ".repeat(40)
+                + "</p></article></body></html>";
+
+        var cleaned = htmlCleaner.tryStrategy(html, CONTENT_FILTER);
+        assertThat(cleaned).isPresent().get().asString().doesNotContain("menu");
+        assertThat(htmlCleaner.tryStrategy(html, FALLBACK)).as("no such strategy bean").isEmpty();
+        assertThat(htmlCleaner.tryStrategy("  ", CONTENT_FILTER)).isEmpty();
+        verify(meterRegistry, never()).counter(anyString(), anyString(), anyString());
+        verify(dumpService, never()).dump(any(), any(), any(), any());
+
+        HtmlCleaner.Results results = htmlCleaner.recordResult(html, cleaned.get(), CONTENT_FILTER);
+
+        assertThat(results.strategyUsed()).isEqualTo(CONTENT_FILTER);
+        assertThat(results.originalSize()).isEqualTo(html.length());
+        verify(meterRegistry).counter("html.preprocessing.strategy", "type", "CONTENT_FILTER");
     }
 
     @Test

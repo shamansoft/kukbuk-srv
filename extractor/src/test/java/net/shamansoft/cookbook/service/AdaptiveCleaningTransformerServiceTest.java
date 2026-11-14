@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,9 @@ class AdaptiveCleaningTransformerServiceTest {
 
     @Mock
     private HtmlCleaner htmlCleaner;
+
+    @Mock
+    private RecipePageScreen pageScreen;
 
     private AdaptiveCleaningTransformerService service;
 
@@ -51,7 +55,10 @@ class AdaptiveCleaningTransformerServiceTest {
     void setUp() {
         jsonLdFields = new JsonLdFieldOverwriter(new ObjectMapper());
         cardSections = new CardSectionAssigner(new ObjectMapper(), new SimpleMeterRegistry());
-        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields, cardSections);
+        service = new AdaptiveCleaningTransformerService(innerTransformer, htmlCleaner, jsonLdFields, cardSections,
+                pageScreen);
+        lenient().when(pageScreen.screen(anyString(), anyString()))
+                .thenReturn(new RecipePageScreen.Undecided("screen disabled"));
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "confidenceThreshold", 0.5);
     }
@@ -237,6 +244,60 @@ class AdaptiveCleaningTransformerServiceTest {
         Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
 
         assertThat(result.recipe().ingredients()).extracting(Ingredient::component).containsExactly("main", "Glaze");
+    }
+
+    @Test
+    @DisplayName("Jev's chosen cleaning goes to Gemini without running the cascade")
+    void transform_usesCleaningChosenByScreen() {
+        HtmlCleaner.Results chosen = buildCleanerResult(CLEANED_HTML, Strategy.SECTION_BASED);
+        when(pageScreen.screen(RAW_HTML, SOURCE_URL))
+                .thenReturn(new RecipePageScreen.Use(chosen, judgement(Strategy.SECTION_BASED, 0.95, 0.0, 0.99)));
+        Transformer.Response recipeResponse = Transformer.Response.recipe(createRecipe("Soup"));
+        when(innerTransformer.transform(CLEANED_HTML, SOURCE_URL)).thenReturn(recipeResponse);
+
+        Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
+
+        assertThat(result.isRecipe()).isTrue();
+        verify(htmlCleaner, never()).process(any(), any());
+    }
+
+    @Test
+    @DisplayName("Gemini's adaptive retry continues after the strategy Jev chose")
+    void transform_retriesAfterScreenChoice() {
+        HtmlCleaner.Results chosen = buildCleanerResult(CLEANED_HTML, Strategy.SECTION_BASED);
+        when(pageScreen.screen(RAW_HTML, SOURCE_URL))
+                .thenReturn(new RecipePageScreen.Use(chosen, judgement(Strategy.SECTION_BASED, 0.9, 0.0, 0.9)));
+        when(innerTransformer.transform(CLEANED_HTML, SOURCE_URL)).thenReturn(Transformer.Response.notRecipe(0.8));
+        when(htmlCleaner.processWithStrategy(RAW_HTML, SOURCE_URL, Strategy.CONTENT_FILTER))
+                .thenReturn(buildCleanerResult(RAW_HTML, Strategy.CONTENT_FILTER));
+        when(innerTransformer.transform(RAW_HTML, SOURCE_URL))
+                .thenReturn(Transformer.Response.recipe(createRecipe("Soup")));
+
+        Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
+
+        assertThat(result.isRecipe()).isTrue();
+        verify(htmlCleaner, never()).processWithStrategy(any(), any(), eq(Strategy.SECTION_BASED));
+    }
+
+    @Test
+    @DisplayName("No Gemini call when Jev rules out a recipe")
+    void transform_skipsGeminiWhenScreenFindsNoRecipe() {
+        when(pageScreen.screen(RAW_HTML, SOURCE_URL))
+                .thenReturn(new RecipePageScreen.NotRecipe(judgement(Strategy.CONTENT_FILTER, 0.01, 0.97, 0.03)));
+
+        Transformer.Response result = service.transform(RAW_HTML, SOURCE_URL);
+
+        assertThat(result.isRecipe()).isFalse();
+        assertThat(result.confidence()).isCloseTo(0.03, org.assertj.core.data.Offset.offset(1e-9));
+        assertThat(result.cacheable()).as("a verdict no LLM made is not cached").isFalse();
+        verify(innerTransformer, never()).transform(any(), any());
+        verify(htmlCleaner, never()).process(any(), any());
+    }
+
+    private static RecipePageScreen.Judgement judgement(Strategy strategy, double complete, double noIngredients,
+                                                        double steps) {
+        return new RecipePageScreen.Judgement(strategy, complete, noIngredients >= 0.5 ? "none" : "list",
+                noIngredients, steps, false, 100, 50, "jev-1.14.0");
     }
 
     private HtmlCleaner.Results buildCleanerResult(String html, Strategy strategy) {

@@ -290,7 +290,7 @@ public class DebugController {
                     if (transformResponse.isRecipe()) {
                         recipeStoreService.storeValidRecipes(contentHash, url, transformResponse.recipes());
                         log.info("Cached {} recipe(s) - Hash: {}", transformResponse.recipes().size(), contentHash);
-                    } else {
+                    } else if (transformResponse.cacheable()) {
                         recipeStoreService.storeInvalidRecipe(contentHash, url);
                         log.info("Cached invalid recipe - Hash: {}", contentHash);
                     }

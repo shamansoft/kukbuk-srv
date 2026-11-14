@@ -21,13 +21,16 @@ public class HtmlExtractor {
 
     private final HtmlFetcher htmlFetcher;
     private final UrlContentFetcher markdownFetcher;
+    private final RecipeUrlCheck recipeUrlCheck;
     private final boolean markdownFallbackEnabled;
 
     public HtmlExtractor(HtmlFetcher htmlFetcher,
                          @Qualifier("markdownNewClientImpl") UrlContentFetcher markdownFetcher,
+                         RecipeUrlCheck recipeUrlCheck,
                          @Value("${cookbook.fetcher.markdown-new.enabled:true}") boolean markdownFallbackEnabled) {
         this.htmlFetcher = htmlFetcher;
         this.markdownFetcher = markdownFetcher;
+        this.recipeUrlCheck = recipeUrlCheck;
         this.markdownFallbackEnabled = markdownFallbackEnabled;
     }
 
@@ -60,6 +63,13 @@ public class HtmlExtractor {
         if (!markdownFallbackEnabled || !looksBlocked(directError)) {
             throw unreachable(directError, null);
         }
+        // markdown.new calls are limited per day: don't spend one on a link that is not a recipe page. Judged only
+        // when the site answered, so the URL is where redirects (e.g. a t.co link) led; after a timeout the URL may
+        // be a short link that says nothing, so markdown.new is tried as before.
+        if (directError instanceof UrlFetchException ufe && ufe.getFinalUrl() != null
+                && !recipeUrlCheck.worthFetching(ufe.getFinalUrl())) {
+            throw notARecipeLink(directError);
+        }
 
         log.info("Direct fetch blocked for URL: {} ({}), falling back to markdown.new", url, directError.getMessage());
         try {
@@ -83,6 +93,12 @@ public class HtmlExtractor {
         return e instanceof BlockedPageException
                 || e instanceof SocketTimeoutException
                 || e instanceof UrlFetchException ufe && BLOCKED_STATUSES.contains(ufe.getHttpStatus());
+    }
+
+    private static UrlFetchException notARecipeLink(Exception directError) {
+        int status = directError instanceof UrlFetchException ufe ? ufe.getHttpStatus() : 0;
+        return new UrlFetchException(status, "Cannot fetch URL: the site blocks automated access, and the link"
+                + " does not look like a recipe page. Open the recipe itself and share that link.", directError);
     }
 
     /**

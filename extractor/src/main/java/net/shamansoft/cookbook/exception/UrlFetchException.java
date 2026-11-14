@@ -7,6 +7,8 @@ package net.shamansoft.cookbook.exception;
 public class UrlFetchException extends RuntimeException {
 
     private final int httpStatus;
+    /** Where the request ended up after redirects, when known; {@code null} otherwise. */
+    private String finalUrl;
 
     public UrlFetchException(String url, int httpStatus) {
         super(String.format(
@@ -27,5 +29,15 @@ public class UrlFetchException extends RuntimeException {
 
     public int getHttpStatus() {
         return httpStatus;
+    }
+
+    public String getFinalUrl() {
+        return finalUrl;
+    }
+
+    /** Records the URL the request ended up at after redirects (e.g. a t.co link's target). */
+    public UrlFetchException withFinalUrl(String finalUrl) {
+        this.finalUrl = finalUrl;
+        return this;
     }
 }
