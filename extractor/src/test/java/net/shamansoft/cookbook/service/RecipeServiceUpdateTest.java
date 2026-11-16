@@ -240,4 +240,22 @@ class RecipeServiceUpdateTest {
         verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
         assertThat(parser.parse(content.getValue()).userTags()).containsExactly("weeknight");
     }
+
+    @Test
+    void createRecipe_failedLookupOfExistingFileStillSaves() throws Exception {
+        when(contentHashService.generateContentHash(anyString())).thenReturn("hash");
+        when(recipeStoreService.findCachedRecipes("hash"))
+                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(extracted()))));
+        when(provider.generateFileName("Pancakes")).thenReturn("pancakes.yaml");
+        when(provider.findRecipeYaml(TOKEN, "folder", "pancakes.yaml"))
+                .thenThrow(new IllegalStateException("drive 503"));
+        when(provider.uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), anyString()))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, "https://drive/file"));
+
+        service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null);
+
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
+        assertThat(parser.parse(content.getValue()).userTags()).isEmpty();
+    }
 }

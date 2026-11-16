@@ -162,12 +162,25 @@ public class RecipeService {
         String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                 ? recipe.metadata().title() : title;
         String fileName = provider.generateFileName(recipeTitle);
-        Recipe toStore = withExistingUserData(recipe,
-                provider.findRecipeYaml(storage.accessToken(), storage.folderId(), fileName));
+        Recipe toStore = withExistingUserData(recipe, findExistingYaml(provider, storage, fileName));
         String yamlContent = convertRecipeToYaml(toStore);
         DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
                 storage.accessToken(), storage.folderId(), fileName, yamlContent);
         return new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl());
+    }
+
+    /**
+     * Looks up the file a save is about to overwrite. A failed lookup must never block the save, so any error
+     * is logged and treated as "no existing file" (the user's data in it is then not carried over).
+     */
+    private Optional<String> findExistingYaml(StorageProvider provider, StorageInfo storage, String fileName) {
+        try {
+            return provider.findRecipeYaml(storage.accessToken(), storage.folderId(), fileName);
+        } catch (RuntimeException e) {
+            log.warn("Could not read the existing recipe file; saving without carrying over user data: {}",
+                    e.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**
