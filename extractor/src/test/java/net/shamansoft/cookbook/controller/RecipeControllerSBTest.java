@@ -39,8 +39,10 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.HttpClientErrorException;
 
 import javax.naming.AuthenticationException;
 import java.io.IOException;
@@ -55,6 +57,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -468,6 +472,7 @@ class RecipeControllerSBTest {
         assertThat(newRecipe)
                 .containsEntry("category", List.of("zupy", "Lunch"))
                 .containsEntry("tags", List.of("vegetarian"))
+                .containsEntry("userTags", List.of())
                 .containsEntry("language", "pl");
 
         // Old files still map: lists come back as [] (never null), language takes the SDK default
@@ -475,7 +480,76 @@ class RecipeControllerSBTest {
         assertThat(oldRecipe)
                 .containsEntry("category", List.of())
                 .containsEntry("tags", List.of())
+                .containsEntry("userTags", List.of())
                 .containsEntry("language", "en");
+    }
+
+    private static final String STORED_YAML = """
+            schema_version: "1.0.0"
+            recipe_version: "1.0.0"
+            metadata:
+              title: "Pancakes"
+              source: "https://example.com/pancakes"
+              tags: ["Breakfast"]
+            ingredients:
+              - item: "flour"
+            instructions:
+              - step: 1
+                description: "Mix"
+            """;
+
+    private ResponseEntity<Map> patch(String id, String jsonBody) {
+        HttpHeaders headers = createHeadersWithOAuthToken();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.exchange(RECIPE_PATH + "/" + id, HttpMethod.PATCH,
+                new HttpEntity<>(jsonBody, headers), Map.class);
+    }
+
+    @Test
+    void patchRecipe_setsNormalizedUserTagsAndReturnsRecipe() {
+        when(googleDriveService.getFileContent(anyString(), eq("file-1"))).thenReturn(STORED_YAML);
+        when(googleDriveService.getFileMetadata(anyString(), eq("file-1"))).thenReturn(
+                new GoogleDrive.DriveFileMetadata("file-1", "pancakes.yaml", "application/x-yaml", "2026-11-15T10:00:00Z"));
+
+        ResponseEntity<Map> response = patch("file-1", "{\"userTags\": [\" Weeknight \", \"KIDS\", \"weeknight\", \"\"]}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody())
+                .containsEntry("id", "file-1")
+                .containsEntry("title", "Pancakes")
+                .containsEntry("tags", List.of("Breakfast"))
+                .containsEntry("userTags", List.of("weeknight", "kids"));
+        verify(googleDriveService).updateFileContent(anyString(), eq("file-1"),
+                org.mockito.ArgumentMatchers.contains("user_tags"));
+    }
+
+    @Test
+    void patchRecipe_returns400_forBodyWithoutKnownField() {
+        for (String body : new String[]{"{}", "{\"foo\": 1}", "", "not json", "[]"}) {
+            ResponseEntity<Map> response = patch("file-1", body);
+
+            assertThat(response.getStatusCode()).as(body).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+        verify(googleDriveService, never()).updateFileContent(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void patchRecipe_returns400_whenTagTooLong() {
+        ResponseEntity<Map> response = patch("file-1", "{\"userTags\": [\"" + "x".repeat(41) + "\"]}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("error")).isEqualTo("Validation Error");
+        verify(googleDriveService, never()).getFileContent(anyString(), anyString());
+    }
+
+    @Test
+    void patchRecipe_returns404_whenFileMissing() {
+        when(googleDriveService.getFileContent(anyString(), eq("missing")))
+                .thenThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", null, null, null));
+
+        ResponseEntity<Map> response = patch("missing", "{\"userTags\": [\"a\"]}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test

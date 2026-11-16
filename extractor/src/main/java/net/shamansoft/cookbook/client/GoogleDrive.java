@@ -129,9 +129,23 @@ public class GoogleDrive {
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
+        } catch (Exception e) {
+            log.error("Failed to update file", e);
+            throw new ClientException("Failed to update file", e);
+        }
+        updateFileContent(file.id(), content, authToken);
+        log.info("Updated file '{}' with ID: {}", file.name(), file.id());
+        return file;
+    }
 
+    /**
+     * Replaces the content of an existing file, keeping its id, name and parents.
+     */
+    @SuppressWarnings("unchecked")
+    public void updateFileContent(String fileId, String content, String authToken) {
+        try {
             Map<String, Object> updateResponse = uploadClient.patch()
-                    .uri(uri -> uri.path("/files/" + file.id())
+                    .uri(uri -> uri.path("/files/" + fileId)
                             .queryParam("uploadType", "media")
                             .queryParam("fields", "id")
                             .build())
@@ -144,11 +158,8 @@ public class GoogleDrive {
             if (updateResponse == null || !updateResponse.containsKey("id")) {
                 throw new ClientException("Failed to update Drive file");
             }
-            log.info("Updated file '{}' with ID: {}", file.name(), updateResponse.get("id"));
-
-            return file;
         } catch (Exception e) {
-            log.error("Failed to update file", e);
+            log.error("Failed to update file content: {}", fileId, e);
             if (e instanceof ClientException) {
                 throw e;
             }

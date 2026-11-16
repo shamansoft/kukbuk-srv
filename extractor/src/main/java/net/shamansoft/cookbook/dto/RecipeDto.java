@@ -30,6 +30,7 @@ public class RecipeDto {
     private List<String> category;  // e.g. ["Dinner", "Main Course"]; empty list if none
     private List<String> tags;  // e.g. ["vegan", "Italian"]; empty list if none
     private String language;  // ISO 639-1, e.g. "en"; null if the stored value is not a valid code
+    private List<String> userTags;  // tags the user added (PATCH /v1/recipes/{id}); empty list if none
 
     // Content
     private List<IngredientDto> ingredients;

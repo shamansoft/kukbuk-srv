@@ -1,5 +1,6 @@
 package net.shamansoft.recipe.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Represents a complete recipe with all its components.
@@ -22,6 +24,8 @@ import java.util.List;
  * @param nutrition Nutritional information
  * @param notes Markdown-formatted notes, tips and tricks
  * @param storage Storage instructions
+ * @param userTags Tags the user added (stored as {@code user_tags}, omitted when empty). Kept apart from the
+ *                 extractor's {@code metadata.tags}: extraction never writes them, saves carry them over.
  */
 public record Recipe(
         @NotNull
@@ -68,8 +72,22 @@ public record Recipe(
 
         @Valid
         @JsonProperty("storage")
-        Storage storage
+        Storage storage,
+
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
+        @JsonProperty("user_tags")
+        List<String> userTags
 ) {
+    /**
+     * Recipe without user data, as produced by extraction.
+     */
+    public Recipe(Boolean isRecipe, String schemaVersion, String recipeVersion, RecipeMetadata metadata,
+                  String description, List<Ingredient> ingredients, List<String> equipment,
+                  List<Instruction> instructions, Nutrition nutrition, String notes, Storage storage) {
+        this(isRecipe, schemaVersion, recipeVersion, metadata, description, ingredients, equipment,
+                instructions, nutrition, notes, storage, List.of());
+    }
+
     public Recipe {
         if (description == null) {
             description = "";
@@ -80,5 +98,14 @@ public record Recipe(
         if (notes == null) {
             notes = "";
         }
+        userTags = userTags == null ? List.of() : userTags.stream().filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * Returns a copy of this recipe with the given user tags.
+     */
+    public Recipe withUserTags(List<String> userTags) {
+        return new Recipe(isRecipe, schemaVersion, recipeVersion, metadata, description, ingredients, equipment,
+                instructions, nutrition, notes, storage, userTags);
     }
 }

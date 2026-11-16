@@ -327,6 +327,17 @@ Post-processing automatically populates deterministic fields after successful AI
 - `GET /v1/recipes/{id}` - Get single recipe by Drive file ID
   - Returns: `RecipeDto`
   - Cache-Control: 1 hour
+  - `RecipeDto.userTags` (list and detail): the user's own tags, `[]` when none, never null
+
+- `PATCH /v1/recipes/{id}` - Change the user's own data in the stored recipe file (Drive or Dropbox)
+  - Body: `RecipeUpdateRequest`, every field optional: absent = unchanged, present = replace. Today: `userTags`
+    (`[]` or `null` clears). Body with no known field → 400
+  - `userTags` normalized by `UserTags`: trim, lowercase, drop empty, dedupe (first wins); ≤ 30 tags, ≤ 40 chars each → else 400
+  - Read → edit the YAML tree → write back: only the `user_tags` key changes, every other key is kept as is
+  - Returns: updated `RecipeDto` (200); 404 missing file; 422 stored file not a valid recipe
+  - Stored as top-level `user_tags` (snake_case like the rest of the schema, omitted when empty), next to the
+    extractor's `metadata.tags`. Saves that overwrite a file with the same name (re-extraction) carry
+    `user_tags` over from the old file (`RecipeService.uploadRecipe`); extraction never sets them
 
 - `POST /v1/recipes` - Create recipe from HTML
   - Body: `Request` with `url`, `title`, `html` (optional, Base64+GZIP compressed)
@@ -413,11 +424,13 @@ Infrastructure is managed in the [`sar-infra`](https://github.com/shamansoft/sar
 
 ### Application Code
 - `extractor/src/main/java/net/shamansoft/cookbook/`
-  - `controller/RecipeController.java` - Main `/v1/recipes` endpoints (GET list, GET by ID, POST HTML, POST URL, POST custom)
+  - `controller/RecipeController.java` - Main `/v1/recipes` endpoints (GET list, GET by ID, PATCH by ID, POST HTML, POST URL, POST custom)
   - `controller/StorageController.java` - Google Drive integration endpoints
   - `dto/Compression.java` - Enum: `BASE64_GZIP`, `NONE`
   - `dto/CustomRecipeRequest.java` - Request DTO for `/v1/recipes/custom`
   - `dto/UrlRecipeRequest.java` - Request DTO for `/v1/recipes/url`
+  - `dto/RecipeUpdateRequest.java` - Request DTO for `PATCH /v1/recipes/{id}` (tracks absent vs present fields)
+  - `service/UserTags.java` - Normalization and limits for user tags
   - `config/StringToCompressionConverter.java` - Case-insensitive `?compression=` param binding
   - `service/RecipeService.java` - Recipe operations orchestrator; `createRecipe()` + `createRecipeFromUrl()` + `createRecipeFromDescription()`
   - `service/gemini/GeminiClient.java` - Gemini API HTTP client

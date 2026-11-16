@@ -7,7 +7,10 @@ import net.shamansoft.cookbook.dto.Compression;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeItemResult;
 import net.shamansoft.cookbook.dto.RecipeResponse;
+import net.shamansoft.cookbook.dto.RecipeUpdateRequest;
 import net.shamansoft.cookbook.dto.StorageInfo;
+import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
+import net.shamansoft.cookbook.exception.InvalidRecipeUpdateException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
@@ -15,7 +18,12 @@ import net.shamansoft.cookbook.html.PageContent;
 import net.shamansoft.cookbook.service.gemini.GeminiRestTransformer;
 import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.parser.RecipeSerializeException;
+import net.shamansoft.recipe.parser.RecipeSerializer;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,6 +39,12 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class RecipeService {
+
+    /** YAML key of {@link Recipe#userTags()} in the stored recipe file. */
+    static final String USER_TAGS_KEY = "user_tags";
+
+    /** Same YAML style as {@link RecipeValidationService#toYaml}; used to edit stored files in place. */
+    private static final ObjectMapper YAML = new RecipeSerializer().getMapper();
 
     private final ContentHashService contentHashService;
     private final StorageProviderResolver storageProviderResolver;
@@ -85,13 +99,7 @@ public class RecipeService {
             List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
 
             for (Recipe recipe : transformerResponse.recipes()) {
-                String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
-                        ? recipe.metadata().title() : title;
-                String fileName = provider.generateFileName(recipeTitle);
-                String yamlContent = convertRecipeToYaml(recipe);
-                DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
-                        storage.accessToken(), storage.folderId(), fileName, yamlContent);
-                uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
+                uploadedRecipes.add(uploadRecipe(provider, storage, recipe, title));
             }
 
             responseBuilder.recipes(uploadedRecipes);
@@ -125,13 +133,7 @@ public class RecipeService {
 
         List<RecipeItemResult> uploadedRecipes = new ArrayList<>();
         for (Recipe recipe : structureDescription(plainDescription, url)) {
-            String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
-                    ? recipe.metadata().title() : title;
-            String fileName = provider.generateFileName(recipeTitle);
-            String yamlContent = convertRecipeToYaml(recipe);
-            DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
-                    storage.accessToken(), storage.folderId(), fileName, yamlContent);
-            uploadedRecipes.add(new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl()));
+            uploadedRecipes.add(uploadRecipe(provider, storage, recipe, title));
         }
 
         RecipeResponse.RecipeResponseBuilder responseBuilder = RecipeResponse.builder()
@@ -149,6 +151,38 @@ public class RecipeService {
         }
 
         return responseBuilder.build();
+    }
+
+    /**
+     * Writes an extracted recipe to the user's folder. Saving a recipe with the same title overwrites the
+     * existing file, so the user's own data in that file ({@code user_tags}) is carried over: extraction never
+     * sets or clears it.
+     */
+    private RecipeItemResult uploadRecipe(StorageProvider provider, StorageInfo storage, Recipe recipe, String title) {
+        String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
+                ? recipe.metadata().title() : title;
+        String fileName = provider.generateFileName(recipeTitle);
+        Recipe toStore = withExistingUserData(recipe,
+                provider.findRecipeYaml(storage.accessToken(), storage.folderId(), fileName));
+        String yamlContent = convertRecipeToYaml(toStore);
+        DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
+                storage.accessToken(), storage.folderId(), fileName, yamlContent);
+        return new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl());
+    }
+
+    /**
+     * Copies the user's data from the file being overwritten (if any) onto a freshly extracted recipe.
+     */
+    Recipe withExistingUserData(Recipe extracted, Optional<String> existingYaml) {
+        List<String> userTags = List.of();
+        if (existingYaml.isPresent()) {
+            try {
+                userTags = recipeParser.parse(existingYaml.get()).userTags();
+            } catch (InvalidRecipeFormatException e) {
+                log.warn("Existing recipe file is not a valid recipe; nothing to carry over: {}", e.getMessage());
+            }
+        }
+        return extracted.withUserTags(userTags);
     }
 
     /**
@@ -267,6 +301,68 @@ public class RecipeService {
             }
 
             throw e;
+        }
+    }
+
+    /**
+     * Applies a {@code PATCH /v1/recipes/{id}} to the stored recipe file: read, change only the fields present
+     * in the request, write back. Every other key in the file is kept as is.
+     *
+     * @throws InvalidRecipeUpdateException if the request sets no field or breaks a limit
+     * @throws RecipeNotFoundException      if the file does not exist
+     */
+    public RecipeDto updateRecipe(String userId, String fileId, RecipeUpdateRequest update) {
+        if (update == null || update.isEmpty()) {
+            throw new InvalidRecipeUpdateException("Request must set at least one of: userTags");
+        }
+        List<String> userTags = update.hasUserTags() ? UserTags.normalize(update.getUserTags()) : null;
+
+        log.info("Updating recipe: {} for user: {}", fileId, userId);
+        StorageInfo storage = storageService.getStorageInfo(userId);
+        StorageProvider provider = storageProviderResolver.resolve(storage.type());
+
+        try {
+            String yamlContent = provider.getFileContent(storage.accessToken(), fileId);
+            ObjectNode root = readYamlObject(yamlContent);
+            if (userTags != null) {
+                setOrRemove(root, USER_TAGS_KEY, userTags.isEmpty() ? null : YAML.valueToTree(userTags));
+            }
+            String updatedYaml = YAML.writeValueAsString(root);
+            Recipe recipe = recipeParser.parse(updatedYaml);  // never write a file we could not read back
+
+            provider.updateFileContent(storage.accessToken(), fileId, updatedYaml);
+            GoogleDrive.DriveFileMetadata metadata = provider.getFileMetadata(storage.accessToken(), fileId);
+            log.info("Updated recipe: {}", fileId);
+            return recipeMapper.toDto(recipe, metadata);
+        } catch (InvalidRecipeFormatException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to update recipe: {}", fileId, e);
+            if (e.getMessage() != null &&
+                    (e.getMessage().contains("404") || e.getMessage().contains("not found"))) {
+                throw new RecipeNotFoundException("Recipe not found: " + fileId, e);
+            }
+            throw e;
+        }
+    }
+
+    private static ObjectNode readYamlObject(String yamlContent) {
+        try {
+            JsonNode tree = YAML.readTree(yamlContent);
+            if (tree instanceof ObjectNode root) {
+                return root;
+            }
+        } catch (JacksonException e) {
+            throw new InvalidRecipeFormatException("Failed to parse recipe YAML: " + e.getMessage(), e);
+        }
+        throw new InvalidRecipeFormatException("Recipe YAML is not a mapping");
+    }
+
+    private static void setOrRemove(ObjectNode root, String key, JsonNode value) {
+        if (value == null) {
+            root.remove(key);
+        } else {
+            root.set(key, value);
         }
     }
 

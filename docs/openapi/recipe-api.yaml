@@ -222,6 +222,73 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - recipes
+      summary: Update the user's own data in a recipe
+      description: |
+        Changes the user's own data in the stored recipe file (Google Drive or Dropbox, whichever the
+        user's storage is). Every body field is optional: a field that is **absent** is left unchanged, a
+        field that is **present** replaces the stored value. Every other part of the file stays as is.
+        Last write wins per field.
+
+        `userTags` are normalized: trimmed, lowercased, empty ones and duplicates dropped (first occurrence
+        keeps its place). `[]` (or `null`) clears them. Saving the same recipe again from the extension
+        (re-extraction that overwrites the file) keeps them.
+      operationId: updateRecipe
+      parameters:
+        - name: id
+          in: path
+          description: Storage file ID (Google Drive file ID or Dropbox `id:...`)
+          required: true
+          schema:
+            type: string
+            example: "1a2b3c4d5e6f7g8h9i0j"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeUpdateRequest'
+      responses:
+        '200':
+          description: Recipe updated; the updated recipe, same shape as GET /v1/recipes/{id}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeDto'
+        '400':
+          description: >-
+            Bad Request - missing or malformed body, no known field, more than 30 tags or a tag longer
+            than 40 characters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing or invalid Firebase token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Unprocessable Entity - The stored file is not a valid recipe (left unchanged)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '428':
+          description: Precondition Required - Storage not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/recipes/custom:
     post:
@@ -426,6 +493,23 @@ components:
           description: Optional recipe title, used if the AI does not produce one
           example: "Peanut Butter Cookies"
 
+    RecipeUpdateRequest:
+      type: object
+      description: >-
+        Every field is optional; absent = unchanged, present = replace. At least one known field is required.
+      properties:
+        userTags:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: >-
+            The user's own tags; replaces the stored list. Normalized server-side (trim, lowercase, drop
+            empty, dedupe keeping first order); limits apply after normalization. `[]` or `null` clears.
+          items:
+            type: string
+            maxLength: 40
+          example: [ "weeknight", "kids" ]
+
     RecipeResponse:
       type: object
       properties:
@@ -565,6 +649,14 @@ components:
           items:
             type: string
           example: [ "vegan", "Italian" ]
+        userTags:
+          type: array
+          description: >-
+            Tags the user added with PATCH /v1/recipes/{id}: lowercased, unique, in the user's order. Kept
+            apart from the extracted `tags`. Empty array when none; never null.
+          items:
+            type: string
+          example: [ "weeknight", "kids" ]
         language:
           type: string
           nullable: true

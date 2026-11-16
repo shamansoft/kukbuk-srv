@@ -65,6 +65,7 @@ public class RecipeMapper {
                 .difficulty(recipe.metadata().difficulty())
                 .category(orEmpty(recipe.metadata().category()))
                 .tags(orEmpty(recipe.metadata().tags()))
+                .userTags(orEmpty(recipe.userTags()))
                 .language(LanguageCodes.normalize(recipe.metadata().language()).orElse(null))
                 .ingredients(mapIngredients(recipe.ingredients()))
                 .equipment(recipe.equipment())

@@ -1,5 +1,5 @@
 # sar-srv — Status
-_Last updated: 2026-10-15_
+_Last updated: 2026-11-15_
 
 ## What this is
 The Spring Boot backend for the Save-A-Recipe (SAR) recipe product. It extracts structured recipes from
@@ -27,6 +27,9 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
   - Recipe storage in Google Drive; Dropbox as a second backend (code merged, rollout pending, see below)
   - Recipe caching/dedup, Firestore persistence, Firebase auth
   - Relative recipe image URLs resolved to absolute at read time
+  - User tags: `PATCH /v1/recipes/{id}` with `userTags` writes them into the recipe file (`user_tags`,
+    Drive and Dropbox); `GET` returns `userTags`; re-extraction keeps them. User notes (`userNotes`) come next
+    on the same endpoint ([story](../feature-requests/user-tags.md))
   - Extraction quality on 39 English sample pages: 92% of ingredients fully right (63% before #94);
     11 non-English pages: 76%. Measured with `tools/extractor-tuner` in the sar umbrella folder
   - Post-LLM cleanup (`RecipeAdjustmentService`): units, empty quantities, ranges, thirds, nutrition

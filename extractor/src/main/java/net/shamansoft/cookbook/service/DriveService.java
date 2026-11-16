@@ -2,6 +2,8 @@ package net.shamansoft.cookbook.service;
 
 import net.shamansoft.cookbook.client.GoogleDrive;
 
+import java.util.Optional;
+
 public interface DriveService {
 
     /**
@@ -92,6 +94,16 @@ public interface DriveService {
      * @return DriveFileMetadata with file details
      */
     GoogleDrive.DriveFileMetadata getFileMetadata(String authToken, String fileId);
+
+    /**
+     * Content of the file with this name in the folder, if one exists.
+     */
+    Optional<String> findFileContent(String authToken, String folderId, String fileName);
+
+    /**
+     * Replace the content of an existing file, keeping its id and name.
+     */
+    void updateFileContent(String authToken, String fileId, String content);
 
     record UploadResult(String fileId, String fileUrl) {
     }

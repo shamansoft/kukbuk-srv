@@ -171,4 +171,41 @@ class DropboxStorageProviderTest {
         assertThat(meta.mimeType()).isEqualTo("application/x-yaml");
         assertThat(meta.modifiedTime()).isEqualTo("2024-01-15T10:00:00Z");
     }
+
+    @Test
+    void findRecipeYaml_downloadsByPathInFolder() {
+        when(dropboxClient.downloadAsString("/Recipes/pancakes.yaml", "token")).thenReturn("yaml");
+
+        assertThat(provider.findRecipeYaml("token", "/Recipes", "pancakes.yaml")).contains("yaml");
+    }
+
+    @Test
+    void findRecipeYaml_emptyWhenFileMissing() {
+        when(dropboxClient.downloadAsString("/pancakes.yaml", "token"))
+                .thenThrow(new ClientException("Dropbox file not found: /pancakes.yaml"));
+
+        assertThat(provider.findRecipeYaml("token", "", "pancakes.yaml")).isEmpty();
+    }
+
+    @Test
+    void updateFileContent_overwritesFileAtItsCurrentPath() {
+        when(dropboxClient.getMetadata("id:abc", "token"))
+                .thenReturn(new DropboxClient.FileEntry("id:abc", "pancakes.yaml", "/Recipes/pancakes.yaml", "t"));
+        when(dropboxClient.upload(eq("/Recipes/pancakes.yaml"), any(), eq("token")))
+                .thenReturn(new DropboxClient.FileEntry("id:abc", "pancakes.yaml", "/Recipes/pancakes.yaml", "t2"));
+
+        provider.updateFileContent("token", "id:abc", "user_tags: []");
+
+        ArgumentCaptor<byte[]> bytes = ArgumentCaptor.forClass(byte[].class);
+        verify(dropboxClient).upload(eq("/Recipes/pancakes.yaml"), bytes.capture(), eq("token"));
+        assertThat(new String(bytes.getValue(), java.nio.charset.StandardCharsets.UTF_8)).isEqualTo("user_tags: []");
+    }
+
+    @Test
+    void updateFileContent_rejectsNonDropboxId() {
+        assertThatThrownBy(() -> provider.updateFileContent("token", "drive-id", "x"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("not found");
+        verify(dropboxClient, never()).upload(any(), any(), any());
+    }
 }
