@@ -11,6 +11,7 @@ import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * {@link StorageProvider} backed by Dropbox (App-folder access). Paths are relative to the
@@ -112,6 +113,25 @@ public class DropboxStorageProvider implements StorageProvider {
     public GoogleDrive.DriveFileMetadata getFileMetadata(String accessToken, String fileId) {
         DropboxClient.FileEntry e = dropboxClient.getMetadata(fileRef(fileId), accessToken);
         return new GoogleDrive.DriveFileMetadata(e.id(), e.name(), mimeTypeForName(e.name()), e.serverModified());
+    }
+
+    @Override
+    public Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName) {
+        try {
+            return Optional.of(dropboxClient.downloadAsString(joinPath(folderId, fileName), accessToken));
+        } catch (ClientException notFound) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Dropbox uploads take a path, not an id: resolve the id to the file's current path and overwrite it
+     * there. Overwriting keeps the file's Dropbox id.
+     */
+    @Override
+    public void updateFileContent(String accessToken, String fileId, String content) {
+        DropboxClient.FileEntry entry = dropboxClient.getMetadata(fileRef(fileId), accessToken);
+        dropboxClient.upload(entry.pathDisplay(), content.getBytes(StandardCharsets.UTF_8), accessToken);
     }
 
     /**

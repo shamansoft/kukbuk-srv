@@ -10,6 +10,7 @@ import net.shamansoft.cookbook.dto.CustomRecipeRequest;
 import net.shamansoft.cookbook.dto.RecipeDto;
 import net.shamansoft.cookbook.dto.RecipeListResponse;
 import net.shamansoft.cookbook.dto.RecipeResponse;
+import net.shamansoft.cookbook.dto.RecipeUpdateRequest;
 import net.shamansoft.cookbook.dto.Request;
 import net.shamansoft.cookbook.dto.UrlRecipeRequest;
 import net.shamansoft.cookbook.entitlement.CheckEntitlement;
@@ -19,6 +20,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -125,6 +127,39 @@ public class RecipeController {
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS))
+                .body(recipe);
+    }
+
+    /**
+     * PATCH /v1/recipes/{id} - Change the user's own data in a stored recipe.
+     * <p>
+     * Every body field is optional: absent leaves the stored value unchanged, present replaces it.
+     * {@code userTags} are trimmed, lowercased, de-duplicated; {@code []} clears them.
+     *
+     * @param userId Firebase user ID (injected by FirebaseAuthFilter)
+     * @param id     storage file ID
+     * @return the updated recipe, same shape as GET /v1/recipes/{id}
+     * <p>
+     * HTTP Status Codes:
+     * - 200 OK: Updated
+     * - 400 Bad Request: Empty body, no known field, or a limit exceeded
+     * - 401 Unauthorized: No Firebase token
+     * - 404 Not Found: Recipe not found
+     * - 422 Unprocessable Entity: Stored file is not a valid recipe
+     * - 428 Precondition Required: Storage not connected
+     */
+    @PatchMapping(path = "/{id}", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<RecipeDto> updateRecipe(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id,
+            @RequestBody(required = false) RecipeUpdateRequest request) {
+
+        log.info("Updating recipe: {} for user: {}", id, userId);
+
+        RecipeDto recipe = recipeService.updateRecipe(userId, id, request);
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .body(recipe);
     }
 

@@ -567,6 +567,31 @@ class RecipeMapperTest {
         assertThat(dto.getLanguage()).isEqualTo("it");
     }
 
+    // ===== Test: user tags =====
+
+    @Test
+    @DisplayName("Should map user tags for detail and list, kept apart from extracted tags")
+    void shouldMapUserTags() {
+        Recipe recipe = createRecipeWithCategoryAndTags(List.of(), List.of("vegan"), "en")
+                .withUserTags(List.of("weeknight", "kids"));
+
+        RecipeDto detail = recipeMapper.toDto(recipe, driveFileMetadata());
+        RecipeDto listItem = recipeMapper.toDto(recipe,
+                new GoogleDrive.DriveFileInfo(RECIPE_ID, "recipe.yaml", LAST_MODIFIED));
+
+        assertThat(detail.getUserTags()).containsExactly("weeknight", "kids");
+        assertThat(detail.getTags()).containsExactly("vegan");
+        assertThat(listItem.getUserTags()).containsExactly("weeknight", "kids");
+    }
+
+    @Test
+    @DisplayName("Should map missing user tags to an empty list, never null")
+    void shouldMapMissingUserTagsToEmptyList() {
+        RecipeDto dto = recipeMapper.toDto(createCompleteRecipe(), driveFileMetadata());
+
+        assertThat(dto.getUserTags()).isNotNull().isEmpty();
+    }
+
     // ===== Test: category, tags, language =====
 
     @Test

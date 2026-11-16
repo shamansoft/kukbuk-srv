@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 /**
  * Service for Google Drive operations related to the Cookbook application.
  */
@@ -157,5 +159,17 @@ public class GoogleDriveService implements DriveService {
     public GoogleDrive.DriveFileMetadata getFileMetadata(String authToken, String fileId) {
         log.info("Getting file metadata: {}", fileId);
         return drive.getFileMetadata(authToken, fileId);
+    }
+
+    @Override
+    public Optional<String> findFileContent(String authToken, String folderId, String fileName) {
+        return drive.getFile(fileName, folderId, authToken)
+                .map(file -> drive.downloadFileAsString(authToken, file.id()));
+    }
+
+    @Override
+    public void updateFileContent(String authToken, String fileId, String content) {
+        log.info("Updating file content: {}", fileId);
+        drive.updateFileContent(fileId, content, authToken);
     }
 }

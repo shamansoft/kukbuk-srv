@@ -3,6 +3,8 @@ package net.shamansoft.cookbook.service;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageType;
 
+import java.util.Optional;
+
 /**
  * Provider-agnostic storage operation surface used by RecipeService / RecipeMediaProxyService.
  * Method names mirror {@link DriveService} so existing consumers change only which bean they call.
@@ -33,6 +35,16 @@ public interface StorageProvider {
     String getFileMimeType(String accessToken, String fileId);
 
     GoogleDrive.DriveFileMetadata getFileMetadata(String accessToken, String fileId);
+
+    /**
+     * Content of the recipe file with this name in the folder, if one exists (used to keep user data on re-save).
+     */
+    Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName);
+
+    /**
+     * Replace the content of an existing file addressed by id, keeping its id and name.
+     */
+    void updateFileContent(String accessToken, String fileId, String content);
 
     record FolderRef(String id, String name) {
     }

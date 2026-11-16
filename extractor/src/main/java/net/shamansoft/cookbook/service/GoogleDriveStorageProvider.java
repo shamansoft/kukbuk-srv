@@ -5,6 +5,8 @@ import net.shamansoft.cookbook.dto.StorageType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 /**
  * {@link StorageProvider} backed by Google Drive. Delegates all file operations to the
  * existing {@link GoogleDriveService} bean (single source of truth for Drive logic).
@@ -65,5 +67,15 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     @Override
     public GoogleDrive.DriveFileMetadata getFileMetadata(String accessToken, String fileId) {
         return googleDriveService.getFileMetadata(accessToken, fileId);
+    }
+
+    @Override
+    public Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName) {
+        return googleDriveService.findFileContent(accessToken, folderId, fileName);
+    }
+
+    @Override
+    public void updateFileContent(String accessToken, String fileId, String content) {
+        googleDriveService.updateFileContent(accessToken, fileId, content);
     }
 }

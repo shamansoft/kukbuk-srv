@@ -51,6 +51,7 @@ class RecipeServiceTest {
         when(htmlExtractor.extractHtml(anyString(), any())).thenReturn("<html><body>content</body></html>");
 
         Recipe recipe = mock(Recipe.class);
+        when(recipe.withUserTags(any())).thenReturn(recipe);
         when(transformer.transform(anyString(), anyString())).thenReturn(Transformer.Response.recipe(recipe));
 
         // validation service serializes object to YAML

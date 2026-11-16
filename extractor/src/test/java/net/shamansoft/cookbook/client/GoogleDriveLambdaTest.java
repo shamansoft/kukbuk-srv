@@ -59,7 +59,7 @@ class GoogleDriveLambdaTest {
         // updateFile lambdas
         URI u6 = invoke.apply("lambda$updateFile$0", new Object[]{dummy, builder});
         assertThat(u6.toString()).contains(dummy.id());
-        URI u7 = invoke.apply("lambda$updateFile$1", new Object[]{dummy, builder});
+        URI u7 = invoke.apply("lambda$updateFileContent$0", new Object[]{"file123", builder});
         assertThat(u7.toString()).contains("uploadType=media");
 
         // download and metadata lambdas

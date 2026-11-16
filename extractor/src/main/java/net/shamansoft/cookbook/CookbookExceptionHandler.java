@@ -13,6 +13,7 @@ import net.shamansoft.cookbook.exception.DatabaseUnavailableException;
 import net.shamansoft.cookbook.exception.ExtractionFailedException;
 import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
+import net.shamansoft.cookbook.exception.InvalidRecipeUpdateException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.exception.UrlFetchException;
@@ -20,6 +21,7 @@ import net.shamansoft.cookbook.exception.UserNotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -111,6 +113,32 @@ public class CookbookExceptionHandler {
                 request.getRequestURI()
         );
         errorResponse.setValidationErrors(validationErrors);
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(InvalidRecipeUpdateException.class)
+    public ResponseEntity<Object> handleInvalidRecipeUpdate(InvalidRecipeUpdateException e, HttpServletRequest request) {
+        log.warn("Invalid recipe update {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Validation Error",
+                e.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Object> handleUnreadableBody(HttpMessageNotReadableException e, HttpServletRequest request) {
+        log.warn("Unreadable request body {}: {}", request.getRequestURI(), e.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                "Malformed request body",
+                request.getRequestURI()
+        );
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 

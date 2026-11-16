@@ -10,6 +10,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class GoogleDriveStorageProviderTest {
@@ -56,5 +57,14 @@ class GoogleDriveStorageProviderTest {
         when(googleDriveService.uploadRecipeYaml("token", "folder", "a.yaml", "yaml")).thenReturn(expected);
 
         assertThat(provider.uploadRecipeYaml("token", "folder", "a.yaml", "yaml")).isSameAs(expected);
+    }
+
+    @Test
+    void findRecipeYaml_andUpdateFileContent_delegate() {
+        when(googleDriveService.findFileContent("token", "folder", "a.yaml")).thenReturn(java.util.Optional.of("yaml"));
+
+        assertThat(provider.findRecipeYaml("token", "folder", "a.yaml")).contains("yaml");
+        provider.updateFileContent("token", "file-1", "new");
+        verify(googleDriveService).updateFileContent("token", "file-1", "new");
     }
 }

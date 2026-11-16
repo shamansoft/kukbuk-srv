@@ -86,6 +86,19 @@ Retrieves a single recipe by its Drive file ID.
 - Recipe data as JSON
 - Cache-Control: 1 hour
 
+### PATCH /v1/recipes/{id}
+
+Changes the user's own data in a stored recipe. Every field is optional: absent leaves the stored value
+unchanged, present replaces it. A body with no known field is a 400.
+
+```json
+{ "userTags": ["weeknight", "kids"] }
+```
+
+- `userTags`: trimmed, lowercased, empty ones and duplicates dropped; at most 30 tags of at most 40 characters
+  (else 400). `[]` clears them. Stored as `user_tags` in the recipe YAML.
+- Response: the updated recipe, same shape as `GET /v1/recipes/{id}`; 404 if the file does not exist.
+
 ## Building and Running
 
 ### Prerequisites
@@ -255,7 +268,7 @@ For detailed CI/CD documentation, see:
 
 ### Key Components
 
-- **RecipeController**: REST API endpoints for recipe operations (GET, POST)
+- **RecipeController**: REST API endpoints for recipe operations (GET, POST, PATCH)
 - **RecipeService**: Orchestrates recipe extraction and storage workflow
 - **GeminiClient**: HTTP client for Gemini API communication
 - **GeminiRestTransformer**: AI-powered HTML to JSON conversion
@@ -311,6 +324,12 @@ Extracted recipes follow a structured JSON schema (v1.0.0):
 ```
 
 Schema is strictly validated with automatic retry on validation errors.
+
+Stored recipe files may also carry the user's own data, which extraction never writes:
+
+- `user_tags` (top level, list of strings, omitted when empty): tags the user set with `PATCH /v1/recipes/{id}`.
+  Kept apart from the extractor's `metadata.tags`. When a save overwrites a file with the same name
+  (re-extracting the same recipe), `user_tags` is copied over from the old file.
 
 ## Native Image
 

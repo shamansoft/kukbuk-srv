@@ -376,4 +376,28 @@ class GoogleDriveServiceTest {
         assertThat(result.mimeType()).isEqualTo("application/x-yaml");
         verify(googleDrive).getFileMetadata(authToken, fileId);
     }
+
+    @Test
+    void findFileContent_downloadsExistingFileByName() {
+        when(googleDrive.getFile("a.yaml", "folder", "token"))
+                .thenReturn(java.util.Optional.of(new GoogleDrive.Item("file-1", "a.yaml")));
+        when(googleDrive.downloadFileAsString("token", "file-1")).thenReturn("yaml");
+
+        assertThat(googleDriveService.findFileContent("token", "folder", "a.yaml")).contains("yaml");
+    }
+
+    @Test
+    void findFileContent_emptyWhenNoSuchFile() {
+        when(googleDrive.getFile("a.yaml", "folder", "token")).thenReturn(java.util.Optional.empty());
+
+        assertThat(googleDriveService.findFileContent("token", "folder", "a.yaml")).isEmpty();
+        verify(googleDrive, never()).downloadFileAsString(any(), any());
+    }
+
+    @Test
+    void updateFileContent_replacesContentById() {
+        googleDriveService.updateFileContent("token", "file-1", "yaml");
+
+        verify(googleDrive).updateFileContent("file-1", "yaml", "token");
+    }
 }

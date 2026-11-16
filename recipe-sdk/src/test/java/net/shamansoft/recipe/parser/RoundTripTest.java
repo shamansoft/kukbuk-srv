@@ -187,4 +187,25 @@ class RoundTripTest {
         VideoMedia vid = (VideoMedia) parsed.instructions().get(0).media().get(1);
         assertThat(vid.duration()).isEqualTo("1:45");
     }
+
+    @Test
+    void shouldRoundTripUserTagsAndOmitThemWhenEmpty() throws Exception {
+        YamlRecipeParser parser = new YamlRecipeParser();
+        RecipeSerializer serializer = new RecipeSerializer();
+        Recipe recipe = new Recipe(true, "1.0.0", "1.0.0",
+                new RecipeMetadata("Tagged", "https://example.com/t", null, null, null, null,
+                        List.of("quick"), null, null, null, null, null, null),
+                null, List.of(new Ingredient("flour", null, null, null, false, null, null)), null,
+                List.of(new Instruction(1, "Mix", null, null, null)), null, null, null);
+
+        String untagged = serializer.serialize(recipe);
+        assertThat(untagged).doesNotContain("user_tags");
+        assertThat(parser.parse(untagged).userTags()).isEmpty();
+
+        String tagged = serializer.serialize(recipe.withUserTags(List.of("weeknight", "kids")));
+        assertThat(tagged).contains("user_tags:");
+        Recipe parsed = parser.parse(tagged);
+        assertThat(parsed.userTags()).containsExactly("weeknight", "kids");
+        assertThat(parsed.metadata().tags()).containsExactly("quick");
+    }
 }
