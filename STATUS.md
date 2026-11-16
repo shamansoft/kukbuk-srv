@@ -28,8 +28,9 @@ sar-ext browser extension and the sar-kmp client; infrastructure is owned by sar
   - Recipe caching/dedup, Firestore persistence, Firebase auth
   - Relative recipe image URLs resolved to absolute at read time
   - User tags: `PATCH /v1/recipes/{id}` with `userTags` writes them into the recipe file (`user_tags`,
-    Drive and Dropbox); `GET` returns `userTags`; re-extraction keeps them. User notes (`userNotes`) come next
-    on the same endpoint ([story](../feature-requests/user-tags.md))
+    Drive and Dropbox); `GET` returns `userTags`; re-extraction keeps them. User notes: the same `PATCH` takes `userNotes` (≤ 5000 chars, stored as
+    `user_notes`); `GET` returns `userNotes` (string or null); re-extraction keeps it
+    ([tags story](../feature-requests/user-tags.md), [notes story](../feature-requests/user-notes.md))
   - Extraction quality on 39 English sample pages: 92% of ingredients fully right (63% before #94);
     11 non-English pages: 76%. Measured with `tools/extractor-tuner` in the sar umbrella folder
   - Post-LLM cleanup (`RecipeAdjustmentService`): units, empty quantities, ranges, thirds, nutrition

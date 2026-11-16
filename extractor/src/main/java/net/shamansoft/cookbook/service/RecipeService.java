@@ -42,6 +42,8 @@ public class RecipeService {
 
     /** YAML key of {@link Recipe#userTags()} in the stored recipe file. */
     static final String USER_TAGS_KEY = "user_tags";
+    /** YAML key of {@link Recipe#userNotes()} in the stored recipe file. */
+    static final String USER_NOTES_KEY = "user_notes";
 
     /** Same YAML style as {@link RecipeValidationService#toYaml}; used to edit stored files in place. */
     private static final ObjectMapper YAML = new RecipeSerializer().getMapper();
@@ -155,7 +157,7 @@ public class RecipeService {
 
     /**
      * Writes an extracted recipe to the user's folder. Saving a recipe with the same title overwrites the
-     * existing file, so the user's own data in that file ({@code user_tags}) is carried over: extraction never
+     * existing file, so the user's own data in that file ({@code user_tags}, {@code user_notes}) is carried over: extraction never
      * sets or clears it.
      */
     private RecipeItemResult uploadRecipe(StorageProvider provider, StorageInfo storage, Recipe recipe, String title) {
@@ -188,14 +190,17 @@ public class RecipeService {
      */
     Recipe withExistingUserData(Recipe extracted, Optional<String> existingYaml) {
         List<String> userTags = List.of();
+        String userNotes = "";
         if (existingYaml.isPresent()) {
             try {
-                userTags = recipeParser.parse(existingYaml.get()).userTags();
+                Recipe existing = recipeParser.parse(existingYaml.get());
+                userTags = existing.userTags();
+                userNotes = existing.userNotes();
             } catch (InvalidRecipeFormatException e) {
                 log.warn("Existing recipe file is not a valid recipe; nothing to carry over: {}", e.getMessage());
             }
         }
-        return extracted.withUserTags(userTags);
+        return extracted.withUserTags(userTags).withUserNotes(userNotes);
     }
 
     /**
@@ -326,9 +331,10 @@ public class RecipeService {
      */
     public RecipeDto updateRecipe(String userId, String fileId, RecipeUpdateRequest update) {
         if (update == null || update.isEmpty()) {
-            throw new InvalidRecipeUpdateException("Request must set at least one of: userTags");
+            throw new InvalidRecipeUpdateException("Request must set at least one of: userTags, userNotes");
         }
         List<String> userTags = update.hasUserTags() ? UserTags.normalize(update.getUserTags()) : null;
+        String userNotes = update.hasUserNotes() ? UserNotes.normalize(update.getUserNotes()) : null;
 
         log.info("Updating recipe: {} for user: {}", fileId, userId);
         StorageInfo storage = storageService.getStorageInfo(userId);
@@ -339,6 +345,9 @@ public class RecipeService {
             ObjectNode root = readYamlObject(yamlContent);
             if (userTags != null) {
                 setOrRemove(root, USER_TAGS_KEY, userTags.isEmpty() ? null : YAML.valueToTree(userTags));
+            }
+            if (userNotes != null) {
+                setOrRemove(root, USER_NOTES_KEY, userNotes.isEmpty() ? null : YAML.valueToTree(userNotes));
             }
             String updatedYaml = YAML.writeValueAsString(root);
             Recipe recipe = recipeParser.parse(updatedYaml);  // never write a file we could not read back

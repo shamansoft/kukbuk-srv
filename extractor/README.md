@@ -92,11 +92,13 @@ Changes the user's own data in a stored recipe. Every field is optional: absent 
 unchanged, present replaces it. A body with no known field is a 400.
 
 ```json
-{ "userTags": ["weeknight", "kids"] }
+{ "userTags": ["weeknight", "kids"], "userNotes": "Used half the sugar." }
 ```
 
 - `userTags`: trimmed, lowercased, empty ones and duplicates dropped; at most 30 tags of at most 40 characters
   (else 400). `[]` clears them. Stored as `user_tags` in the recipe YAML.
+- `userNotes`: the user's own note, at most 5000 characters (else 400); trailing whitespace is stripped, inner text
+  kept. `""`, blank or `null` clears it. Stored as `user_notes`; separate from `notes` (the page's notes).
 - Response: the updated recipe, same shape as `GET /v1/recipes/{id}`; 404 if the file does not exist.
 
 ## Building and Running
@@ -330,6 +332,8 @@ Stored recipe files may also carry the user's own data, which extraction never w
 - `user_tags` (top level, list of strings, omitted when empty): tags the user set with `PATCH /v1/recipes/{id}`.
   Kept apart from the extractor's `metadata.tags`. When a save overwrites a file with the same name
   (re-extracting the same recipe), `user_tags` is copied over from the old file.
+- `user_notes` (top level, string, omitted when empty): the user's own note, set the same way. Separate from the
+  top-level `notes` (the page's notes from extraction). Also copied over on a same-name save.
 
 ## Native Image
 

@@ -235,6 +235,10 @@ paths:
         `userTags` are normalized: trimmed, lowercased, empty ones and duplicates dropped (first occurrence
         keeps its place). `[]` (or `null`) clears them. Saving the same recipe again from the extension
         (re-extraction that overwrites the file) keeps them.
+
+        `userNotes` is the user's own note (at most 5000 characters). Trailing whitespace is stripped, the
+        inner text is kept as is. `""`, blank text or `null` clears it. It is separate from `notes`, which
+        holds the page's notes from extraction. Re-extraction keeps it.
       operationId: updateRecipe
       parameters:
         - name: id
@@ -259,8 +263,8 @@ paths:
                 $ref: '#/components/schemas/RecipeDto'
         '400':
           description: >-
-            Bad Request - missing or malformed body, no known field, more than 30 tags or a tag longer
-            than 40 characters
+            Bad Request - missing or malformed body, no known field, more than 30 tags, a tag longer
+            than 40 characters or a note longer than 5000 characters
           content:
             application/json:
               schema:
@@ -509,6 +513,14 @@ components:
             type: string
             maxLength: 40
           example: [ "weeknight", "kids" ]
+        userNotes:
+          type: string
+          nullable: true
+          maxLength: 5000
+          description: >-
+            The user's own note; replaces the stored one. Trailing whitespace is stripped; `""`, blank text
+            or `null` clears it.
+          example: "Used half the sugar.\nBake 5 minutes longer."
 
     RecipeResponse:
       type: object
@@ -657,6 +669,13 @@ components:
           items:
             type: string
           example: [ "weeknight", "kids" ]
+        userNotes:
+          type: string
+          nullable: true
+          description: >-
+            The user's own note, set with PATCH /v1/recipes/{id}. `null` when none. Separate from `notes`,
+            which holds the page's notes.
+          example: "Used half the sugar."
         language:
           type: string
           nullable: true
