@@ -543,6 +543,31 @@ class RecipeControllerSBTest {
     }
 
     @Test
+    void patchRecipe_setsUserNotesOnly() {
+        when(googleDriveService.getFileContent(anyString(), eq("file-1"))).thenReturn(STORED_YAML);
+        when(googleDriveService.getFileMetadata(anyString(), eq("file-1"))).thenReturn(
+                new GoogleDrive.DriveFileMetadata("file-1", "pancakes.yaml", "application/x-yaml", "2026-11-15T10:00:00Z"));
+
+        ResponseEntity<Map> response = patch("file-1", "{\"userNotes\": \"Less sugar.\\n\\nBake longer.  \"}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody())
+                .containsEntry("title", "Pancakes")
+                .containsEntry("userNotes", "Less sugar.\n\nBake longer.")
+                .containsEntry("userTags", List.of());
+        verify(googleDriveService).updateFileContent(anyString(), eq("file-1"),
+                org.mockito.ArgumentMatchers.contains("user_notes"));
+    }
+
+    @Test
+    void patchRecipe_returns400_whenNoteTooLong() {
+        ResponseEntity<Map> response = patch("file-1", "{\"userNotes\": \"" + "x".repeat(5001) + "\"}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(googleDriveService, never()).getFileContent(anyString(), anyString());
+    }
+
+    @Test
     void patchRecipe_returns404_whenFileMissing() {
         when(googleDriveService.getFileContent(anyString(), eq("missing")))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", null, null, null));

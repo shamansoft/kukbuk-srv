@@ -153,6 +153,52 @@ class RecipeServiceUpdateTest {
     }
 
     @Test
+    void setsUserNotesAndKeepsTags() {
+        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_tags:\n- \"kept\"\n");
+
+        RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID,
+                RecipeUpdateRequest.withUserNotes("Less sugar.\n\nBake 5 min more.  \n"));
+
+        assertThat(dto.getUserNotes()).isEqualTo("Less sugar.\n\nBake 5 min more.");
+        assertThat(dto.getUserTags()).containsExactly("kept");
+        assertThat(dto.getNotes()).isEqualTo("");
+        Recipe stored = parser.parse(writtenYaml());
+        assertThat(stored.userNotes()).isEqualTo("Less sugar.\n\nBake 5 min more.");
+        assertThat(stored.userTags()).containsExactly("kept");
+        assertThat(stored.notes()).isEmpty();
+    }
+
+    @Test
+    void tagsOnlyUpdateLeavesUserNotesUnchanged() {
+        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_notes: \"mine\"\n");
+
+        service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserTags(List.of("a")));
+
+        assertThat(parser.parse(writtenYaml()).userNotes()).isEqualTo("mine");
+    }
+
+    @Test
+    void blankOrNullNotesClearNoteAndRemoveKey() {
+        for (String cleared : new String[]{"", "  \n ", null}) {
+            org.mockito.Mockito.clearInvocations(provider);
+            when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_notes: \"old\"\n");
+
+            RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserNotes(cleared));
+
+            assertThat(dto.getUserNotes()).isNull();
+            assertThat(writtenYaml()).doesNotContain("user_notes").contains("custom_key");
+        }
+    }
+
+    @Test
+    void tooLongNoteIsRejectedBeforeAnyIo() {
+        assertThatThrownBy(() -> service.updateRecipe(USER_ID, FILE_ID,
+                RecipeUpdateRequest.withUserNotes("x".repeat(5001))))
+                .isInstanceOf(InvalidRecipeUpdateException.class);
+        verify(provider, never()).getFileContent(anyString(), anyString());
+    }
+
+    @Test
     void emptyRequestIsRejectedBeforeAnyIo() {
         assertThatThrownBy(() -> service.updateRecipe(USER_ID, FILE_ID, new RecipeUpdateRequest()))
                 .isInstanceOf(InvalidRecipeUpdateException.class);
@@ -221,6 +267,39 @@ class RecipeServiceUpdateTest {
     @Test
     void withExistingUserData_unreadableFileMeansNoTags() {
         assertThat(service.withExistingUserData(extracted(), Optional.of("not: [valid")).userTags()).isEmpty();
+    }
+
+    @Test
+    void withExistingUserData_copiesNoteFromOverwrittenFile() {
+        Recipe result = service.withExistingUserData(extracted(),
+                Optional.of(STORED_YAML + "user_notes: \"Less sugar\"\n"));
+
+        assertThat(result.userNotes()).isEqualTo("Less sugar");
+    }
+
+    @Test
+    void withExistingUserData_noFileMeansNoNote() {
+        Recipe fromLlm = extracted().withUserNotes("should-not-be-stored");
+
+        assertThat(service.withExistingUserData(fromLlm, Optional.empty()).userNotes()).isEmpty();
+    }
+
+    @Test
+    void createRecipe_overwritingFileKeepsItsUserNotes() throws Exception {
+        when(contentHashService.generateContentHash(anyString())).thenReturn("hash");
+        when(recipeStoreService.findCachedRecipes("hash"))
+                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(extracted()))));
+        when(provider.generateFileName("Pancakes")).thenReturn("pancakes.yaml");
+        when(provider.findRecipeYaml(TOKEN, "folder", "pancakes.yaml"))
+                .thenReturn(Optional.of(STORED_YAML + "user_notes: \"Less sugar\"\n"));
+        when(provider.uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), anyString()))
+                .thenReturn(new DriveService.UploadResult(FILE_ID, "https://drive/file"));
+
+        service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null);
+
+        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
+        verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
+        assertThat(parser.parse(content.getValue()).userNotes()).isEqualTo("Less sugar");
     }
 
     @Test

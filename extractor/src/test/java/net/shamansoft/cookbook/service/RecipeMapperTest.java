@@ -592,6 +592,28 @@ class RecipeMapperTest {
         assertThat(dto.getUserTags()).isNotNull().isEmpty();
     }
 
+    // ===== Test: user notes =====
+
+    @Test
+    @DisplayName("Should map user notes for detail and list, kept apart from the page's notes")
+    void shouldMapUserNotes() {
+        Recipe recipe = createCompleteRecipe().withUserNotes("Less sugar.\nBake longer.");
+
+        RecipeDto detail = recipeMapper.toDto(recipe, driveFileMetadata());
+        RecipeDto listItem = recipeMapper.toDto(recipe,
+                new GoogleDrive.DriveFileInfo(RECIPE_ID, "recipe.yaml", LAST_MODIFIED));
+
+        assertThat(detail.getUserNotes()).isEqualTo("Less sugar.\nBake longer.");
+        assertThat(listItem.getUserNotes()).isEqualTo("Less sugar.\nBake longer.");
+        assertThat(detail.getNotes()).isEqualTo(recipe.notes());
+    }
+
+    @Test
+    @DisplayName("Should map missing user notes to null")
+    void shouldMapMissingUserNotesToNull() {
+        assertThat(recipeMapper.toDto(createCompleteRecipe(), driveFileMetadata()).getUserNotes()).isNull();
+    }
+
     // ===== Test: category, tags, language =====
 
     @Test

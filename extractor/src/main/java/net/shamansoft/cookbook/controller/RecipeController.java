@@ -135,6 +135,8 @@ public class RecipeController {
      * <p>
      * Every body field is optional: absent leaves the stored value unchanged, present replaces it.
      * {@code userTags} are trimmed, lowercased, de-duplicated; {@code []} clears them.
+     * {@code userNotes} (max 5000 characters) keeps its inner text, drops trailing whitespace; {@code ""} or
+     * {@code null} clears it.
      *
      * @param userId Firebase user ID (injected by FirebaseAuthFilter)
      * @param id     storage file ID

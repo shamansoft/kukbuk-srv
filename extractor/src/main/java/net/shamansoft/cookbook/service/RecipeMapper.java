@@ -66,6 +66,7 @@ public class RecipeMapper {
                 .category(orEmpty(recipe.metadata().category()))
                 .tags(orEmpty(recipe.metadata().tags()))
                 .userTags(orEmpty(recipe.userTags()))
+                .userNotes(recipe.userNotes() == null || recipe.userNotes().isEmpty() ? null : recipe.userNotes())
                 .language(LanguageCodes.normalize(recipe.metadata().language()).orElse(null))
                 .ingredients(mapIngredients(recipe.ingredients()))
                 .equipment(recipe.equipment())

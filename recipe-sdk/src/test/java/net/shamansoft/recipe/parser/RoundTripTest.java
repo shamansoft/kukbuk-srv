@@ -208,4 +208,25 @@ class RoundTripTest {
         assertThat(parsed.userTags()).containsExactly("weeknight", "kids");
         assertThat(parsed.metadata().tags()).containsExactly("quick");
     }
+
+    @Test
+    void userNotesRoundTripAndStayApartFromNotes() throws Exception {
+        YamlRecipeParser parser = new YamlRecipeParser();
+        RecipeSerializer serializer = new RecipeSerializer();
+        Recipe recipe = new Recipe(true, "1.0.0", "1.0.0",
+                new RecipeMetadata("Noted", "https://example.com/n", null, null, null, null,
+                        null, null, null, null, null, null, null),
+                null, List.of(new Ingredient("flour", null, null, null, false, null, null)), null,
+                List.of(new Instruction(1, "Mix", null, null, null)), null, "Page note", null);
+
+        String plain = serializer.serialize(recipe);
+        assertThat(plain).doesNotContain("user_notes");
+        assertThat(parser.parse(plain).userNotes()).isEmpty();
+
+        String noted = serializer.serialize(recipe.withUserNotes("Less sugar.\n\nBake longer."));
+        assertThat(noted).contains("user_notes:");
+        Recipe parsed = parser.parse(noted);
+        assertThat(parsed.userNotes()).isEqualTo("Less sugar.\n\nBake longer.");
+        assertThat(parsed.notes()).isEqualTo("Page note");
+    }
 }

@@ -26,6 +26,8 @@ import java.util.Objects;
  * @param storage Storage instructions
  * @param userTags Tags the user added (stored as {@code user_tags}, omitted when empty). Kept apart from the
  *                 extractor's {@code metadata.tags}: extraction never writes them, saves carry them over.
+ * @param userNotes The user's own note (stored as {@code user_notes}, omitted when empty). Kept apart from
+ *                 {@code notes}, which holds the page's notes from extraction.
  */
 public record Recipe(
         @NotNull
@@ -76,7 +78,11 @@ public record Recipe(
 
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         @JsonProperty("user_tags")
-        List<String> userTags
+        List<String> userTags,
+
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
+        @JsonProperty("user_notes")
+        String userNotes
 ) {
     /**
      * Recipe without user data, as produced by extraction.
@@ -85,7 +91,7 @@ public record Recipe(
                   String description, List<Ingredient> ingredients, List<String> equipment,
                   List<Instruction> instructions, Nutrition nutrition, String notes, Storage storage) {
         this(isRecipe, schemaVersion, recipeVersion, metadata, description, ingredients, equipment,
-                instructions, nutrition, notes, storage, List.of());
+                instructions, nutrition, notes, storage, List.of(), "");
     }
 
     public Recipe {
@@ -98,6 +104,9 @@ public record Recipe(
         if (notes == null) {
             notes = "";
         }
+        if (userNotes == null) {
+            userNotes = "";
+        }
         userTags = userTags == null ? List.of() : userTags.stream().filter(Objects::nonNull).toList();
     }
 
@@ -106,6 +115,14 @@ public record Recipe(
      */
     public Recipe withUserTags(List<String> userTags) {
         return new Recipe(isRecipe, schemaVersion, recipeVersion, metadata, description, ingredients, equipment,
-                instructions, nutrition, notes, storage, userTags);
+                instructions, nutrition, notes, storage, userTags, userNotes);
+    }
+
+    /**
+     * Returns a copy of this recipe with the given user note.
+     */
+    public Recipe withUserNotes(String userNotes) {
+        return new Recipe(isRecipe, schemaVersion, recipeVersion, metadata, description, ingredients, equipment,
+                instructions, nutrition, notes, storage, userTags, userNotes);
     }
 }
