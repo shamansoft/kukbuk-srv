@@ -5,11 +5,14 @@ import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.dto.StorageType;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
+import net.shamansoft.cookbook.repository.DriveRecipeWriteLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Service for Google Drive operations related to the Cookbook application.
@@ -21,16 +24,19 @@ public class GoogleDriveService implements DriveService {
     private final GoogleDrive drive;
     private final Transliterator transliterator;
     private final StorageService storageService;
+    private final DriveRecipeWriteLock writeLock;
 
     @Autowired
     public GoogleDriveService(@Value("${cookbook.drive.folder-name}") String folderName,
                               GoogleDrive drive,
                               Transliterator transliterator,
-                              StorageService storageService) {
+                              StorageService storageService,
+                              DriveRecipeWriteLock writeLock) {
         this.folderName = folderName;
         this.drive = drive;
         this.transliterator = transliterator;
         this.storageService = storageService;
+        this.writeLock = writeLock;
     }
 
     private static String defaultName() {
@@ -63,11 +69,19 @@ public class GoogleDriveService implements DriveService {
     }
 
     @Override
-    public UploadResult uploadRecipeYaml(String authToken, String folderId, String fileName, String content) {
-        var file = drive.getFile(fileName, folderId, authToken)
-                .map(existingFile -> drive.updateFile(existingFile, content, authToken))
-                .orElseGet(() -> drive.createFile(fileName, folderId, content, authToken));
-        return new UploadResult(file.id(), file.url());
+    public UploadResult saveRecipeYaml(String authToken, String folderId, String fileName,
+                                       Function<Optional<String>, String> edit) {
+        try (var nameLock = writeLock.forName(folderId, fileName)) {
+            Optional<GoogleDrive.Item> existing = drive.getFile(fileName, folderId, authToken);
+            if (existing.isPresent()) {
+                GoogleDrive.Item file = existing.get();
+                editRecipeYaml(authToken, file.id(), yaml -> edit.apply(Optional.of(yaml)));
+                return new UploadResult(file.id(), file.url());
+            }
+            String yaml = edit.apply(Optional.empty());
+            GoogleDrive.Item created = nameLock.write(() -> drive.createFile(fileName, folderId, yaml, authToken));
+            return new UploadResult(created.id(), created.url());
+        }
     }
 
     @Override
@@ -92,7 +106,7 @@ public class GoogleDriveService implements DriveService {
 
         // Generate filename and upload
         String fileName = generateFileName(title);
-        UploadResult result = uploadRecipeYaml(storage.accessToken(), folderId, fileName, content);
+        UploadResult result = saveRecipeYaml(storage.accessToken(), folderId, fileName, existing -> content);
 
         log.info("Recipe saved to Google Drive: {}", result.fileUrl());
         return result;
@@ -162,14 +176,13 @@ public class GoogleDriveService implements DriveService {
     }
 
     @Override
-    public Optional<String> findFileContent(String authToken, String folderId, String fileName) {
-        return drive.getFile(fileName, folderId, authToken)
-                .map(file -> drive.downloadFileAsString(authToken, file.id()));
-    }
-
-    @Override
-    public void updateFileContent(String authToken, String fileId, String content) {
-        log.info("Updating file content: {}", fileId);
-        drive.updateFileContent(fileId, content, authToken);
+    public String editRecipeYaml(String authToken, String fileId, UnaryOperator<String> edit) {
+        try (var fileLock = writeLock.forFile(fileId)) {
+            String yaml = edit.apply(drive.downloadFileAsString(authToken, fileId));
+            return fileLock.write(() -> {
+                drive.updateFileContent(fileId, yaml, authToken);
+                return yaml;
+            });
+        }
     }
 }

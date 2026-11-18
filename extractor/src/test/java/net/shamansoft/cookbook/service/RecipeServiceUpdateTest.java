@@ -14,7 +14,6 @@ import net.shamansoft.recipe.model.Recipe;
 import net.shamansoft.recipe.model.RecipeMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.http.HttpStatus;
 
@@ -23,6 +22,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -67,6 +68,7 @@ class RecipeServiceUpdateTest {
     private ContentHashService contentHashService;
     private RecipeStoreService recipeStoreService;
     private RecipeService service;
+    private String writtenYaml;
     private final RecipeParser parser = new RecipeParser();
 
     @BeforeEach
@@ -94,15 +96,16 @@ class RecipeServiceUpdateTest {
                 new RecipePostProcessor("1.0.0", Clock.systemUTC(), new RecipeAdjustmentService()));
     }
 
-    private String writtenYaml() {
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(provider).updateFileContent(eq(TOKEN), eq(FILE_ID), content.capture());
-        return content.getValue();
+    private void stubEdit(String yaml) {
+        when(provider.editRecipeYaml(eq(TOKEN), eq(FILE_ID), any())).thenAnswer(invocation -> {
+            writtenYaml = invocation.<UnaryOperator<String>>getArgument(2).apply(yaml);
+            return writtenYaml;
+        });
     }
 
     @Test
     void setsNormalizedTagsAndKeepsOtherFields() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML);
+        stubEdit(STORED_YAML);
 
         RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID,
                 RecipeUpdateRequest.withUserTags(List.of(" Weeknight ", "KIDS", "weeknight", "", "  ")));
@@ -112,7 +115,7 @@ class RecipeServiceUpdateTest {
         assertThat(dto.getId()).isEqualTo(FILE_ID);
         assertThat(dto.getLastModified()).isEqualTo(MODIFIED);
 
-        String yaml = writtenYaml();
+        String yaml = writtenYaml;
         assertThat(yaml).contains("user_tags:").contains("custom_key: \"kept as is\"");
         Recipe stored = parser.parse(yaml);
         assertThat(stored.userTags()).containsExactly("weeknight", "kids");
@@ -123,38 +126,37 @@ class RecipeServiceUpdateTest {
 
     @Test
     void replacesExistingTags() {
-        when(provider.getFileContent(TOKEN, FILE_ID))
-                .thenReturn(STORED_YAML + "user_tags:\n- \"old\"\n- \"older\"\n");
+        stubEdit(STORED_YAML + "user_tags:\n- \"old\"\n- \"older\"\n");
 
         RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserTags(List.of("new")));
 
         assertThat(dto.getUserTags()).containsExactly("new");
-        assertThat(parser.parse(writtenYaml()).userTags()).containsExactly("new");
+        assertThat(parser.parse(writtenYaml).userTags()).containsExactly("new");
     }
 
     @Test
     void emptyListClearsTagsAndRemovesKey() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_tags:\n- \"old\"\n");
+        stubEdit(STORED_YAML + "user_tags:\n- \"old\"\n");
 
         RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserTags(List.of()));
 
         assertThat(dto.getUserTags()).isEmpty();
-        assertThat(writtenYaml()).doesNotContain("user_tags").contains("custom_key");
+        assertThat(writtenYaml).doesNotContain("user_tags").contains("custom_key");
     }
 
     @Test
     void nullTagsClearTags() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_tags:\n- \"old\"\n");
+        stubEdit(STORED_YAML + "user_tags:\n- \"old\"\n");
 
         RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserTags(null));
 
         assertThat(dto.getUserTags()).isEmpty();
-        assertThat(writtenYaml()).doesNotContain("user_tags");
+        assertThat(writtenYaml).doesNotContain("user_tags");
     }
 
     @Test
     void setsUserNotesAndKeepsTags() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_tags:\n- \"kept\"\n");
+        stubEdit(STORED_YAML + "user_tags:\n- \"kept\"\n");
 
         RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID,
                 RecipeUpdateRequest.withUserNotes("Less sugar.\n\nBake 5 min more.  \n"));
@@ -162,7 +164,7 @@ class RecipeServiceUpdateTest {
         assertThat(dto.getUserNotes()).isEqualTo("Less sugar.\n\nBake 5 min more.");
         assertThat(dto.getUserTags()).containsExactly("kept");
         assertThat(dto.getNotes()).isEqualTo("");
-        Recipe stored = parser.parse(writtenYaml());
+        Recipe stored = parser.parse(writtenYaml);
         assertThat(stored.userNotes()).isEqualTo("Less sugar.\n\nBake 5 min more.");
         assertThat(stored.userTags()).containsExactly("kept");
         assertThat(stored.notes()).isEmpty();
@@ -170,23 +172,23 @@ class RecipeServiceUpdateTest {
 
     @Test
     void tagsOnlyUpdateLeavesUserNotesUnchanged() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_notes: \"mine\"\n");
+        stubEdit(STORED_YAML + "user_notes: \"mine\"\n");
 
         service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserTags(List.of("a")));
 
-        assertThat(parser.parse(writtenYaml()).userNotes()).isEqualTo("mine");
+        assertThat(parser.parse(writtenYaml).userNotes()).isEqualTo("mine");
     }
 
     @Test
     void blankOrNullNotesClearNoteAndRemoveKey() {
         for (String cleared : new String[]{"", "  \n ", null}) {
             org.mockito.Mockito.clearInvocations(provider);
-            when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn(STORED_YAML + "user_notes: \"old\"\n");
+            stubEdit(STORED_YAML + "user_notes: \"old\"\n");
 
             RecipeDto dto = service.updateRecipe(USER_ID, FILE_ID, RecipeUpdateRequest.withUserNotes(cleared));
 
             assertThat(dto.getUserNotes()).isNull();
-            assertThat(writtenYaml()).doesNotContain("user_notes").contains("custom_key");
+            assertThat(writtenYaml).doesNotContain("user_notes").contains("custom_key");
         }
     }
 
@@ -195,7 +197,7 @@ class RecipeServiceUpdateTest {
         assertThatThrownBy(() -> service.updateRecipe(USER_ID, FILE_ID,
                 RecipeUpdateRequest.withUserNotes("x".repeat(5001))))
                 .isInstanceOf(InvalidRecipeUpdateException.class);
-        verify(provider, never()).getFileContent(anyString(), anyString());
+        verify(provider, never()).editRecipeYaml(anyString(), anyString(), any());
     }
 
     @Test
@@ -220,23 +222,23 @@ class RecipeServiceUpdateTest {
 
     @Test
     void missingFileIsNotFound() {
-        when(provider.getFileContent(TOKEN, FILE_ID))
+        when(provider.editRecipeYaml(eq(TOKEN), eq(FILE_ID), any()))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", null, null, null));
 
         assertThatThrownBy(() -> service.updateRecipe(USER_ID, FILE_ID,
                 RecipeUpdateRequest.withUserTags(List.of("a"))))
                 .isInstanceOf(RecipeNotFoundException.class);
-        verify(provider, never()).updateFileContent(anyString(), anyString(), anyString());
+        assertThat(writtenYaml).isNull();
     }
 
     @Test
     void invalidStoredFileIsNotOverwritten() {
-        when(provider.getFileContent(TOKEN, FILE_ID)).thenReturn("- just\n- a list\n");
+        stubEdit("- just\n- a list\n");
 
         assertThatThrownBy(() -> service.updateRecipe(USER_ID, FILE_ID,
                 RecipeUpdateRequest.withUserTags(List.of("a"))))
                 .isInstanceOf(InvalidRecipeFormatException.class);
-        verify(provider, never()).updateFileContent(anyString(), anyString(), anyString());
+        assertThat(writtenYaml).isNull();
     }
 
     // ---- re-extraction keeps user data ----------------------------------------
@@ -248,93 +250,65 @@ class RecipeServiceUpdateTest {
                 null, List.of(), null, List.of(), null, null, null);
     }
 
-    @Test
-    void withExistingUserData_copiesTagsFromOverwrittenFile() {
-        Recipe result = service.withExistingUserData(extracted(),
-                Optional.of(STORED_YAML + "user_tags:\n- \"weeknight\"\n"));
-
-        assertThat(result.userTags()).containsExactly("weeknight");
-        assertThat(result.metadata().tags()).containsExactly("Breakfast");
-    }
-
-    @Test
-    void withExistingUserData_noFileMeansNoTags() {
-        Recipe fromLlm = extracted().withUserTags(List.of("should-not-be-stored"));
-
-        assertThat(service.withExistingUserData(fromLlm, Optional.empty()).userTags()).isEmpty();
-    }
-
-    @Test
-    void withExistingUserData_unreadableFileMeansNoTags() {
-        assertThat(service.withExistingUserData(extracted(), Optional.of("not: [valid")).userTags()).isEmpty();
-    }
-
-    @Test
-    void withExistingUserData_copiesNoteFromOverwrittenFile() {
-        Recipe result = service.withExistingUserData(extracted(),
-                Optional.of(STORED_YAML + "user_notes: \"Less sugar\"\n"));
-
-        assertThat(result.userNotes()).isEqualTo("Less sugar");
-    }
-
-    @Test
-    void withExistingUserData_noFileMeansNoNote() {
-        Recipe fromLlm = extracted().withUserNotes("should-not-be-stored");
-
-        assertThat(service.withExistingUserData(fromLlm, Optional.empty()).userNotes()).isEmpty();
-    }
-
-    @Test
-    void createRecipe_overwritingFileKeepsItsUserNotes() throws Exception {
+    private void stubCapture(Recipe recipe) {
         when(contentHashService.generateContentHash(anyString())).thenReturn("hash");
         when(recipeStoreService.findCachedRecipes("hash"))
-                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(extracted()))));
+                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(recipe))));
         when(provider.generateFileName("Pancakes")).thenReturn("pancakes.yaml");
-        when(provider.findRecipeYaml(TOKEN, "folder", "pancakes.yaml"))
-                .thenReturn(Optional.of(STORED_YAML + "user_notes: \"Less sugar\"\n"));
-        when(provider.uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), anyString()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, "https://drive/file"));
+    }
+
+    private void stubResave(Optional<String> currentYaml) {
+        when(provider.saveRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), any()))
+                .thenAnswer(invocation -> {
+                    Function<Optional<String>, String> edit = invocation.getArgument(3);
+                    writtenYaml = edit.apply(currentYaml);
+                    return new DriveService.UploadResult(FILE_ID, "https://drive/file");
+                });
+    }
+
+    @Test
+    void createRecipe_overwritingFileKeepsItsUserData() throws Exception {
+        stubCapture(extracted());
+        stubResave(Optional.of(STORED_YAML + "user_notes: Less sugar\nuser_tags: [weeknight]\n"));
 
         service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null);
 
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
-        assertThat(parser.parse(content.getValue()).userNotes()).isEqualTo("Less sugar");
+        Recipe stored = parser.parse(writtenYaml);
+        assertThat(stored.userNotes()).isEqualTo("Less sugar");
+        assertThat(stored.userTags()).containsExactly("weeknight");
+        assertThat(stored.metadata().tags()).containsExactly("Breakfast");
     }
 
     @Test
-    void createRecipe_overwritingFileKeepsItsUserTags() throws Exception {
-        when(contentHashService.generateContentHash(anyString())).thenReturn("hash");
-        when(recipeStoreService.findCachedRecipes("hash"))
-                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(extracted()))));
-        when(provider.generateFileName("Pancakes")).thenReturn("pancakes.yaml");
-        when(provider.findRecipeYaml(TOKEN, "folder", "pancakes.yaml"))
-                .thenReturn(Optional.of(STORED_YAML + "user_tags:\n- \"weeknight\"\n"));
-        when(provider.uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), anyString()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, "https://drive/file"));
+    void createRecipe_withoutPriorFileDoesNotImportUserDataFromExtraction() throws Exception {
+        stubCapture(extracted().withUserTags(List.of("model tag")).withUserNotes("model note"));
+        stubResave(Optional.empty());
 
         service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null);
 
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
-        assertThat(parser.parse(content.getValue()).userTags()).containsExactly("weeknight");
+        Recipe stored = parser.parse(writtenYaml);
+        assertThat(stored.userTags()).isEmpty();
+        assertThat(stored.userNotes()).isEmpty();
     }
 
     @Test
-    void createRecipe_failedLookupOfExistingFileStillSaves() throws Exception {
-        when(contentHashService.generateContentHash(anyString())).thenReturn("hash");
-        when(recipeStoreService.findCachedRecipes("hash"))
-                .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(extracted()))));
-        when(provider.generateFileName("Pancakes")).thenReturn("pancakes.yaml");
-        when(provider.findRecipeYaml(TOKEN, "folder", "pancakes.yaml"))
-                .thenThrow(new IllegalStateException("drive 503"));
-        when(provider.uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), anyString()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, "https://drive/file"));
+    void createRecipe_abortsWhenStorageCannotReadExistingFile() {
+        stubCapture(extracted());
+        var readFailure = new IllegalStateException("drive 503");
+        when(provider.saveRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), any())).thenThrow(readFailure);
 
-        service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null);
+        assertThatThrownBy(() -> service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null))
+                .isSameAs(readFailure);
+        assertThat(writtenYaml).isNull();
+    }
 
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(provider).uploadRecipeYaml(eq(TOKEN), eq("folder"), eq("pancakes.yaml"), content.capture());
-        assertThat(parser.parse(content.getValue()).userTags()).isEmpty();
+    @Test
+    void createRecipe_abortsWhenExistingFileContainsMalformedYaml() {
+        stubCapture(extracted());
+        stubResave(Optional.of(STORED_YAML + "user_tags: [unclosed\n"));
+
+        assertThatThrownBy(() -> service.createRecipe(USER_ID, "https://example.com/pancakes", null, null, null))
+                .isInstanceOf(InvalidRecipeFormatException.class);
+        assertThat(writtenYaml).isNull();
     }
 }

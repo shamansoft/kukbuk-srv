@@ -12,6 +12,7 @@ import net.shamansoft.cookbook.dto.StorageInfo;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.InvalidRecipeUpdateException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
+import net.shamansoft.cookbook.exception.RecipeWriteUnavailableException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.html.HtmlExtractor;
 import net.shamansoft.cookbook.html.PageContent;
@@ -164,43 +165,18 @@ public class RecipeService {
         String recipeTitle = recipe.metadata() != null && recipe.metadata().title() != null
                 ? recipe.metadata().title() : title;
         String fileName = provider.generateFileName(recipeTitle);
-        Recipe toStore = withExistingUserData(recipe, findExistingYaml(provider, storage, fileName));
-        String yamlContent = convertRecipeToYaml(toStore);
-        DriveService.UploadResult uploadResult = provider.uploadRecipeYaml(
-                storage.accessToken(), storage.folderId(), fileName, yamlContent);
+        DriveService.UploadResult uploadResult = provider.saveRecipeYaml(
+                storage.accessToken(), storage.folderId(), fileName,
+                existingYaml -> convertRecipeToYaml(withExistingUserData(recipe, existingYaml)));
         return new RecipeItemResult(recipeTitle, uploadResult.fileId(), uploadResult.fileUrl());
     }
 
-    /**
-     * Looks up the file a save is about to overwrite. A failed lookup must never block the save, so any error
-     * is logged and treated as "no existing file" (the user's data in it is then not carried over).
-     */
-    private Optional<String> findExistingYaml(StorageProvider provider, StorageInfo storage, String fileName) {
-        try {
-            return provider.findRecipeYaml(storage.accessToken(), storage.folderId(), fileName);
-        } catch (RuntimeException e) {
-            log.warn("Could not read the existing recipe file; saving without carrying over user data: {}",
-                    e.getMessage());
-            return Optional.empty();
+    private Recipe withExistingUserData(Recipe extracted, Optional<String> existingYaml) {
+        if (existingYaml.isEmpty()) {
+            return extracted.withUserTags(List.of()).withUserNotes("");
         }
-    }
-
-    /**
-     * Copies the user's data from the file being overwritten (if any) onto a freshly extracted recipe.
-     */
-    Recipe withExistingUserData(Recipe extracted, Optional<String> existingYaml) {
-        List<String> userTags = List.of();
-        String userNotes = "";
-        if (existingYaml.isPresent()) {
-            try {
-                Recipe existing = recipeParser.parse(existingYaml.get());
-                userTags = existing.userTags();
-                userNotes = existing.userNotes();
-            } catch (InvalidRecipeFormatException e) {
-                log.warn("Existing recipe file is not a valid recipe; nothing to carry over: {}", e.getMessage());
-            }
-        }
-        return extracted.withUserTags(userTags).withUserNotes(userNotes);
+        Recipe existing = recipeParser.parse(existingYaml.get());
+        return extracted.withUserTags(existing.userTags()).withUserNotes(existing.userNotes());
     }
 
     /**
@@ -341,22 +317,13 @@ public class RecipeService {
         StorageProvider provider = storageProviderResolver.resolve(storage.type());
 
         try {
-            String yamlContent = provider.getFileContent(storage.accessToken(), fileId);
-            ObjectNode root = readYamlObject(yamlContent);
-            if (userTags != null) {
-                setOrRemove(root, USER_TAGS_KEY, userTags.isEmpty() ? null : YAML.valueToTree(userTags));
-            }
-            if (userNotes != null) {
-                setOrRemove(root, USER_NOTES_KEY, userNotes.isEmpty() ? null : YAML.valueToTree(userNotes));
-            }
-            String updatedYaml = YAML.writeValueAsString(root);
-            Recipe recipe = recipeParser.parse(updatedYaml);  // never write a file we could not read back
-
-            provider.updateFileContent(storage.accessToken(), fileId, updatedYaml);
+            String updatedYaml = provider.editRecipeYaml(storage.accessToken(), fileId,
+                    yaml -> editUserData(yaml, userTags, userNotes));
+            Recipe recipe = recipeParser.parse(updatedYaml);
             GoogleDrive.DriveFileMetadata metadata = provider.getFileMetadata(storage.accessToken(), fileId);
             log.info("Updated recipe: {}", fileId);
             return recipeMapper.toDto(recipe, metadata);
-        } catch (InvalidRecipeFormatException e) {
+        } catch (InvalidRecipeFormatException | RecipeWriteUnavailableException e) {
             throw e;
         } catch (Exception e) {
             log.error("Failed to update recipe: {}", fileId, e);
@@ -366,6 +333,19 @@ public class RecipeService {
             }
             throw e;
         }
+    }
+
+    private String editUserData(String yaml, List<String> userTags, String userNotes) {
+        ObjectNode root = readYamlObject(yaml);
+        if (userTags != null) {
+            setOrRemove(root, USER_TAGS_KEY, userTags.isEmpty() ? null : YAML.valueToTree(userTags));
+        }
+        if (userNotes != null) {
+            setOrRemove(root, USER_NOTES_KEY, userNotes.isEmpty() ? null : YAML.valueToTree(userNotes));
+        }
+        String updatedYaml = YAML.writeValueAsString(root);
+        recipeParser.parse(updatedYaml);  // never write a file we could not read back
+        return updatedYaml;
     }
 
     private static ObjectNode readYamlObject(String yamlContent) {

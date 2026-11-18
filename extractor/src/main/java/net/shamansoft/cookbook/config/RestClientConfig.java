@@ -3,10 +3,10 @@ package net.shamansoft.cookbook.config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.Timeout;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +28,12 @@ public class RestClientConfig {
     /** A pooled Apache HTTP client factory. */
     private static HttpComponentsClientHttpRequestFactory pooledFactory(int maxTotal, int maxPerRoute,
                                                                         int connectSeconds, int responseSeconds) {
+        return pooledFactory(maxTotal, maxPerRoute, connectSeconds, responseSeconds, true);
+    }
+
+    private static HttpComponentsClientHttpRequestFactory pooledFactory(int maxTotal, int maxPerRoute,
+                                                                        int connectSeconds, int responseSeconds,
+                                                                        boolean retry) {
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setMaxTotal(maxTotal);
         connectionManager.setDefaultMaxPerRoute(maxPerRoute);
@@ -40,12 +46,13 @@ public class RestClientConfig {
                 .setResponseTimeout(Timeout.ofSeconds(responseSeconds))
                 .build();
 
-        CloseableHttpClient httpClient = HttpClients.custom()
+        var builder = HttpClients.custom()
                 .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                .build();
-
-        return new HttpComponentsClientHttpRequestFactory(httpClient);
+                .setDefaultRequestConfig(requestConfig);
+        if (!retry) {
+            builder.disableAutomaticRetries();
+        }
+        return new HttpComponentsClientHttpRequestFactory(builder.build());
     }
 
     @Bean
@@ -96,9 +103,15 @@ public class RestClientConfig {
     }
 
     @Bean
+    public ClientHttpRequestFactory driveUploadRequestFactory() {
+        // A Drive mutation must have a single upstream outcome for lock release to be safe.
+        return pooledFactory(200, 20, 2, 30, false);
+    }
+
+    @Bean
     public RestClient uploadRestClient(
             @Value("${cookbook.drive.upload-url}") String uploadUrl,
-            ClientHttpRequestFactory requestFactory) {
+            @Qualifier("driveUploadRequestFactory") ClientHttpRequestFactory requestFactory) {
         return RestClient.builder()
                 .requestFactory(requestFactory)
                 .baseUrl(uploadUrl)

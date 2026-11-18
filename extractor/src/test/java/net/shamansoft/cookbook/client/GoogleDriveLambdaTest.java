@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GoogleDriveLambdaTest {
 
     @Test
-    void exerciseAllUriLambdas() throws Exception {
+    void exerciseOtherUriLambdas() throws Exception {
         // Create instance (clients not used for these tests)
         GoogleDrive gd = new GoogleDrive(null, null);
 
@@ -42,21 +42,11 @@ class GoogleDriveLambdaTest {
         URI u1 = invoke.apply("lambda$getFolder$0", new Object[]{"TestFolder", builder});
         assertThat(u1.toString()).contains("/files").contains("TestFolder");
 
-        URI u2 = invoke.apply("lambda$getFile$0", new Object[]{"TestFile", "folder123", builder});
-        // Query may be URL encoded and combined; ensure key parts are present
-        assertThat(u2.toString()).contains("/files").contains("TestFile").contains("folder123");
-
         URI u3 = invoke.apply("lambda$createFolder$0", new Object[]{builder});
         assertThat(u3.toString()).contains("/files");
 
-        // createFile lambdas
-        GoogleDrive.Item dummy = new GoogleDrive.Item("id123", "name.yaml");
-        URI u4 = invoke.apply("lambda$createFile$0", new Object[]{builder});
-        assertThat(u4.toString()).contains("/files");
-        URI u5 = invoke.apply("lambda$createFile$1", new Object[]{dummy, builder});
-        assertThat(u5.toString()).contains("/files/").contains(dummy.id());
-
         // updateFile lambdas
+        GoogleDrive.Item dummy = new GoogleDrive.Item("id123", "name.yaml");
         URI u6 = invoke.apply("lambda$updateFile$0", new Object[]{dummy, builder});
         assertThat(u6.toString()).contains(dummy.id());
         URI u7 = invoke.apply("lambda$updateFileContent$0", new Object[]{"file123", builder});

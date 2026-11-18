@@ -215,21 +215,9 @@ class AddRecipeIT {
                                 }
                                 """)));
 
-        // Mock Google Drive file creation
+        // Mock Google Drive multipart file creation
         stubFor(post(urlPathEqualTo("/files"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("""
-                                {
-                                    "id": "file-456",
-                                    "name": "chocolate-chip-cookies.yaml",
-                                    "webViewLink": "https://drive.google.com/file/d/file-456/view"
-                                }
-                                """)));
-
-        // Mock Google Drive file upload/update
-        stubFor(patch(urlPathMatching("/files/.*"))
+                .withQueryParam("uploadType", equalTo("multipart"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
@@ -370,8 +358,10 @@ class AddRecipeIT {
         // file directly
         verify(getRequestedFor(urlPathEqualTo("/files"))
                 .withQueryParam("q", containing("chocolate-chip-cookies.yaml")));
-        verify(postRequestedFor(urlPathEqualTo("/files")));
-        verify(patchRequestedFor(urlPathMatching("/files/file-456.*")));
+        verify(1, postRequestedFor(urlPathEqualTo("/files"))
+                .withQueryParam("uploadType", equalTo("multipart"))
+                .withHeader("Content-Type", matching("multipart/related;\\s*boundary=.+")));
+        verify(0, patchRequestedFor(urlPathMatching("/files/.*")));
     }
 
     @Test

@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import static net.shamansoft.cookbook.service.RecipeWriteTestSupport.writesRecipe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,8 +104,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), any()))
+                .thenAnswer(writesRecipe(YAML, new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         // When
         RecipeResponse response = recipeService.createRecipeFromDescription(USER_ID, DESCRIPTION, TITLE, URL, Compression.NONE);
@@ -118,7 +119,7 @@ class RecipeServiceFromDescriptionTest {
         assertThat(response.recipes()).hasSize(1);
 
         verify(geminiRestTransformer).transformDescription(DESCRIPTION);
-        verify(driveService).uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML);
+        verify(driveService).saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), any());
     }
 
     @Test
@@ -131,8 +132,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName("AI Generated Title")).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), any()))
+                .thenAnswer(writesRecipe(YAML, new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         // When
         RecipeResponse response = recipeService.createRecipeFromDescription(USER_ID, DESCRIPTION, null, null, Compression.NONE);
@@ -152,8 +153,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, FILE_NAME, YAML))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), any()))
+                .thenAnswer(writesRecipe(YAML, new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         // When
         RecipeResponse response = recipeService.createRecipeFromDescription(USER_ID, DESCRIPTION, TITLE, null, Compression.NONE);
@@ -193,8 +194,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(any(), any(), any(), any()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(any(), any(), any(), any()))
+                .thenAnswer(writesRecipe(new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         // When
         recipeService.createRecipeFromDescription(USER_ID, DESCRIPTION, TITLE, URL, Compression.NONE);
@@ -221,7 +222,7 @@ class RecipeServiceFromDescriptionTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Gemini API error");
 
-        verify(driveService, never()).uploadRecipeYaml(any(), any(), any(), any());
+        verify(driveService, never()).saveRecipeYaml(any(), any(), any(), any());
     }
 
     @Test
@@ -234,8 +235,11 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), eq(YAML)))
-                .thenThrow(new RuntimeException("Drive upload failed"));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq(FILE_NAME), any()))
+                .thenAnswer(invocation -> {
+                    writesRecipe(YAML, null).answer(invocation);
+                    throw new RuntimeException("Drive upload failed");
+                });
 
         // When/Then
         assertThatThrownBy(() ->
@@ -255,8 +259,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(any(), any(), any(), any()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(any(), any(), any(), any()))
+                .thenAnswer(writesRecipe(new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         recipeService.createRecipeFromDescription(USER_ID, compressedDescription, TITLE, URL, Compression.BASE64_GZIP);
 
@@ -274,8 +278,8 @@ class RecipeServiceFromDescriptionTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         when(validationService.toYaml(any(Recipe.class))).thenReturn(YAML);
         when(driveService.generateFileName(TITLE)).thenReturn(FILE_NAME);
-        when(driveService.uploadRecipeYaml(any(), any(), any(), any()))
-                .thenReturn(new DriveService.UploadResult(FILE_ID, FILE_URL));
+        when(driveService.saveRecipeYaml(any(), any(), any(), any()))
+                .thenAnswer(writesRecipe(new DriveService.UploadResult(FILE_ID, FILE_URL)));
 
         recipeService.createRecipeFromDescription(USER_ID, rawDescription, TITLE, URL, null);
 

@@ -2,16 +2,23 @@ package net.shamansoft.cookbook.client;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,9 +28,133 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 class GoogleDriveTest {
+
+    private static final String MULTIPART_UPLOAD_URL =
+            "https://drive.example.test/upload/drive/v3/files?uploadType=multipart&fields=id";
+
+    @Test
+    void testCreateFileSendsJsonMetadataAndUtf8ContentInOneMultipartRequest() {
+        HttpDrive drive = HttpDrive.create();
+        String name = "Café \"мечта\" \\ spéciale.yaml";
+        String yaml = "title: Crème brûlée 🍮\n";
+
+        drive.uploadServer().expect(requestTo(MULTIPART_UPLOAD_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+                .andExpect(request -> {
+                    MediaType type = request.getHeaders().getContentType();
+                    assertThat(type).isNotNull();
+                    assertThat(type.getType()).isEqualTo("multipart");
+                    assertThat(type.getSubtype()).isEqualTo("related");
+                    String boundary = type.getParameter("boundary");
+                    assertThat(boundary).isNotBlank();
+
+                    byte[] body = ((MockClientHttpRequest) request).getBodyAsBytes();
+                    assertThat(request.getHeaders().getContentLength()).isEqualTo(body.length);
+                    String[] parts = new String(body, StandardCharsets.UTF_8)
+                            .split(Pattern.quote("\r\n--" + boundary), -1);
+                    assertThat(parts).hasSize(3);
+                    String metadataHeader = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n";
+                    assertThat(parts[0]).startsWith(metadataHeader);
+                    var metadata = new ObjectMapper().readTree(parts[0].substring(metadataHeader.length()));
+                    assertThat(metadata.path("name").asString()).isEqualTo(name);
+                    assertThat(metadata.path("parents").size()).isEqualTo(1);
+                    assertThat(metadata.path("parents").path(0).asString()).isEqualTo("folder-123");
+                    assertThat(metadata.path("mimeType").asString()).isEqualTo("application/x-yaml");
+                    assertThat(parts[1]).isEqualTo("\r\nContent-Type: application/x-yaml; charset=UTF-8\r\n\r\n" + yaml);
+                    assertThat(parts[2]).isEqualTo("--\r\n");
+                })
+                .andRespond(withSuccess("{\"id\":\"file-123\"}", MediaType.APPLICATION_JSON));
+
+        assertThat(drive.client().createFile(name, "folder-123", yaml, "test-token"))
+                .isEqualTo(new GoogleDrive.Item("file-123", name));
+        drive.verify();
+    }
+
+    @Test
+    void testCreateFileWithoutFileIdFails() {
+        HttpDrive drive = HttpDrive.create();
+        drive.uploadServer().expect(requestTo(MULTIPART_UPLOAD_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> drive.client().createFile("test.yaml", "folder-123", "title: Test", "test-token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("missing file ID");
+        drive.verify();
+    }
+
+    @Test
+    void testCreateFileProviderErrorFailsWithNoOtherRequest() {
+        HttpDrive drive = HttpDrive.create();
+        drive.uploadServer().expect(requestTo(MULTIPART_UPLOAD_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withServerError());
+
+        assertThatThrownBy(() -> drive.client().createFile("test.yaml", "folder-123", "title: Test", "test-token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Failed to create file");
+        drive.verify();
+    }
+
+    @Test
+    void testGetFileSearchesEmptyFirstPageAndPreservesOpaquePageToken() {
+        HttpDrive drive = HttpDrive.create();
+        String name = "Farmer's \\ café.yaml";
+        drive.driveServer().expect(request -> {
+                    assertThat(request.getURI().getPath()).isEqualTo("/drive/v3/files");
+                    assertThat(request.getURI().getQuery())
+                            .contains("q=name='Farmer\\'s \\\\ café.yaml' and 'folder-123' in parents and trashed=false",
+                                    "fields=files(id),nextPageToken,incompleteSearch")
+                            .doesNotContain("pageToken=");
+                })
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"files\":[],\"nextPageToken\":\"cursor+A/=\"}", MediaType.APPLICATION_JSON));
+        drive.driveServer().expect(request -> assertThat(request.getURI().getRawQuery())
+                        .contains("pageToken=cursor%2BA%2F%3D"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"files\":[{\"id\":\"file-123\"}]}", MediaType.APPLICATION_JSON));
+
+        assertThat(drive.client().getFile(name, "folder-123", "test-token"))
+                .contains(new GoogleDrive.Item("file-123", name));
+        drive.verify();
+    }
+
+    @Test
+    void testGetFileRejectsIncompleteSearch() {
+        HttpDrive drive = HttpDrive.create();
+        drive.driveServer().expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/drive/v3/files"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"files\":[],\"incompleteSearch\":true}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> drive.client().getFile("test.yaml", "folder-123", "test-token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("Could not determine");
+        drive.verify();
+    }
+
+    private record HttpDrive(GoogleDrive client, MockRestServiceServer driveServer, MockRestServiceServer uploadServer) {
+        private static HttpDrive create() {
+            var driveBuilder = RestClient.builder().baseUrl("https://drive.example.test/drive/v3");
+            var uploadBuilder = RestClient.builder().baseUrl("https://drive.example.test/upload/drive/v3");
+            var driveServer = MockRestServiceServer.bindTo(driveBuilder).build();
+            var uploadServer = MockRestServiceServer.bindTo(uploadBuilder).build();
+            return new HttpDrive(new GoogleDrive(driveBuilder.build(), uploadBuilder.build()), driveServer, uploadServer);
+        }
+
+        private void verify() {
+            driveServer.verify();
+            uploadServer.verify();
+        }
+    }
 
     @Test
     void testGetFolderFound() {
@@ -334,150 +465,6 @@ class GoogleDriveTest {
         assertThatThrownBy(() -> googleDrive.updateFile(testFile, "content", "dummyToken"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to update Drive file");
-    }
-
-    @Test
-    void testCreateFileSuccess() {
-        // Setup
-        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
-        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
-        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
-
-        RestClient mockDriveClient = mock(RestClient.class);
-        RestClient mockUploadClient = mock(RestClient.class);
-        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
-        ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
-
-        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        when(mockDriveClient.post()).thenReturn(mockBodySpec);
-        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
-        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
-
-        Map<String, Object> createResponse = new HashMap<>();
-        createResponse.put("id", "new_file_123");
-        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenReturn(createResponse);
-
-        when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
-        when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.contentType(eq(new MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))))
-                .thenReturn(mockUploadReqBodySpec);
-        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
-        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
-
-        Map<String, Object> uploadResponse = new HashMap<>();
-        uploadResponse.put("id", "new_file_123");
-        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenReturn(uploadResponse);
-
-        // Execute
-        GoogleDrive.Item result = googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken");
-
-        // Verify
-        assertThat(result).isNotNull();
-        assertThat(result.id()).isEqualTo("new_file_123");
-        assertThat(result.name()).isEqualTo("test.yaml");
-    }
-
-    @Test
-    void testCreateFileErrorOnCreate() {
-        // Setup
-        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
-        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
-        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
-
-        RestClient mockDriveClient = mock(RestClient.class);
-        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
-
-        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        when(mockDriveClient.post()).thenReturn(mockBodySpec);
-        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
-        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
-
-        Map<String, Object> createResponse = new HashMap<>();
-        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenReturn(createResponse);
-
-        // Execute & Verify
-        assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Failed to create file");
-    }
-
-    @Test
-    void testCreateFileErrorOnUpload() {
-        // Setup
-        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
-        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
-        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
-
-        RestClient mockDriveClient = mock(RestClient.class);
-        RestClient mockUploadClient = mock(RestClient.class);
-        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
-        ReflectionTestUtils.setField(googleDrive, "uploadClient", mockUploadClient);
-
-        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        RestClient.RequestBodyUriSpec mockUploadBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockUploadReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockUploadHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockUploadResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        when(mockDriveClient.post()).thenReturn(mockBodySpec);
-        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
-        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
-
-        Map<String, Object> createResponse = new HashMap<>();
-        createResponse.put("id", "new_file_123");
-        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenReturn(createResponse);
-
-        when(mockUploadClient.patch()).thenReturn(mockUploadBodySpec);
-        when(mockUploadBodySpec.uri(any(Function.class))).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockUploadReqBodySpec);
-        when(mockUploadReqBodySpec.contentType(any(MediaType.class))).thenReturn(mockUploadReqBodySpec);
-        doReturn(mockUploadReqBodySpec).when(mockUploadReqBodySpec).body(any(String.class));
-        when(mockUploadReqBodySpec.retrieve()).thenReturn(mockUploadResponseSpec);
-
-        Map<String, Object> uploadResponse = new HashMap<>();
-        when(mockUploadResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenReturn(uploadResponse);
-
-        // Execute & Verify
-        assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Failed to upload content to Drive file");
     }
 
     @Test
@@ -1047,37 +1034,6 @@ class GoogleDriveTest {
         assertThatThrownBy(() -> googleDrive.updateFile(testFile, "content", "dummyToken"))
                 .isInstanceOf(ClientException.class)
                 .hasMessageContaining("Failed to update file");
-    }
-
-    @Test
-    void testCreateFileGenericException() {
-        // Setup
-        RestClient driveWebClient = RestClient.builder().baseUrl("http://dummy-base").build();
-        RestClient uploadWebClient = RestClient.builder().baseUrl("http://dummy-upload").build();
-        GoogleDrive googleDrive = new GoogleDrive(driveWebClient, uploadWebClient);
-
-        RestClient mockDriveClient = mock(RestClient.class);
-        ReflectionTestUtils.setField(googleDrive, "driveClient", mockDriveClient);
-
-        RestClient.RequestBodyUriSpec mockBodySpec = mock(RestClient.RequestBodyUriSpec.class);
-        RestClient.RequestBodySpec mockReqBodySpec = mock(RestClient.RequestBodySpec.class);
-        @SuppressWarnings("rawtypes")
-        RestClient.RequestHeadersSpec mockHeadersSpec = mock(RestClient.RequestHeadersSpec.class);
-        RestClient.ResponseSpec mockResponseSpec = mock(RestClient.ResponseSpec.class);
-
-        when(mockDriveClient.post()).thenReturn(mockBodySpec);
-        when(mockBodySpec.uri(any(Function.class))).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.header(eq("Authorization"), anyString())).thenReturn(mockReqBodySpec);
-        when(mockReqBodySpec.contentType(eq(MediaType.APPLICATION_JSON))).thenReturn(mockReqBodySpec);
-        doReturn(mockReqBodySpec).when(mockReqBodySpec).body(any(Object.class));
-        when(mockReqBodySpec.retrieve()).thenReturn(mockResponseSpec);
-        when(mockResponseSpec.body(new ParameterizedTypeReference<Map<String, Object>>() {
-        })).thenThrow(new RuntimeException("Network error"));
-
-        // Execute & Verify
-        assertThatThrownBy(() -> googleDrive.createFile("test.yaml", "folder_123", "content", "dummyToken"))
-                .isInstanceOf(ClientException.class)
-                .hasMessageContaining("Failed to create file");
     }
 
     @Test

@@ -3,16 +3,24 @@ package net.shamansoft.cookbook.client;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
 public class GoogleDrive {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final RestClient driveClient;
     private final RestClient uploadClient;
@@ -100,20 +108,34 @@ public class GoogleDrive {
 
     @SuppressWarnings("unchecked")
     public Optional<Item> getFile(String name, String folderId, String authToken) {
-        Map<String, Object> listResponse = driveClient.get()
-                .uri(uri -> uri.path("/files")
-                        .queryParam("q", "name='" + name.replace("'", "\\'")
-                                + "' and '" + folderId + "' in parents and trashed=false")
-                        .queryParam("fields", "files(id)")
-                        .build())
-                .header("Authorization", "Bearer " + authToken)
-                .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                });
-        var files = (java.util.List<Map<String, Object>>) listResponse.get("files");
-        if (files != null && !files.isEmpty()) {
-            return Optional.of(new Item(files.getFirst().get("id").toString(), name));
-        }
+        String escapedName = name.replace("\\", "\\\\").replace("'", "\\'");
+        String query = "name='" + escapedName + "' and '" + folderId + "' in parents and trashed=false";
+        String pageToken = null;
+        do {
+            String currentPage = pageToken;
+            Map<String, Object> listResponse = driveClient.get()
+                    .uri(uri -> {
+                        var builder = uri.path("/files")
+                                .queryParam("q", "{query}")
+                                .queryParam("fields", "files(id),nextPageToken,incompleteSearch");
+                        if (currentPage != null) {
+                            return builder.queryParam("pageToken", "{pageToken}").build(query, currentPage);
+                        }
+                        return builder.build(query);
+                    })
+                    .header("Authorization", "Bearer " + authToken)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+            if (listResponse == null || Boolean.TRUE.equals(listResponse.get("incompleteSearch"))) {
+                throw new ClientException("Could not determine whether the recipe exists in Drive");
+            }
+            var files = (List<Map<String, Object>>) listResponse.get("files");
+            if (files != null && !files.isEmpty()) {
+                return Optional.of(new Item(files.getFirst().get("id").toString(), name));
+            }
+            pageToken = (String) listResponse.get("nextPageToken");
+        } while (pageToken != null && !pageToken.isBlank());
         return Optional.empty();
     }
 
@@ -167,58 +189,34 @@ public class GoogleDrive {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public Item createFile(String name, String folderId, String content, String authToken) {
         try {
-            Map<String, Object> metadataMap = Map.of(
-                    "name", name,
-                    "parents", java.util.Collections.singletonList(folderId),
-                    "mimeType", "application/x-yaml"
-            );
-
-            log.debug("Creating new file '{}' in folder {}", name, folderId);
-
-            // Create the file with proper metadata first
-            Map<String, Object> createResponse = driveClient.post()
+            // Send metadata and content together to avoid leaving a metadata-only file on failure.
+            String boundary = UUID.randomUUID().toString();
+            String delimiter = "--" + boundary;
+            String metadata = JSON.writeValueAsString(Map.of(
+                    "name", name, "parents", List.of(folderId), "mimeType", "application/x-yaml"));
+            byte[] body = (delimiter + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
+                    + metadata + "\r\n" + delimiter + "\r\nContent-Type: application/x-yaml; charset=UTF-8\r\n\r\n"
+                    + content + "\r\n" + delimiter + "--\r\n").getBytes(StandardCharsets.UTF_8);
+            Map<String, Object> created = uploadClient.post()
                     .uri(uri -> uri.path("/files")
+                            .queryParam("uploadType", "multipart")
                             .queryParam("fields", "id")
                             .build())
                     .header("Authorization", "Bearer " + authToken)
-                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                    .body(metadataMap)
+                    .contentType(new MediaType("multipart", "related", Map.of("boundary", boundary)))
+                    .body(body)
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
-            // Step 2: Update the content of the created file
-            if (createResponse == null || !createResponse.containsKey("id")) {
-                throw new RuntimeException("Failed to create Drive file");
+            if (created == null || !(created.get("id") instanceof String id) || id.isBlank()) {
+                throw new ClientException("Failed to create Drive file: missing file ID");
             }
-
-            final Item file = new Item(createResponse.get("id").toString(), name);
-            log.debug("Created file {} metadata. Now uploading content...", file);
-
-            // Use the upload API to add the content to the file
-            Map<String, Object> updateResponse = uploadClient.patch()
-                    .uri(uri -> uri.path("/files/" + file.id())
-                            .queryParam("uploadType", "media")
-                            .queryParam("fields", "id")
-                            .build())
-                    .header("Authorization", "Bearer " + authToken)
-                    .contentType(new org.springframework.http.MediaType("application", "x-yaml", java.nio.charset.StandardCharsets.UTF_8))
-                    .body(content)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                    });
-            if (updateResponse == null || !updateResponse.containsKey("id")) {
-                throw new ClientException("Failed to upload content to Drive file");
-            }
-            log.info("File {} created successfully", file);
-            return file;
+            return new Item(id, name);
+        } catch (ClientException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to create file", e);
-            if (e instanceof ClientException) {
-                throw e;
-            }
             throw new ClientException("Failed to create file", e);
         }
     }
@@ -306,11 +304,11 @@ public class GoogleDrive {
             throw new ClientException("Failed to download file from Drive: " + fileId);
         }
 
-        // Convert bytes to UTF-8 string explicitly to handle international characters
-        String content = new String(bytes, StandardCharsets.UTF_8);
-
-        log.debug("Downloaded file: {} ({} bytes)", fileId, content.length());
-        return content;
+        try {
+            return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+        } catch (CharacterCodingException e) {
+            throw new ClientException("Drive file contains invalid UTF-8: " + fileId, e);
+        }
     }
 
     /**

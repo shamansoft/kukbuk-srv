@@ -27,10 +27,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static net.shamansoft.cookbook.service.RecipeWriteTestSupport.writesRecipe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -165,8 +167,11 @@ class RecipeServiceErrorHandlingTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         lenient().when(validationService.toYaml(recipe)).thenReturn("recipe: yaml");
         lenient().when(driveService.generateFileName(TITLE)).thenReturn("recipe.yaml");
-        lenient().when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, "recipe.yaml", "recipe: yaml"))
-                .thenThrow(new ClientException("Drive API error: 403 Forbidden"));
+        lenient().when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq("recipe.yaml"), any()))
+                .thenAnswer(invocation -> {
+                    writesRecipe("recipe: yaml", null).answer(invocation);
+                    throw new ClientException("Drive API error: 403 Forbidden");
+                });
 
         assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(ClientException.class)
@@ -184,6 +189,9 @@ class RecipeServiceErrorHandlingTest {
                 .thenReturn(Transformer.Response.recipe(recipe));
         lenient().when(validationService.toYaml(recipe))
                 .thenThrow(new RecipeSerializeException("Failed to serialize"));
+
+        when(driveService.saveRecipeYaml(any(), any(), any(), any()))
+                .thenAnswer(writesRecipe(new DriveService.UploadResult("id", "url")));
 
         assertThatThrownBy(() -> recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE))
                 .isInstanceOf(RuntimeException.class)
@@ -230,8 +238,8 @@ class RecipeServiceErrorHandlingTest {
                 .thenReturn(Optional.of(RecipeStoreService.CachedRecipes.valid(List.of(cachedRecipe))));
         when(driveService.generateFileName("Cached Recipe")).thenReturn("recipe.yaml");
         when(validationService.toYaml(cachedRecipe)).thenReturn("cached: yaml");
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, "recipe.yaml", "cached: yaml"))
-                .thenReturn(new DriveService.UploadResult("file-id", "https://drive/file"));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq("recipe.yaml"), any()))
+                .thenAnswer(writesRecipe("cached: yaml", new DriveService.UploadResult("file-id", "https://drive/file")));
 
         RecipeResponse response = recipeService.createRecipe(USER_ID, URL, SOURCE_HTML, Compression.NONE, TITLE);
 
@@ -266,8 +274,11 @@ class RecipeServiceErrorHandlingTest {
         // post-processing returns a new Recipe instance (server-side date, source), so match any recipe
         when(validationService.toYaml(any(Recipe.class))).thenReturn("recipe: yaml");
         when(driveService.generateFileName("Description Recipe")).thenReturn("recipe.yaml");
-        when(driveService.uploadRecipeYaml(ACCESS_TOKEN, FOLDER_ID, "recipe.yaml", "recipe: yaml"))
-                .thenThrow(new ClientException("Storage quota exceeded"));
+        when(driveService.saveRecipeYaml(eq(ACCESS_TOKEN), eq(FOLDER_ID), eq("recipe.yaml"), any()))
+                .thenAnswer(invocation -> {
+                    writesRecipe("recipe: yaml", null).answer(invocation);
+                    throw new ClientException("Storage quota exceeded");
+                });
 
         assertThatThrownBy(() -> recipeService.createRecipeFromDescription(USER_ID, "test description", null, null, Compression.NONE))
                 .isInstanceOf(ClientException.class)
@@ -282,8 +293,11 @@ class RecipeServiceErrorHandlingTest {
         Recipe recipe = createTestRecipe("Description Recipe");
         when(geminiRestTransformer.transformDescription("test description"))
                 .thenReturn(Transformer.Response.recipe(recipe));
-        when(validationService.toYaml(recipe))
+        when(validationService.toYaml(any(Recipe.class)))
                 .thenThrow(new RecipeSerializeException("Serialization failed"));
+
+        when(driveService.saveRecipeYaml(any(), any(), any(), any()))
+                .thenAnswer(writesRecipe(new DriveService.UploadResult("id", "url")));
 
         assertThatThrownBy(() -> recipeService.createRecipeFromDescription(USER_ID, "test description", null, null, Compression.NONE))
                 .isInstanceOf(RuntimeException.class);

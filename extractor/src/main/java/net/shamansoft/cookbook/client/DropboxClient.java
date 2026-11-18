@@ -4,11 +4,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,44 +59,86 @@ public class DropboxClient {
         }
     }
 
-    public FileEntry upload(String path, byte[] content, String token) {
-        String arg = writeArg(Map.of("path", path, "mode", "overwrite", "mute", true));
-        Map<String, Object> resp = withRateLimitRetry(() -> restClient.post()
-                .uri(CONTENT + "/2/files/upload")
-                .header("Authorization", "Bearer " + token)
-                .header("Dropbox-API-Arg", arg)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(content)
-                .retrieve()
-                .body(new ParameterizedTypeReference<Map<String, Object>>() {
-                }));
+    public FileEntry create(String path, byte[] content, String token) {
+        return upload(path, "add", content, token);
+    }
+
+    public FileEntry update(String id, String revision, byte[] content, String token) {
+        return upload(id, Map.of(".tag", "update", "update", revision), content, token);
+    }
+
+    private FileEntry upload(String path, Object mode, byte[] content, String token) {
+        String arg = writeArg(Map.of("path", path, "mode", mode, "mute", true,
+                "autorename", false, "strict_conflict", true));
+        Map<String, Object> resp;
+        try {
+            resp = withRateLimitRetry(() -> restClient.post()
+                    .uri(CONTENT + "/2/files/upload")
+                    .header("Authorization", "Bearer " + token)
+                    .header("Dropbox-API-Arg", arg)
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(content)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    }));
+        } catch (RestClientResponseException e) {
+            if (isEndpointError(e, "path/conflict/file") || isEndpointError(e, "path/not_found")) {
+                throw new WriteConflictException(e);
+            }
+            throw e;
+        }
         if (resp == null || resp.get("id") == null) {
             throw new ClientException("Dropbox upload returned no id for path: " + path);
         }
         return toFileEntry(resp);
     }
 
-    public byte[] downloadAsBytes(String path, String token) {
+    private ResponseEntity<byte[]> download(String path, String token) {
         String arg = writeArg(Map.of("path", path));
-        byte[] bytes;
+        ResponseEntity<byte[]> response;
         try {
-            bytes = withRateLimitRetry(() -> restClient.post()
+            response = withRateLimitRetry(() -> restClient.post()
                     .uri(CONTENT + "/2/files/download")
                     .header("Authorization", "Bearer " + token)
                     .header("Dropbox-API-Arg", arg)
                     .retrieve()
-                    .body(byte[].class));
+                    .toEntity(byte[].class));
         } catch (RestClientResponseException e) {
             throw notFoundOrSame(e, path);
         }
-        if (bytes == null) {
+        if (response.getBody() == null) {
             throw new ClientException("Dropbox download returned no content for path: " + path);
         }
-        return bytes;
+        return response;
+    }
+
+    public byte[] downloadAsBytes(String path, String token) {
+        return download(path, token).getBody();
     }
 
     public String downloadAsString(String path, String token) {
         return new String(downloadAsBytes(path, token), StandardCharsets.UTF_8);
+    }
+
+    /** Download content and the revision that identifies those exact bytes in one API response. */
+    public RecipeDownload downloadForWrite(String path, String token) {
+        ResponseEntity<byte[]> response = download(path, token);
+        String result = response.getHeaders().getFirst("Dropbox-API-Result");
+        if (result == null) {
+            throw new ClientException("Dropbox download returned no file metadata");
+        }
+        try {
+            JsonNode metadata = objectMapper.readTree(result);
+            String id = metadata.path("id").asText("");
+            String revision = metadata.path("rev").asText("");
+            if (!id.startsWith("id:") || revision.isBlank()) {
+                throw new ClientException("Dropbox download returned no file id or revision");
+            }
+            String yaml = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(response.getBody())).toString();
+            return new RecipeDownload(id, revision, yaml);
+        } catch (JacksonException | CharacterCodingException e) {
+            throw new ClientException("Dropbox download returned invalid file data", e);
+        }
     }
 
     public FileEntry getMetadata(String path, String token) {
@@ -129,7 +176,7 @@ public class DropboxClient {
     /**
      * Dropbox throttles with 429 + {@code Retry-After} (seconds). Wait and retry a couple of times
      * when the wait is short; a longer back-off is not worth holding the request thread for.
-     * Every call made through here is idempotent (uploads use mode=overwrite).
+     * Retries are limited to explicit rate-limit rejections.
      */
     private <T> T withRateLimitRetry(Supplier<T> call) {
         for (int attempt = 0; ; attempt++) {
@@ -216,16 +263,36 @@ public class DropboxClient {
         return sb.toString();
     }
 
-    /** Dropbox reports endpoint-specific errors as 409 with the reason in the body's {@code error_summary}. */
-    private static boolean isEndpointError(RestClientResponseException e, String reason) {
-        return e.getStatusCode().value() == 409 && e.getResponseBodyAsString().contains(reason);
+    /** Dropbox reports endpoint-specific errors as 409 with the reason in its JSON error summary. */
+    private boolean isEndpointError(RestClientResponseException e, String reason) {
+        if (e.getStatusCode().value() != 409) {
+            return false;
+        }
+        try {
+            String summary = objectMapper.readTree(e.getResponseBodyAsString()).path("error_summary").asText("");
+            return summary.equals(reason) || summary.startsWith(reason + "/");
+        } catch (JacksonException malformed) {
+            return false;
+        }
     }
 
-    /** A missing file is a 409 {@code path/not_found}; callers map "not found" messages to HTTP 404. */
-    private static RuntimeException notFoundOrSame(RestClientResponseException e, String path) {
-        return isEndpointError(e, "not_found")
-                ? new ClientException("Dropbox file not found: " + path, e)
-                : e;
+    private RuntimeException notFoundOrSame(RestClientResponseException e, String path) {
+        return isEndpointError(e, "path/not_found") ? new FileMissingException(path, e) : e;
+    }
+
+    public static class FileMissingException extends ClientException {
+        FileMissingException(String path, Throwable cause) {
+            super("Dropbox file not found: " + path, cause);
+        }
+    }
+
+    public static class WriteConflictException extends ClientException {
+        WriteConflictException(Throwable cause) {
+            super("Dropbox recipe changed before upload", cause);
+        }
+    }
+
+    public record RecipeDownload(String id, String revision, String yaml) {
     }
 
     public record FileEntry(String id, String name, String pathDisplay, String serverModified) {
