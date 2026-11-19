@@ -5,8 +5,11 @@ description: Measure a change to recipe extraction (prompts, llm-recipe-schema.j
 
 # Extractor tuning: before/after on the sample pages
 
-The tuner is `/Users/alexey/dev/sar/tools/extractor-tuner/` (umbrella folder beside this repo, not in git; full
-manual in its `README.md`). From a worktree, `../tools` does not reach it: use the absolute path.
+Find the tuner in the SAR umbrella `tools/extractor-tuner/` directory (not in git;
+full manual in its `README.md`). Set `SAR_TUNER_DIR` to that absolute directory; on
+the usual layout it is `$HOME/dev/sar/tools/extractor-tuner`. From a worktree,
+`../tools` does not reach it. If the tuner or samples are absent, report the missing
+dependency; do not invent evaluation results.
 It sends saved pages to this server's local debug endpoint and scores the answers against hand-written
 expected recipes. Every page is one real Gemini call, so reuse what is already saved.
 
@@ -25,7 +28,7 @@ A shared change (schema, post-processor) affects all three; run at least the HTM
 Read "Current baselines" in the tuner README, then:
 
 ```bash
-cd /Users/alexey/dev/sar/tools/extractor-tuner
+cd "${SAR_TUNER_DIR:-$HOME/dev/sar/tools/extractor-tuner}"
 ./tuner.py baseline results/<baseline folder> --srv <sar-srv checkout the "after" server will run from>
 ```
 

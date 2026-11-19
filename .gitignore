@@ -52,3 +52,11 @@ Thumbs.db
 .omo/
 .opencode/
 .ralphex/
+
+# BEGIN shared agent adapters
+!/.claude/
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/extractor-tuning
+# END shared agent adapters

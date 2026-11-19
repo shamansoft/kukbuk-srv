@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java",
+      "line": 349,
+      "end_line": 355,
+      "severity": "major",
+      "confidence": 95,
+      "title": "Concurrent field patches write stale copies of the entire YAML",
+      "body": "If a tags-only PATCH and a notes-only PATCH read the same file before either writes, each modifies its own snapshot and unconditionally replaces the entire file. Whichever writes second restores the other field's old value, despite both requests succeeding. This violates the explicit last-write-wins-per-field contract and the promise that absent fields remain unchanged. The unconditional read/write mechanism is pre-existing; adding userNotes exposes this conflict between two independently editable fields.",
+      "fix": "Use storage revision preconditions and retry conflicting writes by reading the latest file and reapplying only the fields present in the request.",
+      "lenses": ["adversarial"]
+    },
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java",
+      "line": 193,
+      "severity": "major",
+      "confidence": 95,
+      "title": "Failed preservation reads use the missing-file empty-note fallback",
+      "body": "When re-saving an existing recipe, a transient failure reading its content is converted by findExistingYaml into Optional.empty(). This initializes userNotes to an empty string, and uploadRecipe then overwrites the existing file without user_notes if the subsequent upload succeeds. A saved personal note is therefore erased after a failed read. The fail-open lookup behavior is pre-existing for tags; this change extends it to notes, contradicting the re-save preservation contract.",
+      "fix": "Distinguish confirmed absence from read failure and abort the overwrite when existing user data cannot be read. Ensure provider implementations also propagate failures other than confirmed file-not-found responses.",
+      "lenses": ["adversarial"]
+    }
+  ]
+}

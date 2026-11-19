@@ -1,0 +1,55 @@
+{
+  "findings": [
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java",
+      "line": 165,
+      "end_line": 166,
+      "severity": "major",
+      "confidence": 95,
+      "title": "Carry-over lookup exceptions abort recipe saves",
+      "body": "If the new lookup fails, uploadRecipe exits before attempting upload. GoogleDriveService.findFileContent propagates download and lookup errors; Dropbox findRecipeYaml catches ClientException, but HTTP 429/5xx and transport failures propagate as other exception types. A transient failure while reading existing tags therefore blocks an otherwise successful save, contrary to the explicit goal that failed lookups never block saving. This dependency is introduced by this change.",
+      "fix": "Catch lookup failures around findRecipeYaml, log them, and continue with the specified empty carry-over fallback.",
+      "lenses": [
+        "adversarial"
+      ]
+    },
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java",
+      "line": 333,
+      "severity": "major",
+      "confidence": 85,
+      "title": "Whole-file writes have no guard against concurrent re-saves",
+      "body": "Concurrent POST and PATCH requests can overwrite changes outside their intended fields. For example, PATCH reads the old recipe, POST uploads newly extracted ingredients, then PATCH uploads its old snapshot with updated tags: the new ingredients disappear. In the reverse ordering, POST can read old tags, PATCH successfully replace them, and POST subsequently restore the old tags. Both providers write unconditionally, so the new flow does not implement the contract's field-level last-write-wins behavior.",
+      "fix": "Use provider revision checks and retry against current content, preserving unrelated fields on PATCH and current user tags on re-save.",
+      "lenses": [
+        "adversarial"
+      ]
+    },
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/DropboxStorageProvider.java",
+      "line": 133,
+      "end_line": 134,
+      "severity": "minor",
+      "confidence": 85,
+      "title": "Dropbox commits to a resolved path without checking file identity",
+      "body": "This requires the user or Dropbox sync to move the file between getMetadata and upload. The upload then targets the old path with mode=overwrite, creating another file if that path is vacant or overwriting its replacement. The requested file ID remains unchanged at its new location, while updateRecipe subsequently fetches that original ID's metadata and can return 200 claiming its tags were updated. This race is introduced by the new ID-to-path write.",
+      "fix": "Commit using a provider-supported identity/revision condition so a move or replacement cannot redirect the write.",
+      "lenses": [
+        "adversarial"
+      ]
+    },
+    {
+      "file": "extractor/src/main/java/net/shamansoft/cookbook/service/RecipeService.java",
+      "line": 331,
+      "end_line": 336,
+      "severity": "minor",
+      "confidence": 85,
+      "title": "Partial recipe mappings are written before response mapping fails",
+      "body": "For a manually edited stored file containing only `metadata: {title: Pancakes}`, recipeParser.parse succeeds because it deserializes without Bean Validation and can access the title. PATCH then writes user_tags before RecipeMapper.extractAllImageUrls iterates the null instructions list and throws. The request returns 500 after modifying an invalid file, instead of the promised 422 with the file unchanged. The mapper weakness predates this change; writing before reaching it is introduced here.",
+      "fix": "Check the stored recipe's required structure and ensure DTO mapping succeeds before writing; translate invalid stored content to InvalidRecipeFormatException.",
+      "lenses": [
+        "adversarial"
+      ]
+    }
+  ]
+}
