@@ -40,7 +40,8 @@ env:
   GCR_REGISTRY: gcr.io/kukbuk-tf
   SERVICE_NAME: cookbook
   REGION: us-west1
-  JAVA_VERSION: '25'
+  # Adoptium API semver for Temurin 25.0.5.1+2.
+  JAVA_VERSION: '25.0.5+100000002.0.LTS'
 
 jobs:
   # Phase 0 & 1: Version Preparation and Code Validation

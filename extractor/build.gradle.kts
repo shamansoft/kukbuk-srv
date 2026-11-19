@@ -95,6 +95,15 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveFileName.set("cookbook.jar")
 }
 
+tasks.named<JavaExec>("bootRun") {
+    doFirst {
+        val runtime = javaLauncher.get().metadata.javaRuntimeVersion
+        check(Runtime.Version.parse(runtime) >= Runtime.Version.parse("25.0.5.1")) {
+            "bootRun requires a patched Java 25 toolchain (25.0.5.1 or later). Selected: $runtime"
+        }
+    }
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport) // Generate report after tests run
@@ -164,6 +173,8 @@ graalvmNative {
         named("main") {
             imageName.set("cookbook")
             resources.autodetect()
+            // Pass the workaround to the hosted JVM that compiles the native executable.
+            buildArgs.add("-J-XX:-UseBASE64Intrinsics")
             buildArgs.add("--initialize-at-build-time=org.slf4j")
         }
     }

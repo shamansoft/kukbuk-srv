@@ -53,6 +53,12 @@ client). Infrastructure lives in **sar-infra** (OpenTofu/Terraform).
 ./gradlew :cookbook:checkCoverage
 ```
 
+Use a patched Java 25 runtime (25.0.5.1 or later) for local development and direct JAR
+launches. Gradle `bootRun` checks the selected toolchain. CI uses Temurin 25.0.5.1+2.
+The JVM Docker image uses Temurin 25 JRE with Base64 intrinsics disabled as a temporary
+workaround for [CVE-2026-114938](https://calif.io/java4shell/). Rebuild the image and
+restart existing containers to apply the workaround.
+
 Required env for local development:
 
 ```bash

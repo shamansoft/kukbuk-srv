@@ -12,7 +12,8 @@ on:
       - 'tickets/**'
 
 env:
-  JAVA_VERSION: '25'
+  # Adoptium API semver for Temurin 25.0.5.1+2.
+  JAVA_VERSION: '25.0.5+100000002.0.LTS'
 
 # Allow only one validation per PR at a time
 concurrency:

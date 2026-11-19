@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class CiCdConfigurationTest {
 
-    private static final String REQUIRED_JAVA_VERSION = "25";
+    private static final String REQUIRED_JAVA_VERSION = "25.0.5+100000002.0.LTS";
     private static final String REQUIRED_GRAALVM_VERSION = "25";
 
     /**
