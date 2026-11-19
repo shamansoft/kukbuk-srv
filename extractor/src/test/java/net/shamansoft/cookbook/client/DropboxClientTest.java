@@ -3,7 +3,11 @@ package net.shamansoft.cookbook.client;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.ObjectMapper;
@@ -21,6 +25,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 class DropboxClientTest {
@@ -74,12 +83,55 @@ class DropboxClientTest {
     void download_missingFile_reportedAsNotFound() {
         RestClient restClient = mock(RestClient.class);
         RestClient.ResponseSpec responseSpec = stubPost(restClient);
-        when(responseSpec.body(byte[].class)).thenThrow(endpointError("path/not_found/.."));
+        when(responseSpec.toEntity(byte[].class)).thenThrow(endpointError("path/not_found/.."));
 
         DropboxClient client = new DropboxClient(restClient, objectMapper);
         assertThatThrownBy(() -> client.downloadAsBytes("id:gone", "token"))
-                .isInstanceOf(ClientException.class)
+                .isInstanceOf(DropboxClient.FileMissingException.class)
                 .hasMessageContaining("not found");
+    }
+
+    @Test
+    void downloadForWrite_pairsContentWithRevisionFromTheDownload() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://content.dropboxapi.com/2/files/download"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("title: Хачапури".getBytes(StandardCharsets.UTF_8), MediaType.APPLICATION_OCTET_STREAM)
+                        .header("Dropbox-API-Result", """
+                                {"id":"id:abc","rev":"123456789"}
+                                """.strip()));
+
+        DropboxClient client = new DropboxClient(builder.build(), objectMapper);
+        assertThat(client.downloadForWrite("id:abc", "token"))
+                .isEqualTo(new DropboxClient.RecipeDownload("id:abc", "123456789", "title: Хачапури"));
+        server.verify();
+    }
+
+    @Test
+    void downloadForWrite_rejectsContentWithoutRevision() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        when(responseSpec.toEntity(byte[].class))
+                .thenReturn(ResponseEntity.ok()
+                        .header("Dropbox-API-Result", "{\"id\":\"id:abc\"}")
+                        .body("title: Recipe".getBytes(StandardCharsets.UTF_8)));
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.downloadForWrite("id:abc", "token"))
+                .isInstanceOf(ClientException.class)
+                .hasMessageContaining("revision");
+    }
+
+    @Test
+    void downloadForWrite_doesNotTreatOtherConflictsAsMissing() {
+        RestClient restClient = mock(RestClient.class);
+        RestClient.ResponseSpec responseSpec = stubPost(restClient);
+        RestClientResponseException error = endpointError("path/not_file/..");
+        when(responseSpec.toEntity(byte[].class)).thenThrow(error);
+
+        DropboxClient client = new DropboxClient(restClient, objectMapper);
+        assertThatThrownBy(() -> client.downloadForWrite("/a.yaml", "token")).isSameAs(error);
     }
 
     @Test
@@ -180,26 +232,63 @@ class DropboxClientTest {
     }
 
     @Test
-    void upload_returnsFileEntryWithId() {
-        RestClient restClient = mock(RestClient.class);
-        RestClient.ResponseSpec responseSpec = stubPost(restClient);
-        when(responseSpec.body(any(ParameterizedTypeReference.class)))
-                .thenReturn(Map.of("id", "id:abc123", "name", "pasta.yaml", "path_display", "/pasta.yaml"));
+    void create_exclusivelyAddsFileAndReturnsItsId() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://content.dropboxapi.com/2/files/upload"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(request -> {
+                    var arg = objectMapper.readTree(request.getHeaders().getFirst("Dropbox-API-Arg"));
+                    assertThat(arg.path("path").asText()).isEqualTo("/pasta.yaml");
+                    assertThat(arg.path("mode").asText()).isEqualTo("add");
+                    assertThat(arg.path("autorename").asBoolean(true)).isFalse();
+                    assertThat(arg.path("strict_conflict").asBoolean()).isTrue();
+                })
+                .andExpect(content().bytes("content".getBytes(StandardCharsets.UTF_8)))
+                .andRespond(withSuccess("""
+                        {"id":"id:abc123","name":"pasta.yaml","path_display":"/pasta.yaml"}
+                        """, MediaType.APPLICATION_JSON));
 
-        DropboxClient client = new DropboxClient(restClient, objectMapper);
-        DropboxClient.FileEntry entry = client.upload("/pasta.yaml", "content".getBytes(), "token");
+        DropboxClient client = new DropboxClient(builder.build(), objectMapper);
+        DropboxClient.FileEntry entry = client.create("/pasta.yaml", "content".getBytes(StandardCharsets.UTF_8), "token");
 
         assertThat(entry.id()).isEqualTo("id:abc123");
         assertThat(entry.name()).isEqualTo("pasta.yaml");
         assertThat(entry.pathDisplay()).isEqualTo("/pasta.yaml");
+        server.verify();
+    }
+
+    @Test
+    void update_usesStrictRevisionConditionAndReportsConflict() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://content.dropboxapi.com/2/files/upload"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(request -> {
+                    var arg = objectMapper.readTree(request.getHeaders().getFirst("Dropbox-API-Arg"));
+                    assertThat(arg.path("path").asText()).isEqualTo("id:abc");
+                    assertThat(arg.path("mode").path(".tag").asText()).isEqualTo("update");
+                    assertThat(arg.path("mode").path("update").asText()).isEqualTo("123456789");
+                    assertThat(arg.path("autorename").asBoolean(true)).isFalse();
+                    assertThat(arg.path("strict_conflict").asBoolean()).isTrue();
+                })
+                .andExpect(content().bytes("content".getBytes(StandardCharsets.UTF_8)))
+                .andRespond(withStatus(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error_summary\":\"path/conflict/file/..\"}"));
+
+        DropboxClient client = new DropboxClient(builder.build(), objectMapper);
+        assertThatThrownBy(() -> client.update("id:abc", "123456789",
+                "content".getBytes(StandardCharsets.UTF_8), "token"))
+                .isInstanceOf(DropboxClient.WriteConflictException.class);
+        server.verify();
     }
 
     @Test
     void downloadAsString_returnsUtf8() {
         RestClient restClient = mock(RestClient.class);
         RestClient.ResponseSpec responseSpec = stubPost(restClient);
-        when(responseSpec.body(byte[].class))
-                .thenReturn("title: Хачапури".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(responseSpec.toEntity(byte[].class))
+                .thenReturn(ResponseEntity.ok("title: Хачапури".getBytes(StandardCharsets.UTF_8)));
 
         DropboxClient client = new DropboxClient(restClient, objectMapper);
         assertThat(client.downloadAsString("id:abc", "token")).isEqualTo("title: Хачапури");

@@ -1,5 +1,6 @@
 package net.shamansoft.cookbook.controller;
 
+import net.shamansoft.cookbook.exception.RecipeWriteUnavailableException;
 import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.config.TestFirebaseConfig;
@@ -51,6 +52,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import java.util.function.UnaryOperator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -186,7 +189,7 @@ class RecipeControllerSBTest {
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
-        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+        when(googleDriveService.saveRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -209,7 +212,7 @@ class RecipeControllerSBTest {
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
-        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+        when(googleDriveService.saveRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         HttpEntity<Request> requestEntity = new HttpEntity<>(request, createHeadersWithOAuthToken());
@@ -231,7 +234,7 @@ class RecipeControllerSBTest {
         when(transformer.transformMarkdown("# md", "http://example.com"))
                 .thenReturn(Transformer.Response.recipe(createTestRecipe()));
         when(googleDriveService.generateFileName(anyString())).thenReturn("Title.yaml");
-        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+        when(googleDriveService.saveRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         ResponseEntity<RecipeResponse> response = restTemplate.postForEntity(
@@ -345,7 +348,7 @@ class RecipeControllerSBTest {
         when(transformer.transform(eq("raw html"), anyString()))
                 .thenReturn(Transformer.Response.recipe(testRecipe));
         when(googleDriveService.generateFileName("Title")).thenReturn("Title.yaml");
-        when(googleDriveService.uploadRecipeYaml(any(), any(), any(), any()))
+        when(googleDriveService.saveRecipeYaml(any(), any(), any(), any()))
                 .thenReturn(new DriveService.UploadResult("file-id", "http://example.com/file-id"));
 
         // When
@@ -507,7 +510,8 @@ class RecipeControllerSBTest {
 
     @Test
     void patchRecipe_setsNormalizedUserTagsAndReturnsRecipe() {
-        when(googleDriveService.getFileContent(anyString(), eq("file-1"))).thenReturn(STORED_YAML);
+        when(googleDriveService.editRecipeYaml(anyString(), eq("file-1"), any()))
+                .thenAnswer(invocation -> invocation.<UnaryOperator<String>>getArgument(2).apply(STORED_YAML));
         when(googleDriveService.getFileMetadata(anyString(), eq("file-1"))).thenReturn(
                 new GoogleDrive.DriveFileMetadata("file-1", "pancakes.yaml", "application/x-yaml", "2026-11-15T10:00:00Z"));
 
@@ -519,8 +523,7 @@ class RecipeControllerSBTest {
                 .containsEntry("title", "Pancakes")
                 .containsEntry("tags", List.of("Breakfast"))
                 .containsEntry("userTags", List.of("weeknight", "kids"));
-        verify(googleDriveService).updateFileContent(anyString(), eq("file-1"),
-                org.mockito.ArgumentMatchers.contains("user_tags"));
+        verify(googleDriveService).editRecipeYaml(anyString(), eq("file-1"), any());
     }
 
     @Test
@@ -530,7 +533,7 @@ class RecipeControllerSBTest {
 
             assertThat(response.getStatusCode()).as(body).isEqualTo(HttpStatus.BAD_REQUEST);
         }
-        verify(googleDriveService, never()).updateFileContent(anyString(), anyString(), anyString());
+        verify(googleDriveService, never()).editRecipeYaml(anyString(), anyString(), any());
     }
 
     @Test
@@ -539,12 +542,13 @@ class RecipeControllerSBTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().get("error")).isEqualTo("Validation Error");
-        verify(googleDriveService, never()).getFileContent(anyString(), anyString());
+        verify(googleDriveService, never()).editRecipeYaml(anyString(), anyString(), any());
     }
 
     @Test
     void patchRecipe_setsUserNotesOnly() {
-        when(googleDriveService.getFileContent(anyString(), eq("file-1"))).thenReturn(STORED_YAML);
+        when(googleDriveService.editRecipeYaml(anyString(), eq("file-1"), any()))
+                .thenAnswer(invocation -> invocation.<UnaryOperator<String>>getArgument(2).apply(STORED_YAML));
         when(googleDriveService.getFileMetadata(anyString(), eq("file-1"))).thenReturn(
                 new GoogleDrive.DriveFileMetadata("file-1", "pancakes.yaml", "application/x-yaml", "2026-11-15T10:00:00Z"));
 
@@ -555,8 +559,7 @@ class RecipeControllerSBTest {
                 .containsEntry("title", "Pancakes")
                 .containsEntry("userNotes", "Less sugar.\n\nBake longer.")
                 .containsEntry("userTags", List.of());
-        verify(googleDriveService).updateFileContent(anyString(), eq("file-1"),
-                org.mockito.ArgumentMatchers.contains("user_notes"));
+        verify(googleDriveService).editRecipeYaml(anyString(), eq("file-1"), any());
     }
 
     @Test
@@ -564,12 +567,23 @@ class RecipeControllerSBTest {
         ResponseEntity<Map> response = patch("file-1", "{\"userNotes\": \"" + "x".repeat(5001) + "\"}");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        verify(googleDriveService, never()).getFileContent(anyString(), anyString());
+        verify(googleDriveService, never()).editRecipeYaml(anyString(), anyString(), any());
+    }
+
+    @Test
+    void patchRecipe_returns503_whenWriteIsContended() {
+        when(googleDriveService.editRecipeYaml(anyString(), eq("file-1"), any()))
+                .thenThrow(new RecipeWriteUnavailableException("Another write is pending"));
+
+        ResponseEntity<Map> response = patch("file-1", "{\"userTags\": [\"a\"]}");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("1");
     }
 
     @Test
     void patchRecipe_returns404_whenFileMissing() {
-        when(googleDriveService.getFileContent(anyString(), eq("missing")))
+        when(googleDriveService.editRecipeYaml(anyString(), eq("missing"), any()))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", null, null, null));
 
         ResponseEntity<Map> response = patch("missing", "{\"userTags\": [\"a\"]}");

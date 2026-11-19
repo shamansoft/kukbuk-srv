@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * {@link StorageProvider} backed by Google Drive. Delegates all file operations to the
@@ -40,8 +42,9 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     }
 
     @Override
-    public DriveService.UploadResult uploadRecipeYaml(String accessToken, String folderId, String fileName, String content) {
-        return googleDriveService.uploadRecipeYaml(accessToken, folderId, fileName, content);
+    public DriveService.UploadResult saveRecipeYaml(String accessToken, String folderId, String fileName,
+                                                    Function<Optional<String>, String> edit) {
+        return googleDriveService.saveRecipeYaml(accessToken, folderId, fileName, edit);
     }
 
     @Override
@@ -70,12 +73,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     }
 
     @Override
-    public Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName) {
-        return googleDriveService.findFileContent(accessToken, folderId, fileName);
-    }
-
-    @Override
-    public void updateFileContent(String accessToken, String fileId, String content) {
-        googleDriveService.updateFileContent(accessToken, fileId, content);
+    public String editRecipeYaml(String accessToken, String fileId, UnaryOperator<String> edit) {
+        return googleDriveService.editRecipeYaml(accessToken, fileId, edit);
     }
 }

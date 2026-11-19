@@ -5,6 +5,7 @@ import net.shamansoft.cookbook.client.ClientException;
 import net.shamansoft.cookbook.client.DropboxClient;
 import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageType;
+import net.shamansoft.cookbook.exception.RecipeWriteUnavailableException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriUtils;
@@ -12,6 +13,9 @@ import org.springframework.web.util.UriUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 /**
  * {@link StorageProvider} backed by Dropbox (App-folder access). Paths are relative to the
@@ -21,6 +25,7 @@ import java.util.Optional;
 @Service
 public class DropboxStorageProvider implements StorageProvider {
 
+    private static final int WRITE_ATTEMPTS = 3;
     private static final String DROPBOX_HOME = "https://www.dropbox.com/home";
 
     private final DropboxClient dropboxClient;
@@ -61,10 +66,20 @@ public class DropboxStorageProvider implements StorageProvider {
     }
 
     @Override
-    public DriveService.UploadResult uploadRecipeYaml(String accessToken, String folderId, String fileName, String content) {
+    public DriveService.UploadResult saveRecipeYaml(String accessToken, String folderId, String fileName,
+                                                    Function<Optional<String>, String> edit) {
         String path = joinPath(folderId, fileName);
-        DropboxClient.FileEntry entry =
-                dropboxClient.upload(path, content.getBytes(StandardCharsets.UTF_8), accessToken);
+        DropboxClient.FileEntry entry = retryWrite(() -> {
+            DropboxClient.RecipeDownload current;
+            try {
+                current = dropboxClient.downloadForWrite(path, accessToken);
+            } catch (DropboxClient.FileMissingException missing) {
+                String yaml = edit.apply(Optional.empty());
+                return dropboxClient.create(path, yaml.getBytes(StandardCharsets.UTF_8), accessToken);
+            }
+            String yaml = edit.apply(Optional.of(current.yaml()));
+            return dropboxClient.update(current.id(), current.revision(), yaml.getBytes(StandardCharsets.UTF_8), accessToken);
+        });
         return new DriveService.UploadResult(entry.id(), webUrl(entry.pathDisplay() != null ? entry.pathDisplay() : path));
     }
 
@@ -116,22 +131,25 @@ public class DropboxStorageProvider implements StorageProvider {
     }
 
     @Override
-    public Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName) {
-        try {
-            return Optional.of(dropboxClient.downloadAsString(joinPath(folderId, fileName), accessToken));
-        } catch (ClientException notFound) {
-            return Optional.empty();
-        }
+    public String editRecipeYaml(String accessToken, String fileId, UnaryOperator<String> edit) {
+        return retryWrite(() -> {
+            DropboxClient.RecipeDownload current = dropboxClient.downloadForWrite(fileRef(fileId), accessToken);
+            String yaml = edit.apply(current.yaml());
+            dropboxClient.update(current.id(), current.revision(), yaml.getBytes(StandardCharsets.UTF_8), accessToken);
+            return yaml;
+        });
     }
 
-    /**
-     * Dropbox uploads take a path, not an id: resolve the id to the file's current path and overwrite it
-     * there. Overwriting keeps the file's Dropbox id.
-     */
-    @Override
-    public void updateFileContent(String accessToken, String fileId, String content) {
-        DropboxClient.FileEntry entry = dropboxClient.getMetadata(fileRef(fileId), accessToken);
-        dropboxClient.upload(entry.pathDisplay(), content.getBytes(StandardCharsets.UTF_8), accessToken);
+    private static <T> T retryWrite(Supplier<T> write) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return write.get();
+            } catch (DropboxClient.WriteConflictException conflict) {
+                if (attempt == WRITE_ATTEMPTS) {
+                    throw new RecipeWriteUnavailableException("Dropbox recipe changed during each upload attempt", conflict);
+                }
+            }
+        }
     }
 
     /**

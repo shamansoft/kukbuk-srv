@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Instant;
 
+import static net.shamansoft.cookbook.service.RecipeWriteTestSupport.writesRecipe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -60,7 +61,7 @@ class RecipeServiceTest {
 
         when(driveService.generateFileName(anyString())).thenReturn("file.yaml");
         DriveService.UploadResult uploadResult = new DriveService.UploadResult("id1", "https://drive/file");
-        when(driveService.uploadRecipeYaml(anyString(), anyString(), anyString(), anyString())).thenReturn(uploadResult);
+        when(driveService.saveRecipeYaml(anyString(), anyString(), anyString(), any())).thenAnswer(writesRecipe(uploadResult));
 
         // Build service (AdaptiveCleaningTransformerService now owns cleaning; no HtmlCleaner in RecipeService)
         Compressor compressor = mock(Compressor.class);

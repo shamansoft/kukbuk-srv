@@ -9,6 +9,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,19 +56,20 @@ class GoogleDriveStorageProviderTest {
     }
 
     @Test
-    void uploadRecipeYaml_delegates() {
+    void saveRecipeYaml_delegates() {
         DriveService.UploadResult expected = new DriveService.UploadResult("id1", "url1");
-        when(googleDriveService.uploadRecipeYaml("token", "folder", "a.yaml", "yaml")).thenReturn(expected);
+        Function<Optional<String>, String> edit = current -> "yaml";
+        when(googleDriveService.saveRecipeYaml("token", "folder", "a.yaml", edit)).thenReturn(expected);
 
-        assertThat(provider.uploadRecipeYaml("token", "folder", "a.yaml", "yaml")).isSameAs(expected);
+        assertThat(provider.saveRecipeYaml("token", "folder", "a.yaml", edit)).isSameAs(expected);
     }
 
     @Test
-    void findRecipeYaml_andUpdateFileContent_delegate() {
-        when(googleDriveService.findFileContent("token", "folder", "a.yaml")).thenReturn(java.util.Optional.of("yaml"));
+    void editRecipeYaml_delegates() {
+        UnaryOperator<String> edit = current -> "new";
+        when(googleDriveService.editRecipeYaml("token", "file-1", edit)).thenReturn("new");
 
-        assertThat(provider.findRecipeYaml("token", "folder", "a.yaml")).contains("yaml");
-        provider.updateFileContent("token", "file-1", "new");
-        verify(googleDriveService).updateFileContent("token", "file-1", "new");
+        assertThat(provider.editRecipeYaml("token", "file-1", edit)).isEqualTo("new");
+        verify(googleDriveService).editRecipeYaml("token", "file-1", edit);
     }
 }

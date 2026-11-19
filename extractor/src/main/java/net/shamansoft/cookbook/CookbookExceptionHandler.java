@@ -15,6 +15,7 @@ import net.shamansoft.cookbook.exception.GoogleDriveException;
 import net.shamansoft.cookbook.exception.InvalidRecipeFormatException;
 import net.shamansoft.cookbook.exception.InvalidRecipeUpdateException;
 import net.shamansoft.cookbook.exception.RecipeNotFoundException;
+import net.shamansoft.cookbook.exception.RecipeWriteUnavailableException;
 import net.shamansoft.cookbook.exception.StorageNotConnectedException;
 import net.shamansoft.cookbook.exception.UrlFetchException;
 import net.shamansoft.cookbook.exception.UserNotFoundException;
@@ -239,6 +240,16 @@ public class CookbookExceptionHandler {
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(RecipeWriteUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleRecipeWriteUnavailable(
+            RecipeWriteUnavailableException e, HttpServletRequest request) {
+        log.warn("Recipe write unavailable: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(new ErrorResponse(503, "Service Unavailable",
+                        "Recipe storage is temporarily unavailable. Please try again later.", request.getRequestURI()));
     }
 
     /**

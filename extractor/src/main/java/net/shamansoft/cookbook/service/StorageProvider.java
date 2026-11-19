@@ -4,6 +4,8 @@ import net.shamansoft.cookbook.client.GoogleDrive;
 import net.shamansoft.cookbook.dto.StorageType;
 
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Provider-agnostic storage operation surface used by RecipeService / RecipeMediaProxyService.
@@ -24,7 +26,9 @@ public interface StorageProvider {
      */
     FolderRef getOrCreateFolder(String accessToken, String folderName);
 
-    DriveService.UploadResult uploadRecipeYaml(String accessToken, String folderId, String fileName, String content);
+    /** Write a named file from its current content, or create it if absent. */
+    DriveService.UploadResult saveRecipeYaml(String accessToken, String folderId, String fileName,
+                                             Function<Optional<String>, String> edit);
 
     GoogleDrive.DriveFileListResult listRecipeFiles(String accessToken, String folderId, int pageSize, String pageToken);
 
@@ -36,15 +40,8 @@ public interface StorageProvider {
 
     GoogleDrive.DriveFileMetadata getFileMetadata(String accessToken, String fileId);
 
-    /**
-     * Content of the recipe file with this name in the folder, if one exists (used to keep user data on re-save).
-     */
-    Optional<String> findRecipeYaml(String accessToken, String folderId, String fileName);
-
-    /**
-     * Replace the content of an existing file addressed by id, keeping its id and name.
-     */
-    void updateFileContent(String accessToken, String fileId, String content);
+    /** Apply an edit to the latest file content and return the committed YAML. */
+    String editRecipeYaml(String accessToken, String fileId, UnaryOperator<String> edit);
 
     record FolderRef(String id, String name) {
     }
