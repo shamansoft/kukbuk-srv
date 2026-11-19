@@ -53,6 +53,12 @@ client). Infrastructure lives in **sar-infra** (OpenTofu/Terraform).
 ./gradlew :cookbook:checkCoverage
 ```
 
+For a direct JAR launch on an unpatched Java 25 runtime, use
+`java -XX:-UseBASE64Intrinsics -jar extractor/build/libs/cookbook.jar`.
+The JVM Docker image and Gradle `bootRun` set this option automatically. Rebuild existing
+JVM images and restart running JVM services to pick up the workaround for
+[CVE-2026-114938](https://calif.io/java4shell/).
+
 Required env for local development:
 
 ```bash

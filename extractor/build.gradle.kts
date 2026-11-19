@@ -95,6 +95,10 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveFileName.set("cookbook.jar")
 }
 
+tasks.named<JavaExec>("bootRun") {
+    jvmArgs("-XX:-UseBASE64Intrinsics")
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
     finalizedBy(tasks.jacocoTestReport) // Generate report after tests run
@@ -164,6 +168,8 @@ graalvmNative {
         named("main") {
             imageName.set("cookbook")
             resources.autodetect()
+            // Pass the workaround to the hosted JVM that compiles the native executable.
+            buildArgs.add("-J-XX:-UseBASE64Intrinsics")
             buildArgs.add("--initialize-at-build-time=org.slf4j")
         }
     }
