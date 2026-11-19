@@ -1,7 +1,8 @@
-FROM eclipse-temurin:25-jre
+# Amazon Corretto 25.0.5.1.2, multi-platform image.
+FROM amazoncorretto:25-al2023@sha256:288b5647146a21027688b52cc23d802ee6badb6f28632111b606b79262d9fc5f
 
 # Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN dnf install -y shadow-utils && dnf clean all && groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
 COPY extractor/build/libs/cookbook.jar app.jar
@@ -20,7 +21,6 @@ EXPOSE 5005
 # -XX:+UseContainerSupport: Respect container memory limits
 # -XX:MaxRAMPercentage=75.0: Use up to 75% of container memory
 ENTRYPOINT ["java", \
-    "-XX:-UseBASE64Intrinsics", \
     "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005", \
     "--enable-native-access=ALL-UNNAMED", \
     "-XX:+UseContainerSupport", \

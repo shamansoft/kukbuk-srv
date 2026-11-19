@@ -96,7 +96,12 @@ tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
 }
 
 tasks.named<JavaExec>("bootRun") {
-    jvmArgs("-XX:-UseBASE64Intrinsics")
+    doFirst {
+        val runtime = javaLauncher.get().metadata.javaRuntimeVersion
+        check(Runtime.Version.parse(runtime) >= Runtime.Version.parse("25.0.5.1")) {
+            "bootRun requires a patched Java 25 toolchain (25.0.5.1 or later). Selected: $runtime"
+        }
+    }
 }
 
 tasks.named<Test>("test") {
