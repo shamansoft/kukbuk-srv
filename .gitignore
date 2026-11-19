@@ -60,3 +60,6 @@ Thumbs.db
 /.claude/skills/*
 !/.claude/skills/extractor-tuning
 # END shared agent adapters
+
+# Local revmux task state
+.revmux/
